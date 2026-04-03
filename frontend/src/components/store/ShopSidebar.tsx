@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState, Suspense } from "react"
 import { useLocaleContext, useTranslations } from "@/components/i18n/LocaleProvider"
+import { medusaStoreLocale } from "@/lib/i18n/config"
 import { sdk } from "@/lib/medusa"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -185,6 +186,7 @@ function ShopSidebarInner({
             offset: 0,
             fields: "id,name,handle,parent_category_id,rank,*category_children",
           },
+          headers: { "x-medusa-locale": medusaStoreLocale(locale) },
           cache: "no-store",
         })
         if (!cancelled) setCategories(product_categories ?? [])
@@ -201,7 +203,7 @@ function ShopSidebarInner({
     return () => {
       cancelled = true
     }
-  }, [t])
+  }, [t, locale])
 
   const flatWithDepth = useMemo(() => {
     const flat = normalizeCategoriesFromApi(categories)

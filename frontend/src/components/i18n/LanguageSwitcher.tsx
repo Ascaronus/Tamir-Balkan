@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { locales, type Locale } from "@/lib/i18n/config"
+import { locales, medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
+import { sdk } from "@/lib/medusa"
 
 export function LanguageSwitcher() {
   const router = useRouter()
@@ -19,7 +20,10 @@ export function LanguageSwitcher() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ locale: next }),
       })
-      if (res.ok) router.refresh()
+      if (res.ok) {
+        sdk.client.setLocale(medusaStoreLocale(next))
+        router.refresh()
+      }
     } finally {
       setBusy(false)
     }

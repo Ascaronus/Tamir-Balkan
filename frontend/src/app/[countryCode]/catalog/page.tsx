@@ -14,7 +14,7 @@ export default async function CatalogPage({
   params: Promise<{ countryCode: string }>
   searchParams: Promise<{ category_id?: string }>
 }) {
-  const { t } = await getTranslations()
+  const { t, locale } = await getTranslations()
   const { countryCode } = await params
   const { category_id: categoryIdParam } = await searchParams
   const cc = countryCode.toLowerCase()
@@ -41,7 +41,7 @@ export default async function CatalogPage({
   const categoryId = categoryIdParam?.trim() || undefined
 
   const activeCategory = categoryId
-    ? await getStoreProductCategoryById(categoryId)
+    ? await getStoreProductCategoryById(categoryId, locale)
     : null
 
   const { products } = await listProductsByCountry({
