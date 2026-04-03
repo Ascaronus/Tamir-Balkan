@@ -1,6 +1,12 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  // Ограничиваем корень трейсинга/поиска в монорепозитории.
+  // (А dev мы запускаем с `next dev --webpack`.)
+  turbopack: {
+    root: ".",
+  },
+  outputFileTracingRoot: ".",
   images: {
     remotePatterns: [
       {
@@ -10,6 +16,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig

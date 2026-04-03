@@ -1,0 +1,19 @@
+{
+  "name": "tamir-balkan",
+  "private": true,
+  "scripts": {
+    "deps": "npm --prefix backend ci && npm --prefix frontend ci",
+    "kill:devports": "kill-port 3000 9000",
+    "infra:up": "docker compose up -d --remove-orphans",
+    "infra:down": "docker compose down",
+    "dev": "npm run infra:up && npx concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "dev:nodocker": "npx concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "start": "npm run infra:up && npx concurrently -k -n \"backend,frontend\" -c \"magenta,cyan\" \"npm --prefix backend run start\" \"npm --prefix frontend run start\"",
+    "stop": "npm run infra:down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "kill-port": "^2.0.1"
+  }
+}
