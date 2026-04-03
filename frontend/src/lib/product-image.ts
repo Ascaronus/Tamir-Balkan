@@ -5,14 +5,22 @@ function colorKeywordFromVariant(
 ): string | null {
   for (const o of variant.options ?? []) {
     const title = o.option?.title?.toLowerCase() ?? ""
-    if (title !== "color" && title !== "colour") continue
+    if (
+      title !== "color" &&
+      title !== "colour" &&
+      title !== "цвет" &&
+      title !== "цветовая группа"
+    )
+      continue
     const v = o.value?.toLowerCase() ?? ""
-    if (v.includes("white")) return "white"
-    if (v.includes("black")) return "black"
+    if (v.includes("white") || v.includes("бел")) return "white"
+    if (v.includes("black") || v.includes("черн") || v.includes("чёрн"))
+      return "black"
   }
   const t = (variant.title ?? "").toLowerCase()
-  if (t.includes("white")) return "white"
-  if (t.includes("black")) return "black"
+  if (t.includes("white") || t.includes("бел")) return "white"
+  if (t.includes("black") || t.includes("черн") || t.includes("чёрн"))
+    return "black"
   return null
 }
 
@@ -27,16 +35,18 @@ export function getImagesForVariant(
   const variant = product.variants.find((v) => v.id === variantId)
   if (!variant) return all
 
-  if (variant.images?.length) {
-    const ids = new Set(variant.images.map((i) => i.id))
-    const linked = all.filter((i) => ids.has(i.id))
-    if (linked.length) return linked
-  }
-
+  // Сначала эвристика по URL: в админке часто к вариантам вешают одно и то же превью —
+  // тогда variant.images есть, но белый вариант всё равно показывает чёрное фото.
   const kw = colorKeywordFromVariant(variant)
   if (kw) {
     const byUrl = all.filter((img) => img.url?.toLowerCase().includes(kw))
     if (byUrl.length) return byUrl
+  }
+
+  if (variant.images?.length) {
+    const ids = new Set(variant.images.map((i) => i.id))
+    const linked = all.filter((i) => ids.has(i.id))
+    if (linked.length) return linked
   }
 
   return all

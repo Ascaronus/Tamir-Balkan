@@ -11,6 +11,8 @@ import {
 } from "@/lib/product-image"
 import { getTranslations } from "@/lib/i18n/server"
 
+export const dynamic = "force-dynamic"
+
 export default async function ProductPage({
   params,
   searchParams,
@@ -69,6 +71,7 @@ export default async function ProductPage({
           <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-[var(--store-border)] bg-[var(--store-bg-muted)]">
             {heroUrl ? (
               <Image
+                key={heroUrl}
                 src={heroUrl}
                 alt={product.title}
                 fill

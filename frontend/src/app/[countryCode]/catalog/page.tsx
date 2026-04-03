@@ -110,7 +110,7 @@ export default async function CatalogPage({
                         ? `/${cc}/products/${encodeURIComponent(p.handle)}?v_id=${variantId}`
                         : `/${cc}/products/${encodeURIComponent(p.handle)}`
                     }
-                    className="group block overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md"
+                    className="group block cursor-pointer overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md"
                   >
                     <div className="relative aspect-[3/4] bg-[var(--store-bg-muted)]">
                       {imgUrl ? (
@@ -118,8 +118,8 @@ export default async function CatalogPage({
                           src={imgUrl}
                           alt={p.title}
                           fill
-                          className="object-cover transition duration-300 group-hover:scale-[1.02]"
                           sizes="(max-width: 640px) 50vw, 25vw"
+                          className="pointer-events-none object-cover transition duration-300 group-hover:scale-[1.02] select-none"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-[var(--store-text-muted)]">
