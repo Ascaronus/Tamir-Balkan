@@ -1,26 +1,15 @@
 import Link from "next/link"
 import Image from "next/image"
 import { notFound } from "next/navigation"
-import type { HttpTypes } from "@medusajs/types"
 import { getRegionByCountry } from "@/lib/store/regions"
 import { listProductsByCountry } from "@/lib/store/products"
 import { StoreShell } from "@/components/store/StoreShell"
 import { formatMoney } from "@/lib/format-money"
-import { getStoreProductImageUrl } from "@/lib/product-image"
+import {
+  getImagesForVariant,
+  getStoreProductImageUrl,
+} from "@/lib/product-image"
 import { getTranslations } from "@/lib/i18n/server"
-
-function getImagesForVariant(
-  product: HttpTypes.StoreProduct,
-  selectedVariantId?: string
-) {
-  if (!selectedVariantId || !product.variants) return product.images ?? []
-
-  const variant = product.variants.find((v) => v.id === selectedVariantId)
-  if (!variant || !variant.images?.length) return product.images ?? []
-
-  const imageIds = new Set(variant.images.map((i) => i.id))
-  return (product.images ?? []).filter((i) => imageIds.has(i.id))
-}
 
 export default async function ProductPage({
   params,
@@ -54,7 +43,7 @@ export default async function ProductPage({
     product.variants?.[0]
 
   const calculated = selectedVariant?.calculated_price
-  const images = getImagesForVariant(product, selectedVariantId)
+  const images = getImagesForVariant(product, selectedVariant?.id)
   const heroUrl = images?.[0]?.url ?? getStoreProductImageUrl(product)
 
   const regionKey = cc === "rs" || cc === "me" ? cc : undefined
