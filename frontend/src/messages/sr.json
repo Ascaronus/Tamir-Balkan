@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Tamir Balkan — продавница одеће",
+    "description": "Онлајн продавница: Србија и Црна Гора"
+  },
+  "header": {
+    "cart": "Корпа",
+    "cartAria": "Корпа",
+    "catalog": "Каталог",
+    "homeAria": "Tamir Balkan — почетна"
+  },
+  "sidebar": {
+    "title": "Каталог",
+    "allProducts": "Сви производи",
+    "loadingCategories": "Учитавање категорија…",
+    "loadingMenu": "Учитавање менија…",
+    "region": "Регион",
+    "serbia": "Србија (RSD)",
+    "montenegro": "Црна Гора (EUR)",
+    "pickRegionHint": "Изаберите регион на почетној — отвориће се каталог са ценама у RSD или EUR.",
+    "noCategoriesHint": "Категорија још нема. Направите их у админи: Products → Categories, па сваком производу доделите категорију.",
+    "categoriesError": "Грешка учитавања категорија"
+  },
+  "footer": {
+    "rights": "© {year} Tamir Balkan. Сва права задржана."
+  },
+  "home": {
+    "badge": "Онлајн продавница",
+    "title": "Мушка одећа и додаци",
+    "subtitle": "Изаберите земљу испоруке — каталог и цене у динарима (RSD) или еврима (EUR).",
+    "regionHeading": "Регион",
+    "serbiaTitle": "Србија",
+    "serbiaDesc": "Цене у RSD · испорука по Србији",
+    "montenegroTitle": "Црна Гора",
+    "montenegroDesc": "Цене у EUR · испорука по Црној Гори",
+    "toCatalog": "Иди у каталог →"
+  },
+  "catalog": {
+    "home": "Почетна",
+    "catalog": "Каталог",
+    "region": "Регион:",
+    "regionRs": "Србија (RSD)",
+    "regionMe": "Црна Гора (EUR)",
+    "unsupportedTitle": "Неподржана земља",
+    "backHome": "Назад на почетну",
+    "emptyDefault": "Још нема производа за изабрани регион.",
+    "emptyCategoryMissing": "Категорија није пронађена или производи нису у овој категорији.",
+    "emptyCategory": "У категорији «{name}» још нема производа. У админи отворите производ → Categories и додајте ову категорију, или изаберите другу у менију.",
+    "noPhoto": "Нема фотографије",
+    "priceOnRequest": "Цена на упит"
+  },
+  "product": {
+    "home": "Почетна",
+    "catalog": "Каталог",
+    "noPhoto": "Нема фотографије",
+    "priceOnRequest": "Цена на упит",
+    "variant": "Варијанта",
+    "inStock": "На лагеру: {n} ком.",
+    "addToCart": "У корпу (ускоро)",
+    "backToCatalog": "← Назад у каталог"
+  },
+  "lang": {
+    "sr": "Српски",
+    "en": "Енглески",
+    "label": "Језик"
+  },
+  "shell": {
+    "closeMenu": "Затвори мени"
+  }
+}

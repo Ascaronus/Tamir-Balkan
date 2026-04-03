@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Tamir Balkan — clothing store",
+    "description": "Online store: Serbia and Montenegro"
+  },
+  "header": {
+    "cart": "Cart",
+    "cartAria": "Cart",
+    "catalog": "Catalog",
+    "homeAria": "Tamir Balkan — home"
+  },
+  "sidebar": {
+    "title": "Catalog",
+    "allProducts": "All products",
+    "loadingCategories": "Loading categories…",
+    "loadingMenu": "Loading menu…",
+    "region": "Region",
+    "serbia": "Serbia (RSD)",
+    "montenegro": "Montenegro (EUR)",
+    "pickRegionHint": "Choose a region on the home page — the catalog will open with prices in RSD or EUR.",
+    "noCategoriesHint": "No categories yet. Create them in the admin: Products → Categories, then assign each product to a category.",
+    "categoriesError": "Failed to load categories"
+  },
+  "footer": {
+    "rights": "© {year} Tamir Balkan. All rights reserved."
+  },
+  "home": {
+    "badge": "Online store",
+    "title": "Men’s clothing and accessories",
+    "subtitle": "Choose your delivery country — catalog and prices in dinars (RSD) or euros (EUR).",
+    "regionHeading": "Region",
+    "serbiaTitle": "Serbia",
+    "serbiaDesc": "Prices in RSD · delivery in Serbia",
+    "montenegroTitle": "Montenegro",
+    "montenegroDesc": "Prices in EUR · delivery in Montenegro",
+    "toCatalog": "Go to catalog →"
+  },
+  "catalog": {
+    "home": "Home",
+    "catalog": "Catalog",
+    "region": "Region:",
+    "regionRs": "Serbia (RSD)",
+    "regionMe": "Montenegro (EUR)",
+    "unsupportedTitle": "Unsupported country",
+    "backHome": "Back to home",
+    "emptyDefault": "No products for this region yet.",
+    "emptyCategoryMissing": "Category not found or products are not in this category.",
+    "emptyCategory": "No products in «{name}» yet. In the admin open the product → Categories and add this category, or pick another category in the menu.",
+    "noPhoto": "No photo",
+    "priceOnRequest": "Price on request"
+  },
+  "product": {
+    "home": "Home",
+    "catalog": "Catalog",
+    "noPhoto": "No photo",
+    "priceOnRequest": "Price on request",
+    "variant": "Variant",
+    "inStock": "In stock: {n} pcs.",
+    "addToCart": "Add to cart (coming soon)",
+    "backToCatalog": "← Back to catalog"
+  },
+  "lang": {
+    "sr": "Serbian",
+    "en": "English",
+    "label": "Language"
+  },
+  "shell": {
+    "closeMenu": "Close menu"
+  }
+}
