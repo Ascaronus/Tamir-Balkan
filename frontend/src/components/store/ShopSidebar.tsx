@@ -60,6 +60,96 @@ function flattenCategoryTree(
   return out
 }
 
+/** Индекс parent_id → отсортированные дети (для дерева и подменю). */
+function buildCategoryChildMap(
+  categories: HttpTypes.StoreProductCategory[],
+  sortLocale: string
+): Map<string | null, HttpTypes.StoreProductCategory[]> {
+  const flat = normalizeCategoriesFromApi(categories)
+  const byParent = new Map<string | null, HttpTypes.StoreProductCategory[]>()
+  for (const c of flat) {
+    const pid = c.parent_category_id ?? null
+    if (!byParent.has(pid)) byParent.set(pid, [])
+    byParent.get(pid)!.push(c)
+  }
+  for (const arr of byParent.values()) {
+    arr.sort(
+      (a, b) =>
+        (a.rank ?? 0) - (b.rank ?? 0) ||
+        a.name.localeCompare(b.name, sortLocale)
+    )
+  }
+  return byParent
+}
+
+function categoryNavLinkClass(active: boolean) {
+  return `block rounded-md border-l-[3px] px-3 py-2.5 text-sm transition-colors ${
+    active
+      ? "border-white/40 bg-white/[0.06] text-white"
+      : "border-transparent text-white/85 hover:border-white/25 hover:bg-white/[0.06]"
+  }`
+}
+
+/** Десктоп (md+): подкатегории раскрываются при наведении на родителя (вниз, без вылета вправо — иначе обрезает overflow у nav). */
+function DesktopCategoryBranch({
+  cat,
+  byParent,
+  catalogBase,
+  onNavigate,
+  activeCategoryId,
+}: {
+  cat: HttpTypes.StoreProductCategory
+  byParent: Map<string | null, HttpTypes.StoreProductCategory[]>
+  catalogBase: string
+  onNavigate?: () => void
+  activeCategoryId: string | null
+}) {
+  const children = byParent.get(cat.id) ?? []
+  const href = `${catalogBase}?category_id=${encodeURIComponent(cat.id)}`
+  const active = activeCategoryId === cat.id
+
+  if (children.length === 0) {
+    return (
+      <li>
+        <Link
+          href={href}
+          onClick={onNavigate}
+          className={categoryNavLinkClass(active)}
+        >
+          {cat.name}
+        </Link>
+      </li>
+    )
+  }
+
+  return (
+    <li className="group/cat relative">
+      <Link
+        href={href}
+        onClick={onNavigate}
+        className={`${categoryNavLinkClass(active)} flex items-center justify-between gap-2`}
+      >
+        <span className="min-w-0 truncate">{cat.name}</span>
+        <span className="shrink-0 text-[0.65rem] text-white/45" aria-hidden>
+          ▾
+        </span>
+      </Link>
+      <ul className="mt-0.5 hidden space-y-0.5 border-l border-white/12 py-0.5 pl-2.5 ml-2 group-hover/cat:block">
+        {children.map((c) => (
+          <DesktopCategoryBranch
+            key={c.id}
+            cat={c}
+            byParent={byParent}
+            catalogBase={catalogBase}
+            onNavigate={onNavigate}
+            activeCategoryId={activeCategoryId}
+          />
+        ))}
+      </ul>
+    </li>
+  )
+}
+
 function ShopSidebarInner({
   countryCode,
   onNavigate,
@@ -118,7 +208,16 @@ function ShopSidebarInner({
     return flattenCategoryTree(flat, sortLocale)
   }, [categories, sortLocale])
 
+  const childMap = useMemo(
+    () => buildCategoryChildMap(categories, sortLocale),
+    [categories, sortLocale]
+  )
+  const rootCategories = childMap.get(null) ?? []
+
   const catalogBase = countryCode ? `/${countryCode}/catalog` : "/"
+
+  const allProductsActive =
+    Boolean(pathname?.includes("/catalog")) && !activeCategoryId
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -139,11 +238,7 @@ function ShopSidebarInner({
                 <Link
                   href={catalogBase}
                   onClick={onNavigate}
-                  className={`block rounded-md border-l-[3px] px-3 py-2.5 text-sm transition-colors ${
-                    pathname?.includes("/catalog") && !activeCategoryId
-                      ? "border-white/40 bg-white/[0.06] text-white"
-                      : "border-transparent text-white/85 hover:border-white/25 hover:bg-white/[0.06]"
-                  }`}
+                  className={categoryNavLinkClass(allProductsActive)}
                 >
                   {t("sidebar.allProducts")}
                 </Link>
@@ -161,28 +256,42 @@ function ShopSidebarInner({
                 {t("sidebar.noCategoriesHint")}
               </p>
             ) : (
-              <ul className="mt-1 space-y-0.5">
-                {flatWithDepth.map(({ cat, depth }) => {
-                  const href = `${catalogBase}?category_id=${encodeURIComponent(cat.id)}`
-                  const active = activeCategoryId === cat.id
-                  return (
-                    <li key={cat.id}>
-                      <Link
-                        href={href}
-                        onClick={onNavigate}
-                        style={{ paddingLeft: `${0.75 + depth * 0.65}rem` }}
-                        className={`block rounded-md border-l-[3px] py-2.5 pr-3 text-sm transition-colors ${
-                          active
-                            ? "border-white/40 bg-white/[0.06] text-white"
-                            : "border-transparent text-white/85 hover:border-white/25 hover:bg-white/[0.06]"
-                        }`}
-                      >
-                        {cat.name}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+              <>
+                <ul className="mt-1 hidden space-y-0.5 md:block">
+                  {rootCategories.map((cat) => (
+                    <DesktopCategoryBranch
+                      key={cat.id}
+                      cat={cat}
+                      byParent={childMap}
+                      catalogBase={catalogBase}
+                      onNavigate={onNavigate}
+                      activeCategoryId={activeCategoryId}
+                    />
+                  ))}
+                </ul>
+                <ul className="mt-1 space-y-0.5 md:hidden">
+                  {flatWithDepth.map(({ cat, depth }) => {
+                    const href = `${catalogBase}?category_id=${encodeURIComponent(cat.id)}`
+                    const active = activeCategoryId === cat.id
+                    return (
+                      <li key={cat.id}>
+                        <Link
+                          href={href}
+                          onClick={onNavigate}
+                          style={{ paddingLeft: `${0.75 + depth * 0.65}rem` }}
+                          className={`block rounded-md border-l-[3px] py-2.5 pr-3 text-sm transition-colors ${
+                            active
+                              ? "border-white/40 bg-white/[0.06] text-white"
+                              : "border-transparent text-white/85 hover:border-white/25 hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          {cat.name}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
             )}
           </>
         )}
