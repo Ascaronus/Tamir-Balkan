@@ -16,6 +16,7 @@
     "build": "medusa build",
     "postbuild": "node ./scripts/postbuild-server.mjs",
     "seed": "medusa exec ./src/scripts/seed.ts",
+    "store-locales": "medusa exec ./src/scripts/add-store-locales.ts",
     "start": "node ./scripts/start-server.mjs",
     "dev": "medusa develop",
     "test:integration:http": "TEST_TYPE=integration:http NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
