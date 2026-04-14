@@ -5,8 +5,8 @@ import {
 } from "@medusajs/framework/utils"
 
 /**
- * Временный тестовый провайдер (без реальной доставки).
- * В админке: id `test_test`, опция «Test shipping (temp)».
+ * Заглушка фулфилмента (не интеграция с перевозчиком).
+ * В админке: провайдер `test_test`, опция «Test shipping (stub)».
  */
 class TestFulfillmentProviderService extends AbstractFulfillmentProviderService {
   static identifier = "test"
@@ -19,7 +19,7 @@ class TestFulfillmentProviderService extends AbstractFulfillmentProviderService 
     return [
       {
         id: "test-shipping",
-        name: "Test shipping (temp)",
+        name: "Test shipping (stub)",
       },
     ]
   }

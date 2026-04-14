@@ -212,17 +212,18 @@ npm run build
 pm2 restart tamir-backend
 pm2 logs tamir-backend
 
+**Короче (если только обновил код, без новых зависимостей/миграций/локалей):** из корня репо после `git pull` достаточно `npm run build` в `backend` и `pm2 restart tamir-backend`. `npm install` — когда менялся `package.json` / lock; `db:migrate` — когда подтянули миграции; `store-locales` — когда менялись переводы/скрипт локалей. `pm2 logs` — по желанию смотреть логи, к деплою не обязателен.
+
+cd /root/tamir_balkan/backend
+npm run build
+pm2 restart tamir-backend
+
+
 cd /root/tamir_balkan/frontend
 npm install
 npm run build
 pm2 restart tamir-frontend
 pm2 logs tamir-frontend
-
-cd /root/tamir_balkan/backend-storefront
-npm install
-npm run build
-npm run start
-
 
 cd /root/tamir_balkan
 git pull
@@ -232,3 +233,4 @@ pm2 stop tamir-frontend
 rm -rf .next
 npm run build
 pm2 restart tamir-frontend
+

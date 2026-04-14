@@ -1,6 +1,10 @@
-import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import path from "node:path"
+import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+
+/** Абсолютный путь от `medusa-config.js`: и dev (`backend/`), и prod (`.medusa/server/`). */
+const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfillment-provider")
 
 module.exports = defineConfig({
   modules: [
@@ -8,6 +12,7 @@ module.exports = defineConfig({
       resolve: "@medusajs/medusa/translation",
     },
     {
+      key: Modules.FULFILLMENT,
       resolve: "@medusajs/medusa/fulfillment",
       options: {
         providers: [
@@ -15,9 +20,9 @@ module.exports = defineConfig({
             resolve: "@medusajs/medusa/fulfillment-manual",
             id: "manual",
           },
-          /** Временный тестовый провайдер (попадает в production-бандл через src/scripts) */
+          /** Заглушка для админки / тестов (id в БД: `test_test`). Файл должен попасть в бандл — см. `src/api/store/custom/route.ts`. */
           {
-            resolve: "./src/scripts/test-fulfillment-provider",
+            resolve: testFulfillmentStub,
             id: "test",
           },
         ],
