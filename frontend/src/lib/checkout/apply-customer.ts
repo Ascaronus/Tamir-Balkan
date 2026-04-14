@@ -22,6 +22,12 @@ export function customerHasSavedAddressRecord(customer: {
   return Array.isArray(addrs) && addrs.length > 0
 }
 
+export function getDefaultAddressId(customer: Record<string, unknown>): string | null {
+  const addr = pickDefaultAddress(customer)
+  const id = addr?.id
+  return typeof id === "string" ? id : null
+}
+
 function pickDefaultAddress(customer: {
   addresses?: unknown
 }): Record<string, unknown> | null {

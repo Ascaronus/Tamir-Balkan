@@ -118,3 +118,60 @@ export async function logout() {
   clearAuthToken()
 }
 
+export async function updateCustomerProfile(params: {
+  first_name?: string
+  last_name?: string
+  phone?: string
+  metadata?: Record<string, unknown>
+}) {
+  const token = getAuthToken()
+  if (!token) throw new Error("Not authenticated")
+  const res = await sdk.store.customer.update(
+    params as Record<string, unknown>,
+    {},
+    authHeaders(token) as never
+  )
+  return res.customer
+}
+
+export async function upsertCustomerShippingAddress(params: {
+  addressId: string | null
+  first_name: string
+  last_name: string
+  phone: string
+  address_1: string
+  city?: string
+  postal_code: string
+  country_code: string
+}) {
+  const token = getAuthToken()
+  if (!token) throw new Error("Not authenticated")
+  const h = authHeaders(token) as Record<string, string>
+  const body = {
+    first_name: params.first_name,
+    last_name: params.last_name,
+    phone: params.phone,
+    address_1: params.address_1.trim() || "-",
+    city: params.city?.trim() || undefined,
+    postal_code: params.postal_code.trim(),
+    country_code: params.country_code.toLowerCase(),
+    is_default_shipping: true,
+    is_default_billing: true,
+  }
+  if (params.addressId) {
+    const res = await sdk.store.customer.updateAddress(
+      params.addressId,
+      body as Record<string, unknown>,
+      {},
+      h as never
+    )
+    return res.customer
+  }
+  const res = await sdk.store.customer.createAddress(
+    body as Record<string, unknown>,
+    {},
+    h as never
+  )
+  return res.customer
+}
+

@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider"
 import { sdk } from "@/lib/medusa"
 import { getAuthToken } from "@/lib/auth/auth-storage"
 import { addToCart } from "@/lib/cart/cart-client"
+import { AccountProfileForm } from "@/components/auth/AccountProfileForm"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 function authHeaders() {
@@ -113,6 +114,8 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           </button>
         </div>
       </div>
+
+      <AccountProfileForm countryCode={countryCode} />
 
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
         <h2 className="text-lg font-semibold text-[var(--store-text)]">

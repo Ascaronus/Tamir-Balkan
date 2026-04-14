@@ -112,7 +112,17 @@
     "orderLabel": "Order {id}",
     "repeatOrder": "Repeat order",
     "repeatFailed": "Failed to repeat order",
-    "noOrders": "No orders yet."
+    "noOrders": "No orders yet.",
+    "profileSection": "Profile & address",
+    "profileHint": "Edit your details and save. Email cannot be changed here.",
+    "emailReadOnly": "Email cannot be changed here.",
+    "addressSection": "Shipping address",
+    "saveProfile": "Save changes",
+    "savingProfile": "Saving…",
+    "profileSaved": "Your details were saved.",
+    "profileLoadError": "Could not load profile.",
+    "profileSaveError": "Could not save changes.",
+    "postalRequired": "Enter a postal code for the address."
   },
   "sidebar": {
     "title": "Catalog",

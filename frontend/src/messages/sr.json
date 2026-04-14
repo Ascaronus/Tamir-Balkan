@@ -112,7 +112,17 @@
     "orderLabel": "Поруџбина {id}",
     "repeatOrder": "Понови поруџбину",
     "repeatFailed": "Неуспело понављање",
-    "noOrders": "Још нема поруџбина."
+    "noOrders": "Још нема поруџбина.",
+    "profileSection": "Профил и адреса",
+    "profileHint": "Измените податке и сачувајте. Email се мења само преко подршке.",
+    "emailReadOnly": "Email не може да се промени овде.",
+    "addressSection": "Адреса за испоруку",
+    "saveProfile": "Сачувај измене",
+    "savingProfile": "Чувам…",
+    "profileSaved": "Подаци су сачувани.",
+    "profileLoadError": "Не могу да учитам профил.",
+    "profileSaveError": "Чување није успело.",
+    "postalRequired": "Унесите поштански број за адресу."
   },
   "sidebar": {
     "title": "Каталог",
