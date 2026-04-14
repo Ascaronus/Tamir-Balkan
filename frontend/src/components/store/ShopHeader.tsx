@@ -5,6 +5,7 @@ import Link from "next/link"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { CartLink } from "@/components/cart/CartLink"
+import { useAuth } from "@/components/auth/AuthProvider"
 
 type Country = "rs" | "me"
 
@@ -17,6 +18,9 @@ export function ShopHeader({
 }) {
   const t = useTranslations()
   const cartHref = countryCode ? `/${countryCode}/cart` : "/"
+  const { isLoggedIn } = useAuth()
+  const accountHref = countryCode ? `/${countryCode}/account` : "/"
+  const loginHref = countryCode ? `/${countryCode}/account/login` : "/"
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--store-border)] bg-[var(--store-bg)]">
@@ -46,6 +50,13 @@ export function ShopHeader({
             }
           >
             ME
+          </Link>
+          <span className="text-[var(--store-border)]">|</span>
+          <Link
+            href={isLoggedIn ? accountHref : loginHref}
+            className="text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
+          >
+            {isLoggedIn ? "Account" : "Login"}
           </Link>
           <Link
             href={cartHref}

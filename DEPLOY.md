@@ -226,3 +226,9 @@ npm run start
 
 cd /root/tamir_balkan
 git pull
+
+cd /root/tamir_balkan/frontend
+pm2 stop tamir-frontend
+rm -rf .next
+npm run build
+pm2 restart tamir-frontend

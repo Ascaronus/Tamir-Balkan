@@ -56,7 +56,7 @@
     "priceOnRequest": "Price on request",
     "variant": "Variant",
     "inStock": "In stock: {n} pcs.",
-    "addToCart": "Add to cart (coming soon)",
+    "addToCart": "Add to cart",
     "backToCatalog": "← Back to catalog"
   },
   "lang": {

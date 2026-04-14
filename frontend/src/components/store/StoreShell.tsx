@@ -6,6 +6,7 @@ import { ShopHeader } from "./ShopHeader"
 import { ShopSidebar } from "./ShopSidebar"
 import { StoreFooter } from "./StoreFooter"
 import { CartProvider } from "@/components/cart/CartProvider"
+import { AuthProvider } from "@/components/auth/AuthProvider"
 
 type Country = "rs" | "me"
 
@@ -21,8 +22,9 @@ export function StoreShell({
   const cc = countryCode ?? "rs"
 
   return (
-    <CartProvider countryCode={cc}>
-      <div className="flex min-h-screen bg-[var(--store-bg)]">
+    <AuthProvider>
+      <CartProvider countryCode={cc}>
+        <div className="flex min-h-screen bg-[var(--store-bg)]">
       {mobileNavOpen ? (
         <button
           type="button"
@@ -52,7 +54,8 @@ export function StoreShell({
         <div className="flex-1">{children}</div>
         <StoreFooter />
       </div>
-      </div>
-    </CartProvider>
+        </div>
+      </CartProvider>
+    </AuthProvider>
   )
 }

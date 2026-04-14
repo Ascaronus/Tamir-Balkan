@@ -2,6 +2,7 @@
 
 import { useCart } from "@/components/cart/CartProvider"
 import { formatMoney } from "@/lib/format-money"
+import Link from "next/link"
 
 function lineTotal(item: any): number | null {
   // Medusa can return totals when configured; fall back to null
@@ -22,6 +23,10 @@ export function CartPageClient() {
 
   const items = cart?.items ?? []
   const currency = cart?.currency_code ?? "eur"
+  const cc =
+    (cart as any)?.shipping_address?.country_code?.toLowerCase() === "me"
+      ? "me"
+      : "rs"
 
   if (!items.length) {
     return (
@@ -101,6 +106,18 @@ export function CartPageClient() {
           </span>
         </div>
       ) : null}
+
+      <div className="border-t border-[var(--store-border)] px-4 py-5 sm:px-6">
+        <Link
+          href={`/${cc}/checkout`}
+          className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white"
+        >
+          Checkout
+        </Link>
+        <p className="mt-2 text-xs text-[var(--store-text-muted)]">
+          You can checkout without registration.
+        </p>
+      </div>
     </div>
   )
 }
