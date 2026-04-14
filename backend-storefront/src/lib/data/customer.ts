@@ -67,6 +67,10 @@ export async function signup(_currentState: unknown, formData: FormData) {
     last_name: formData.get("last_name") as string,
     phone: formData.get("phone") as string,
   }
+  const country_code = (formData.get("country_code") as string) || ""
+  const city = (formData.get("city") as string) || ""
+  const postal_code = (formData.get("postal_code") as string) || ""
+  const notes = (formData.get("notes") as string) || ""
 
   try {
     const token = await sdk.auth.register("customer", "emailpass", {
@@ -85,6 +89,33 @@ export async function signup(_currentState: unknown, formData: FormData) {
       {},
       headers
     )
+
+    if (notes) {
+      await sdk.store.customer
+        .update({ metadata: { notes } }, {}, headers)
+        .catch(() => null)
+    }
+
+    if (country_code && postal_code) {
+      await sdk.store.customer
+        .createAddress(
+          {
+            first_name: customerForm.first_name,
+            last_name: customerForm.last_name,
+            address_1: "-",
+            address_2: "",
+            city: city || undefined,
+            postal_code,
+            country_code,
+            phone: customerForm.phone,
+            is_default_billing: true,
+            is_default_shipping: true,
+          } as any,
+          {},
+          headers
+        )
+        .catch(() => null)
+    }
 
     const loginToken = await sdk.auth.login("customer", "emailpass", {
       email: customerForm.email,
@@ -105,17 +136,51 @@ export async function signup(_currentState: unknown, formData: FormData) {
 }
 
 export async function login(_currentState: unknown, formData: FormData) {
-  const email = formData.get("email") as string
+  const identifier = (formData.get("identifier") as string) || ""
   const password = formData.get("password") as string
 
   try {
-    await sdk.auth
-      .login("customer", "emailpass", { email, password })
-      .then(async (token) => {
-        await setAuthToken(token as string)
-        const customerCacheTag = await getCacheTag("customers")
-        revalidateTag(customerCacheTag)
+    const trimmed = identifier.trim()
+    if (!trimmed) {
+      return "Email or phone is required"
+    }
+
+    let token: string | null = null
+
+    if (trimmed.includes("@")) {
+      const result = await sdk.auth.login("customer", "emailpass", {
+        email: trimmed,
+        password,
       })
+      if (typeof result !== "string") {
+        return "Unexpected login flow"
+      }
+      token = result
+    } else {
+      const resp = await sdk.client.fetch<{ token: string }>(
+        "/store/auth/phone-login",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: trimmed,
+            password,
+          }),
+          cache: "no-store",
+        }
+      )
+      token = resp?.token ?? null
+    }
+
+    if (!token) {
+      return "Invalid credentials"
+    }
+
+    await setAuthToken(token)
+    const customerCacheTag = await getCacheTag("customers")
+    revalidateTag(customerCacheTag)
   } catch (error: any) {
     return error.toString()
   }

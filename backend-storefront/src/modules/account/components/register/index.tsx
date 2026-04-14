@@ -56,7 +56,33 @@ const Register = ({ setCurrentView }: Props) => {
             name="phone"
             type="tel"
             autoComplete="tel"
+            required
             data-testid="phone-input"
+          />
+          <Input
+            label="Country (ISO2 code, e.g. rs)"
+            name="country_code"
+            required
+            autoComplete="country"
+            data-testid="country-input"
+          />
+          <Input
+            label="City"
+            name="city"
+            autoComplete="address-level2"
+            data-testid="city-input"
+          />
+          <Input
+            label="Postal code"
+            name="postal_code"
+            required
+            autoComplete="postal-code"
+            data-testid="postal-code-input"
+          />
+          <Input
+            label="Notes"
+            name="notes"
+            data-testid="notes-input"
           />
           <Input
             label="Password"

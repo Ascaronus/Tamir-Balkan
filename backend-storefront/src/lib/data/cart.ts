@@ -471,3 +471,43 @@ export async function listCartOptions() {
     cache: "force-cache",
   })
 }
+
+export async function reorder(_currentState: unknown, formData: FormData) {
+  const orderId = formData.get("order_id") as string
+  const countryCode = (formData.get("country_code") as string) || ""
+
+  if (!orderId) {
+    throw new Error("Missing order_id")
+  }
+  if (!countryCode) {
+    throw new Error("Missing country_code")
+  }
+
+  const headers = {
+    ...(await getAuthHeaders()),
+  }
+
+  const order = await sdk.client
+    .fetch<HttpTypes.StoreOrderResponse>(`/store/orders/${orderId}`, {
+      method: "GET",
+      query: {
+        fields: "*items,*items.variant",
+      },
+      headers,
+      cache: "no-store",
+    })
+    .then(({ order }) => order)
+
+  for (const item of order.items ?? []) {
+    const variantId = (item as any)?.variant_id ?? (item as any)?.variant?.id
+    if (!variantId) continue
+
+    await addToCart({
+      variantId,
+      quantity: item.quantity ?? 1,
+      countryCode: countryCode.toLowerCase(),
+    })
+  }
+
+  redirect(`/${countryCode.toLowerCase()}/cart`)
+}
