@@ -17,6 +17,7 @@ import {
   setCartAddresses,
   setShippingMethod,
 } from "@/lib/checkout/checkout-client"
+import { clearCartId } from "@/lib/cart/cart-client"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 type PaymentChoice = "cod" | "stripe"
@@ -225,6 +226,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
             // 4) complete cart → order
             const result = await completeCart(cart.id)
+            clearCartId()
+            await refresh()
             if (result?.type === "order" && result?.order?.id) {
               router.push(`/${countryCode}/order/${result.order.id}`)
               return

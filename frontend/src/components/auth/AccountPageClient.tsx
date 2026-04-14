@@ -32,20 +32,16 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
       setLoadingOrders(true)
       setError(null)
       try {
-        // Try to retrieve customer with orders
-        const res = await sdk.client.fetch<{ customer: any }>(
-          "/store/customers/me",
-          {
-            method: "GET",
-            headers: authHeaders(),
-            query: {
-              fields:
-                "+orders.*,+orders.items.*,+orders.items.variant_id,+orders.items.quantity",
-            } as Record<string, string>,
-            cache: "no-store",
-          }
-        )
-        const nextOrders = (res.customer?.orders ?? []) as HttpTypes.StoreOrder[]
+        // Список заказов клиента — отдельный маршрут (на /customers/me нельзя запросить orders.items).
+        const res = await sdk.client.fetch<{
+          orders: HttpTypes.StoreOrder[]
+        }>("/store/orders", {
+          method: "GET",
+          headers: authHeaders(),
+          query: { limit: 50, offset: 0 },
+          cache: "no-store",
+        })
+        const nextOrders = res.orders ?? []
         if (!cancelled) setOrders(nextOrders)
       } catch (e: any) {
         if (!cancelled) setError(e?.message || t("account.loadOrdersFailed"))
@@ -150,12 +146,20 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                     onClick={async () => {
                       try {
                         setError(null)
-                        const items = (o.items ?? []) as any[]
+                        const { order } = await sdk.client.fetch<{
+                          order: { items?: { variant_id?: string; quantity?: number }[] }
+                        }>(`/store/orders/${o.id}`, {
+                          method: "GET",
+                          headers: authHeaders(),
+                          cache: "no-store",
+                        })
+                        const items = order?.items ?? []
                         for (const it of items) {
-                          if (it?.variant_id) {
+                          const vid = it.variant_id
+                          if (vid) {
                             await addToCart({
                               countryCode,
-                              variantId: it.variant_id,
+                              variantId: vid,
                               quantity: it.quantity ?? 1,
                             })
                           }
