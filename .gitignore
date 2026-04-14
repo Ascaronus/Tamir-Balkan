@@ -1,40 +1,4 @@
-# Dependencies
-**/node_modules/
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
 # Env & secrets (keep .env.example if you add one)
 .env
 .env.*
 !.env.example
-
-# Frontend (Next.js)
-frontend/.next/
-frontend/out/
-frontend/build/
-frontend/.vercel
-
-# Backend (Medusa)
-backend/dist/
-backend/.medusa/
-backend/build/
-backend/.cache/
-backend/uploads/
-
-# Logs & OS
-*.log
-.DS_Store
-.idea/
-.vscode/
-coverage/
-
-# Misc
-*.pem
-*.tsbuildinfo
-
-# Старый вложенный .git (не хранить в репозитории)
-.git.backup*/
