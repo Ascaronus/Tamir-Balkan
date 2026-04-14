@@ -7,6 +7,17 @@ module.exports = defineConfig({
     {
       resolve: "@medusajs/medusa/translation",
     },
+    {
+      resolve: "@medusajs/medusa/fulfillment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/medusa/fulfillment-manual",
+            id: "manual",
+          },
+        ],
+      },
+    },
   ],
   featureFlags: {
     translation: true,
