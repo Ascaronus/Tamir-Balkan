@@ -15,6 +15,11 @@ module.exports = defineConfig({
             resolve: "@medusajs/medusa/fulfillment-manual",
             id: "manual",
           },
+          /** Временный тестовый провайдер (попадает в production-бандл через src/scripts) */
+          {
+            resolve: "./src/scripts/test-fulfillment-provider",
+            id: "test",
+          },
         ],
       },
     },
