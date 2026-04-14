@@ -1,4 +1,9 @@
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 import type { NextConfig } from "next"
+
+/** Next 16: `turbopack.root` и `outputFileTracingRoot` должны быть абсолютными (иначе предупреждения в логах). */
+const frontendRoot = path.dirname(fileURLToPath(import.meta.url))
 
 /** Картинки из админки Medusa идут с того же origin, что и Store API — добавляем в allowlist для next/image. */
 function medusaUploadPatterns(): NonNullable<
@@ -27,9 +32,9 @@ const nextConfig: NextConfig = {
   // Ограничиваем корень трейсинга/поиска в монорепозитории.
   // (А dev мы запускаем с `next dev --webpack`.)
   turbopack: {
-    root: ".",
+    root: frontendRoot,
   },
-  outputFileTracingRoot: ".",
+  outputFileTracingRoot: frontendRoot,
   images: {
     remotePatterns: [
       {
