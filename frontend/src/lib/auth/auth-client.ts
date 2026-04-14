@@ -17,11 +17,24 @@ export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null
         method: "GET",
         headers: authHeaders(token),
         cache: "no-store",
+        query: { fields: "+addresses.*" } as Record<string, string>,
       }
     )
     return res.customer ?? null
   } catch {
-    return null
+    try {
+      const res = await sdk.client.fetch<{ customer: HttpTypes.StoreCustomer }>(
+        "/store/customers/me",
+        {
+          method: "GET",
+          headers: authHeaders(token),
+          cache: "no-store",
+        }
+      )
+      return res.customer ?? null
+    } catch {
+      return null
+    }
   }
 }
 

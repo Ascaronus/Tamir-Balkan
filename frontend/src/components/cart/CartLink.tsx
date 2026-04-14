@@ -1,6 +1,8 @@
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { useCart } from "./CartProvider"
 
 export function CartLink({ href }: { href: string }) {
+  const t = useTranslations()
   const { itemCount, isReady } = useCart()
 
   return (
@@ -10,7 +12,7 @@ export function CartLink({ href }: { href: string }) {
           {itemCount > 99 ? "99+" : itemCount}
         </span>
       ) : null}
-      <span className="sr-only">Cart</span>
+      <span className="sr-only">{t("header.cart")}</span>
       <svg
         width="20"
         height="20"

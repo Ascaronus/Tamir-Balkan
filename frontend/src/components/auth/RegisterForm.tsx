@@ -4,15 +4,10 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
-
-type Country = { code: string; label: string }
-
-const COUNTRIES: Country[] = [
-  { code: "RS", label: "Serbia" },
-  { code: "ME", label: "Montenegro" },
-]
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 export function RegisterForm({ countryCode }: { countryCode: string }) {
+  const t = useTranslations()
   const router = useRouter()
   const { signup, isMutating } = useAuth()
 
@@ -34,11 +29,10 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
   return (
     <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
       <h1 className="text-xl font-semibold text-[var(--store-text)]">
-        Create account
+        {t("auth.register.title")}
       </h1>
       <p className="mt-1 text-sm text-[var(--store-text-muted)]">
-        Required fields: First name, Last name, Country, Postal code, Email,
-        Phone.
+        {t("auth.register.hint")}
       </p>
 
       <form
@@ -60,14 +54,14 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             })
             router.push(`/${countryCode}/account`)
           } catch (e: any) {
-            setError(e?.message || "Registration failed")
+            setError(e?.message || t("auth.register.failed"))
           }
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              First name *
+              {t("auth.register.firstName")}
             </span>
             <input
               value={firstName}
@@ -78,7 +72,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              Last name *
+              {t("auth.register.lastName")}
             </span>
             <input
               value={lastName}
@@ -91,7 +85,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Country *
+            {t("auth.register.country")}
           </span>
           <select
             value={country}
@@ -99,18 +93,15 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             required
             className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
           >
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.label}
-              </option>
-            ))}
+            <option value="RS">{t("countries.rs")}</option>
+            <option value="ME">{t("countries.me")}</option>
           </select>
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              City
+              {t("auth.register.city")}
             </span>
             <input
               value={city}
@@ -120,7 +111,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              Postal code *
+              {t("auth.register.postalCode")}
             </span>
             <input
               value={postalCode}
@@ -133,7 +124,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Email *
+            {t("auth.register.email")}
           </span>
           <input
             value={email}
@@ -146,7 +137,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Phone *
+            {t("auth.register.phone")}
           </span>
           <input
             value={phone}
@@ -158,7 +149,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Notes
+            {t("auth.register.notes")}
           </span>
           <textarea
             value={notes}
@@ -169,7 +160,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Password *
+            {t("auth.register.password")}
           </span>
           <input
             value={password}
@@ -191,16 +182,16 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           disabled={isMutating}
           className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {isMutating ? "Creating…" : "Create account"}
+          {isMutating ? t("auth.register.creating") : t("auth.register.submit")}
         </button>
 
         <div className="text-sm text-[var(--store-text-muted)]">
-          Already have an account?{" "}
+          {t("auth.register.hasAccount")}{" "}
           <Link
             href={`/${countryCode}/account/login`}
             className="font-semibold text-[var(--store-accent)]"
           >
-            Sign in
+            {t("auth.register.signInLink")}
           </Link>
         </div>
       </form>

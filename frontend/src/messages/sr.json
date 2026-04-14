@@ -7,7 +7,112 @@
     "cart": "Корпа",
     "cartAria": "Корпа",
     "catalog": "Каталог",
-    "homeAria": "Tamir Balkan — почетна"
+    "homeAria": "Tamir Balkan — почетна",
+    "account": "Налог",
+    "login": "Пријава"
+  },
+  "common": {
+    "loading": "Учитавање…",
+    "itemPlaceholder": "Ставка"
+  },
+  "countries": {
+    "rs": "Србија",
+    "me": "Црна Гора"
+  },
+  "cartPage": {
+    "loading": "Учитавање…",
+    "empty": "Корпа је празна.",
+    "decreaseQty": "Смањи количину",
+    "increaseQty": "Повећај количину",
+    "remove": "Уклони",
+    "subtotal": "Укупно",
+    "checkout": "Наплата",
+    "guestCheckoutHint": "Можете наручити без регистрације."
+  },
+  "checkout": {
+    "title": "Наплата",
+    "loading": "Учитавање…",
+    "emptyCart": "Ваша корпа је празна.",
+    "guestHint": "Можете наручити без регистрације.",
+    "loggedInHint": "Подаци из налога могу се користити за ову поруџбину или унети други.",
+    "addressSourceLabel": "Подаци за испоруку",
+    "useAccountDetails": "Користи податке из мог налога",
+    "useNewDetails": "Унеси друге податке за ову поруџбину",
+    "accountNoAddressHint": "У профилу нема сачуване адресе — попуните доставу испод.",
+    "customer": "Купац",
+    "firstName": "Име *",
+    "lastName": "Презиме *",
+    "email": "Email *",
+    "phone": "Телефон *",
+    "delivery": "Достава",
+    "country": "Земља *",
+    "postalCode": "Поштански број *",
+    "city": "Град",
+    "address": "Адреса *",
+    "notes": "Напомене",
+    "shipping": "Достава",
+    "payment": "Плаћање",
+    "paymentCod": "Плаћање при достави",
+    "paymentStripe": "Картица (Stripe)",
+    "noShipping": "Нема опција доставе. Подесите их у Medusa Admin (Наставке → Региони или Локације и достава).",
+    "noPaymentProviders": "Платни провайдери нису доступни. Проверите продажни канал и подешавања региона.",
+    "placeOrder": "Наручи",
+    "placingOrder": "Шаљем поруџбину…",
+    "failed": "Неуспела наплата",
+    "errorCod": "Плаћање при достави није подешено за овај регион.",
+    "errorStripe": "Stripe није подешен за овај регион.",
+    "errorStripeFlow": "Stripe још није повезан. Одаберите плаћање при достави."
+  },
+  "order": {
+    "confirmed": "Поруџбина је примљена",
+    "orderId": "Број поруџбине:",
+    "adminNote": "Поруџбина је видљива у Medusa Admin (Поруџбине)."
+  },
+  "auth": {
+    "login": {
+      "title": "Пријава",
+      "hint": "Користите email и лозинку.",
+      "email": "Email",
+      "password": "Лозинка",
+      "failed": "Неуспела пријава",
+      "signingIn": "Пријављивање…",
+      "signIn": "Пријави се",
+      "noAccount": "Немате налог?",
+      "createOne": "Направите га"
+    },
+    "register": {
+      "title": "Направи налог",
+      "hint": "Обавезна поља: име, презиме, земља, поштански број, email, телефон.",
+      "firstName": "Име *",
+      "lastName": "Презиме *",
+      "country": "Земља *",
+      "city": "Град",
+      "postalCode": "Поштански број *",
+      "email": "Email *",
+      "phone": "Телефон *",
+      "notes": "Напомене",
+      "password": "Лозинка *",
+      "failed": "Неуспела регистрација",
+      "creating": "Креирање…",
+      "submit": "Направи налог",
+      "hasAccount": "Већ имате налог?",
+      "signInLink": "Пријавите се"
+    }
+  },
+  "account": {
+    "title": "Налог",
+    "loading": "Учитавање…",
+    "notLoggedIn": "Нисте пријављени.",
+    "login": "Пријава",
+    "createAccount": "Направи налог",
+    "logout": "Одјава",
+    "orders": "Поруџбине",
+    "loadingOrders": "Учитавање поруџбина…",
+    "loadOrdersFailed": "Грешка учитавања поруџбина",
+    "orderLabel": "Поруџбина {id}",
+    "repeatOrder": "Понови поруџбину",
+    "repeatFailed": "Неуспело понављање",
+    "noOrders": "Још нема поруџбина."
   },
   "sidebar": {
     "title": "Каталог",

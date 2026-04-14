@@ -4,8 +4,10 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 export function LoginForm({ countryCode }: { countryCode: string }) {
+  const t = useTranslations()
   const router = useRouter()
   const { login, isMutating } = useAuth()
   const [email, setEmail] = useState("")
@@ -14,9 +16,11 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
 
   return (
     <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
-      <h1 className="text-xl font-semibold text-[var(--store-text)]">Login</h1>
+      <h1 className="text-xl font-semibold text-[var(--store-text)]">
+        {t("auth.login.title")}
+      </h1>
       <p className="mt-1 text-sm text-[var(--store-text-muted)]">
-        Use email + password.
+        {t("auth.login.hint")}
       </p>
 
       <form
@@ -28,13 +32,13 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
             await login(email.trim(), password)
             router.push(`/${countryCode}/account`)
           } catch (e: any) {
-            setError(e?.message || "Login failed")
+            setError(e?.message || t("auth.login.failed"))
           }
         }}
       >
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Email
+            {t("auth.login.email")}
           </span>
           <input
             value={email}
@@ -47,7 +51,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
 
         <label className="grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
-            Password
+            {t("auth.login.password")}
           </span>
           <input
             value={password}
@@ -69,16 +73,16 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
           disabled={isMutating}
           className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {isMutating ? "Signing in…" : "Sign in"}
+          {isMutating ? t("auth.login.signingIn") : t("auth.login.signIn")}
         </button>
 
         <div className="text-sm text-[var(--store-text-muted)]">
-          No account?{" "}
+          {t("auth.login.noAccount")}{" "}
           <Link
             href={`/${countryCode}/account/register`}
             className="font-semibold text-[var(--store-accent)]"
           >
-            Create one
+            {t("auth.login.createOne")}
           </Link>
         </div>
       </form>

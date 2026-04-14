@@ -7,7 +7,112 @@
     "cart": "Cart",
     "cartAria": "Cart",
     "catalog": "Catalog",
-    "homeAria": "Tamir Balkan — home"
+    "homeAria": "Tamir Balkan — home",
+    "account": "Account",
+    "login": "Login"
+  },
+  "common": {
+    "loading": "Loading…",
+    "itemPlaceholder": "Item"
+  },
+  "countries": {
+    "rs": "Serbia",
+    "me": "Montenegro"
+  },
+  "cartPage": {
+    "loading": "Loading…",
+    "empty": "Cart is empty.",
+    "decreaseQty": "Decrease quantity",
+    "increaseQty": "Increase quantity",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "checkout": "Checkout",
+    "guestCheckoutHint": "You can checkout without registration."
+  },
+  "checkout": {
+    "title": "Checkout",
+    "loading": "Loading…",
+    "emptyCart": "Your cart is empty.",
+    "guestHint": "You can place an order without registration.",
+    "loggedInHint": "You can use your account details for this order or enter different ones.",
+    "addressSourceLabel": "Delivery details",
+    "useAccountDetails": "Use my account details",
+    "useNewDetails": "Enter different details for this order",
+    "accountNoAddressHint": "No saved address in your profile — fill in delivery below.",
+    "customer": "Customer",
+    "firstName": "First name *",
+    "lastName": "Last name *",
+    "email": "Email *",
+    "phone": "Phone *",
+    "delivery": "Delivery",
+    "country": "Country *",
+    "postalCode": "Postal code *",
+    "city": "City",
+    "address": "Address *",
+    "notes": "Notes",
+    "shipping": "Shipping",
+    "payment": "Payment",
+    "paymentCod": "Payment on delivery",
+    "paymentStripe": "Card (Stripe)",
+    "noShipping": "No shipping options. Configure them in Medusa Admin (Settings → Regions or Locations & shipping).",
+    "noPaymentProviders": "Payment providers are not available. Ensure your publishable key has a sales channel and providers are enabled for the region.",
+    "placeOrder": "Place order",
+    "placingOrder": "Placing order…",
+    "failed": "Checkout failed",
+    "errorCod": "Payment on delivery is not configured in this region.",
+    "errorStripe": "Stripe is not configured in this region.",
+    "errorStripeFlow": "Stripe flow is not wired yet. Choose payment on delivery for now."
+  },
+  "order": {
+    "confirmed": "Order confirmed",
+    "orderId": "Order ID:",
+    "adminNote": "The order is now visible in Medusa Admin (Orders)."
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "hint": "Use email + password.",
+      "email": "Email",
+      "password": "Password",
+      "failed": "Login failed",
+      "signingIn": "Signing in…",
+      "signIn": "Sign in",
+      "noAccount": "No account?",
+      "createOne": "Create one"
+    },
+    "register": {
+      "title": "Create account",
+      "hint": "Required fields: First name, Last name, Country, Postal code, Email, Phone.",
+      "firstName": "First name *",
+      "lastName": "Last name *",
+      "country": "Country *",
+      "city": "City",
+      "postalCode": "Postal code *",
+      "email": "Email *",
+      "phone": "Phone *",
+      "notes": "Notes",
+      "password": "Password *",
+      "failed": "Registration failed",
+      "creating": "Creating…",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "signInLink": "Sign in"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "loading": "Loading…",
+    "notLoggedIn": "You are not logged in.",
+    "login": "Login",
+    "createAccount": "Create account",
+    "logout": "Logout",
+    "orders": "Orders",
+    "loadingOrders": "Loading orders…",
+    "loadOrdersFailed": "Failed to load orders",
+    "orderLabel": "Order {id}",
+    "repeatOrder": "Repeat order",
+    "repeatFailed": "Failed to repeat order",
+    "noOrders": "No orders yet."
   },
   "sidebar": {
     "title": "Catalog",

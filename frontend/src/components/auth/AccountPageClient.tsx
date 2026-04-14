@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider"
 import { sdk } from "@/lib/medusa"
 import { getAuthToken } from "@/lib/auth/auth-storage"
 import { addToCart } from "@/lib/cart/cart-client"
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 function authHeaders() {
   const token = getAuthToken()
@@ -15,6 +16,7 @@ function authHeaders() {
 }
 
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
+  const t = useTranslations()
   const router = useRouter()
   const { customer, isReady, logout } = useAuth()
   const [orders, setOrders] = useState<HttpTypes.StoreOrder[]>([])
@@ -42,7 +44,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         const nextOrders = (res.customer?.orders ?? []) as HttpTypes.StoreOrder[]
         if (!cancelled) setOrders(nextOrders)
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load orders")
+        if (!cancelled) setError(e?.message || t("account.loadOrdersFailed"))
       } finally {
         if (!cancelled) setLoadingOrders(false)
       }
@@ -55,7 +57,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
   if (!isReady) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
-        Loading…
+        {t("account.loading")}
       </div>
     )
   }
@@ -64,23 +66,23 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
         <h1 className="text-xl font-semibold text-[var(--store-text)]">
-          Account
+          {t("account.title")}
         </h1>
         <p className="mt-2 text-sm text-[var(--store-text-muted)]">
-          You are not logged in.
+          {t("account.notLoggedIn")}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href={`/${countryCode}/account/login`}
             className="inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white"
           >
-            Login
+            {t("account.login")}
           </Link>
           <Link
             href={`/${countryCode}/account/register`}
             className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--store-border)] px-6 text-sm font-semibold text-[var(--store-text)]"
           >
-            Create account
+            {t("account.createAccount")}
           </Link>
         </div>
       </div>
@@ -107,18 +109,18 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
             }}
             className="inline-flex h-10 items-center justify-center rounded-full border border-[var(--store-border)] px-5 text-sm font-semibold text-[var(--store-text)]"
           >
-            Logout
+            {t("account.logout")}
           </button>
         </div>
       </div>
 
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
         <h2 className="text-lg font-semibold text-[var(--store-text)]">
-          Orders
+          {t("account.orders")}
         </h2>
         {loadingOrders ? (
           <div className="mt-3 text-sm text-[var(--store-text-muted)]">
-            Loading orders…
+            {t("account.loadingOrders")}
           </div>
         ) : error ? (
           <div className="mt-3 text-sm text-red-700">{error}</div>
@@ -129,7 +131,9 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-[var(--store-text)]">
-                      Order {o.display_id ?? o.id}
+                      {t("account.orderLabel", {
+                        id: String(o.display_id ?? o.id),
+                      })}
                     </div>
                     <div className="mt-1 text-sm text-[var(--store-text-muted)]">
                       {o.created_at ? new Date(o.created_at).toLocaleString() : ""}
@@ -152,12 +156,12 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                         }
                         router.push(`/${countryCode}/cart`)
                       } catch (e: any) {
-                        setError(e?.message || "Failed to repeat order")
+                        setError(e?.message || t("account.repeatFailed"))
                       }
                     }}
                     className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--store-text)] px-5 text-sm font-semibold text-white"
                   >
-                    Repeat order
+                    {t("account.repeatOrder")}
                   </button>
                 </div>
               </li>
@@ -165,7 +169,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           </ul>
         ) : (
           <div className="mt-3 text-sm text-[var(--store-text-muted)]">
-            No orders yet.
+            {t("account.noOrders")}
           </div>
         )}
       </div>

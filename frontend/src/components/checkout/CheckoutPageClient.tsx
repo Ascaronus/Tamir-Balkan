@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/AuthProvider"
 import { useCart } from "@/components/cart/CartProvider"
+import {
+  customerHasSavedAddressRecord,
+  customerToCheckoutForm,
+  emptyCheckoutForm,
+} from "@/lib/checkout/apply-customer"
 import {
   completeCart,
   initiatePaymentSession,
@@ -11,6 +17,7 @@ import {
   setCartAddresses,
   setShippingMethod,
 } from "@/lib/checkout/checkout-client"
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 type PaymentChoice = "cod" | "stripe"
 
@@ -23,11 +30,16 @@ function pickProviders(paymentProviders: { id: string }[]) {
 }
 
 export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
+  const t = useTranslations()
   const router = useRouter()
   const { cart, isReady, isMutating, refresh } = useCart()
+  const { customer, isReady: authReady, refresh: refreshAuth } = useAuth()
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addressSource, setAddressSource] = useState<"account" | "custom">(
+    "account"
+  )
 
   // customer fields
   const [firstName, setFirstName] = useState("")
@@ -48,6 +60,45 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [paymentProviders, setPaymentProviders] = useState<{ id: string }[]>([])
   const providers = useMemo(() => pickProviders(paymentProviders), [paymentProviders])
   const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("cod")
+
+  useEffect(() => {
+    if (!authReady) return
+    void refreshAuth()
+  }, [authReady, refreshAuth])
+
+  useEffect(() => {
+    if (!authReady || !customer || addressSource !== "account") return
+    const v = customerToCheckoutForm(
+      customer as unknown as Record<string, unknown>,
+      countryCode
+    )
+    setEmail(v.email)
+    setFirstName(v.firstName)
+    setLastName(v.lastName)
+    setPhone(v.phone)
+    setCountry(v.country)
+    setCity(v.city)
+    setPostalCode(v.postalCode)
+    setAddress1(v.address1)
+    setNotes(v.notes)
+    // Only re-fill when login identity or mode changes, not on every customer refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- customer is read intentionally when id/mode changes
+  }, [authReady, customer?.id, addressSource, countryCode])
+
+  useEffect(() => {
+    if (!authReady || !customer || addressSource !== "custom") return
+    const v = emptyCheckoutForm(countryCode)
+    setEmail(v.email)
+    setFirstName(v.firstName)
+    setLastName(v.lastName)
+    setPhone(v.phone)
+    setCountry(v.country)
+    setCity(v.city)
+    setPostalCode(v.postalCode)
+    setAddress1(v.address1)
+    setNotes(v.notes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, customer?.id, addressSource, countryCode])
 
   useEffect(() => {
     if (!isReady || !cart?.id) return
@@ -86,7 +137,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   if (!isReady) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
-        Loading…
+        {t("checkout.loading")}
       </div>
     )
   }
@@ -94,9 +145,11 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   if (!cart?.items?.length) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
-        <h1 className="text-xl font-semibold text-[var(--store-text)]">Checkout</h1>
+        <h1 className="text-xl font-semibold text-[var(--store-text)]">
+          {t("checkout.title")}
+        </h1>
         <p className="mt-2 text-sm text-[var(--store-text-muted)]">
-          Your cart is empty.
+          {t("checkout.emptyCart")}
         </p>
       </div>
     )
@@ -108,9 +161,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   return (
     <div className="grid gap-6">
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
-        <h1 className="text-xl font-semibold text-[var(--store-text)]">Checkout</h1>
+        <h1 className="text-xl font-semibold text-[var(--store-text)]">
+          {t("checkout.title")}
+        </h1>
         <p className="mt-1 text-sm text-[var(--store-text-muted)]">
-          You can place an order without registration.
+          {customer
+            ? t("checkout.loggedInHint")
+            : t("checkout.guestHint")}
         </p>
       </div>
 
@@ -148,7 +205,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
             if (paymentChoice === "cod") {
               if (!providers.system) {
-                throw new Error("Payment on delivery is not configured in this region.")
+                throw new Error(t("checkout.errorCod"))
               }
               await initiatePaymentSession({
                 cart: currentCart as any,
@@ -156,14 +213,14 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               })
             } else {
               if (!providers.stripe) {
-                throw new Error("Stripe is not configured in this region.")
+                throw new Error(t("checkout.errorStripe"))
               }
               await initiatePaymentSession({
                 cart: currentCart as any,
                 providerId: providers.stripe.id,
               })
               // Stripe requires client-side confirmation flow; we'll add it next.
-              throw new Error("Stripe flow is not wired yet. Choose 'Payment on delivery' for now.")
+              throw new Error(t("checkout.errorStripeFlow"))
             }
 
             // 4) complete cart → order
@@ -174,74 +231,130 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             }
             router.push(`/${countryCode}/catalog`)
           } catch (e: any) {
-            setError(e?.message || "Checkout failed")
+            setError(e?.message || t("checkout.failed"))
           } finally {
             setLoading(false)
           }
         }}
       >
+        {customer ? (
+          <div className="mb-6 rounded-xl border border-[var(--store-border)] bg-[var(--store-bg)] p-4">
+            <p className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.addressSourceLabel")}
+            </p>
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--store-text)]">
+                <input
+                  type="radio"
+                  name="addressSource"
+                  checked={addressSource === "account"}
+                  onChange={() => setAddressSource("account")}
+                  className="h-4 w-4 shrink-0"
+                />
+                {t("checkout.useAccountDetails")}
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--store-text)]">
+                <input
+                  type="radio"
+                  name="addressSource"
+                  checked={addressSource === "custom"}
+                  onChange={() => setAddressSource("custom")}
+                  className="h-4 w-4 shrink-0"
+                />
+                {t("checkout.useNewDetails")}
+              </label>
+            </div>
+            {addressSource === "account" &&
+            !customerHasSavedAddressRecord(
+              customer as unknown as Record<string, unknown>
+            ) ? (
+              <p className="mt-3 text-sm text-amber-800">
+                {t("checkout.accountNoAddressHint")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
-          Customer
+          {t("checkout.customer")}
         </h2>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">First name *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.firstName")}
+            </span>
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Last name *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.lastName")}
+            </span>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Email *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.email")}
+            </span>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Phone *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.phone")}
+            </span>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
-          Delivery
+          {t("checkout.delivery")}
         </h2>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Country *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.country")}
+            </span>
             <select value={country} onChange={(e) => setCountry(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm">
-              <option value="rs">Serbia</option>
-              <option value="me">Montenegro</option>
+              <option value="rs">{t("countries.rs")}</option>
+              <option value="me">{t("countries.me")}</option>
             </select>
           </label>
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Postal code *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.postalCode")}
+            </span>
             <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">City</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.city")}
+            </span>
             <input value={city} onChange={(e) => setCity(e.target.value)} className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
-            <span className="text-sm font-medium text-[var(--store-text)]">Address *</span>
+            <span className="text-sm font-medium text-[var(--store-text)]">
+              {t("checkout.address")}
+            </span>
             <input value={address1} onChange={(e) => setAddress1(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
         <label className="mt-4 grid gap-1">
-          <span className="text-sm font-medium text-[var(--store-text)]">Notes</span>
+          <span className="text-sm font-medium text-[var(--store-text)]">
+            {t("checkout.notes")}
+          </span>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24 rounded-xl border border-[var(--store-border)] px-3 py-2 text-sm" />
         </label>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
-          Shipping
+          {t("checkout.shipping")}
         </h2>
         <div className="mt-4 grid gap-2">
           {shippingOptions.length ? (
@@ -261,13 +374,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             ))
           ) : (
             <div className="text-sm text-[var(--store-text-muted)]">
-              No shipping options. Configure them in Medusa Admin (Settings → Regions).
+              {t("checkout.noShipping")}
             </div>
           )}
         </div>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
-          Payment
+          {t("checkout.payment")}
         </h2>
         <div className="mt-4 grid gap-2">
           <label className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
@@ -280,7 +393,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               disabled={!canCod}
             />
             <span className="text-sm text-[var(--store-text)]">
-              Payment on delivery
+              {t("checkout.paymentCod")}
             </span>
           </label>
           <label className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
@@ -292,11 +405,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               onChange={() => setPaymentChoice("stripe")}
               disabled={!canStripe}
             />
-            <span className="text-sm text-[var(--store-text)]">Card (Stripe)</span>
+            <span className="text-sm text-[var(--store-text)]">
+              {t("checkout.paymentStripe")}
+            </span>
           </label>
           {!paymentProviders.length ? (
             <div className="text-sm text-[var(--store-text-muted)]">
-              Payment providers are not available. Ensure your publishable key has a sales channel and providers are enabled for the region.
+              {t("checkout.noPaymentProviders")}
             </div>
           ) : null}
         </div>
@@ -312,7 +427,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           disabled={loading || isMutating}
           className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {loading ? "Placing order…" : "Place order"}
+          {loading ? t("checkout.placingOrder") : t("checkout.placeOrder")}
         </button>
       </form>
     </div>

@@ -56,7 +56,7 @@ export function ShopHeader({
             href={isLoggedIn ? accountHref : loginHref}
             className="text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
           >
-            {isLoggedIn ? "Account" : "Login"}
+            {isLoggedIn ? t("header.account") : t("header.login")}
           </Link>
           <Link
             href={cartHref}

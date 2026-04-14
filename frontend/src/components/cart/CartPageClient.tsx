@@ -1,6 +1,7 @@
 "use client"
 
 import { useCart } from "@/components/cart/CartProvider"
+import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { formatMoney } from "@/lib/format-money"
 import Link from "next/link"
 
@@ -11,12 +12,13 @@ function lineTotal(item: any): number | null {
 }
 
 export function CartPageClient() {
+  const t = useTranslations()
   const { cart, isReady, isMutating, updateItemQuantity, removeItem } = useCart()
 
   if (!isReady) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
-        Loading…
+        {t("cartPage.loading")}
       </div>
     )
   }
@@ -31,7 +33,7 @@ export function CartPageClient() {
   if (!items.length) {
     return (
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
-        Cart is empty.
+        {t("cartPage.empty")}
       </div>
     )
   }
@@ -44,7 +46,10 @@ export function CartPageClient() {
       <ul className="divide-y divide-[var(--store-border)]">
         {items.map((it: any) => {
           const title =
-            it?.product_title || it?.title || it?.variant_title || "Item"
+            it?.product_title ||
+            it?.title ||
+            it?.variant_title ||
+            t("common.itemPlaceholder")
           const qty = typeof it?.quantity === "number" ? it.quantity : 1
           const total = lineTotal(it)
           return (
@@ -67,7 +72,7 @@ export function CartPageClient() {
                     disabled={isMutating || qty <= 1}
                     onClick={() => updateItemQuantity(it.id, Math.max(1, qty - 1))}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--store-border)] text-[var(--store-text)] disabled:opacity-60"
-                    aria-label="Decrease quantity"
+                    aria-label={t("cartPage.decreaseQty")}
                   >
                     −
                   </button>
@@ -79,7 +84,7 @@ export function CartPageClient() {
                     disabled={isMutating}
                     onClick={() => updateItemQuantity(it.id, qty + 1)}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--store-border)] text-[var(--store-text)] disabled:opacity-60"
-                    aria-label="Increase quantity"
+                    aria-label={t("cartPage.increaseQty")}
                   >
                     +
                   </button>
@@ -89,7 +94,7 @@ export function CartPageClient() {
                     onClick={() => removeItem(it.id)}
                     className="ml-2 inline-flex h-9 items-center justify-center rounded-full border border-[var(--store-border)] px-4 text-sm font-medium text-[var(--store-text)] disabled:opacity-60"
                   >
-                    Remove
+                    {t("cartPage.remove")}
                   </button>
                 </div>
               </div>
@@ -100,7 +105,9 @@ export function CartPageClient() {
 
       {subtotal !== null ? (
         <div className="flex items-center justify-between border-t border-[var(--store-border)] px-4 py-4 text-sm sm:px-6">
-          <span className="text-[var(--store-text-muted)]">Subtotal</span>
+          <span className="text-[var(--store-text-muted)]">
+            {t("cartPage.subtotal")}
+          </span>
           <span className="font-semibold text-[var(--store-text)]">
             {formatMoney(subtotal, currency)}
           </span>
@@ -112,10 +119,10 @@ export function CartPageClient() {
           href={`/${cc}/checkout`}
           className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white"
         >
-          Checkout
+          {t("cartPage.checkout")}
         </Link>
         <p className="mt-2 text-xs text-[var(--store-text-muted)]">
-          You can checkout without registration.
+          {t("cartPage.guestCheckoutHint")}
         </p>
       </div>
     </div>
