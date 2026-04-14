@@ -1,6 +1,7 @@
 import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
 import { clearAuthToken, getAuthToken, setAuthToken } from "./auth-storage"
+import { clearStoredCartId } from "@/lib/cart/cart-storage"
 
 function authHeaders(token: string | null): Record<string, string> {
   if (!token) return {}
@@ -115,7 +116,16 @@ export async function signup(params: {
 }
 
 export async function logout() {
+  try {
+    await sdk.auth.logout()
+  } catch {
+    await sdk.client.clearToken()
+  }
   clearAuthToken()
+  clearStoredCartId()
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("tb-cart-reset"))
+  }
 }
 
 export async function updateCustomerProfile(params: {

@@ -38,7 +38,10 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           {
             method: "GET",
             headers: authHeaders(),
-            query: { fields: "*orders" } as any,
+            query: {
+              fields:
+                "+orders.*,+orders.items.*,+orders.items.variant_id,+orders.items.quantity",
+            } as Record<string, string>,
             cache: "no-store",
           }
         )

@@ -66,6 +66,24 @@ export function CartProvider({
     }
   }, [countryCode])
 
+  /** После выхода из аккаунта очищаем JWT SDK и `tb_cart_id`; подхватываем и пересоздаём гостевую корзину. */
+  useEffect(() => {
+    const onReset = () => {
+      setIsReady(false)
+      void (async () => {
+        try {
+          const next = await getOrCreateCart(countryCode)
+          setCart(next)
+        } finally {
+          setIsReady(true)
+        }
+      })()
+    }
+    if (typeof window === "undefined") return
+    window.addEventListener("tb-cart-reset", onReset)
+    return () => window.removeEventListener("tb-cart-reset", onReset)
+  }, [countryCode])
+
   const addItem = useCallback(
     async (variantId: string, quantity = 1) => {
       setIsMutating(true)
