@@ -172,6 +172,16 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
   });
 
+  /** Без связи склад↔провайдер админка не показывает провайдер в выпадающем списке (GET /admin/fulfillment-providers?stock_location_id=… фильтрует по link). */
+  await link.create({
+    [Modules.STOCK_LOCATION]: {
+      stock_location_id: stockLocation.id,
+    },
+    [Modules.FULFILLMENT]: {
+      fulfillment_provider_id: "test_test",
+    },
+  });
+
   logger.info("Seeding fulfillment data...");
   const shippingProfiles = await fulfillmentModuleService.listShippingProfiles({
     type: "default",
