@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
+import { CartLink } from "@/components/cart/CartLink"
 
 type Country = "rs" | "me"
 
@@ -15,7 +16,7 @@ export function ShopHeader({
   onOpenCatalog: () => void
 }) {
   const t = useTranslations()
-  const cartHref = countryCode ? `/${countryCode}/catalog` : "/"
+  const cartHref = countryCode ? `/${countryCode}/cart` : "/"
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--store-border)] bg-[var(--store-bg)]">
@@ -51,30 +52,7 @@ export function ShopHeader({
             className="ml-2 flex items-center gap-1.5 text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
             aria-label={t("header.cartAria")}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="shrink-0"
-              aria-hidden
-            >
-              <path
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 6h15l-1.5 9h-12z"
-              />
-              <path
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                d="M6 6L5 3H2"
-              />
-              <circle cx="9" cy="20" r="1.5" fill="currentColor" />
-              <circle cx="18" cy="20" r="1.5" fill="currentColor" />
-            </svg>
+            <CartLink href={cartHref} />
             <span className="hidden sm:inline">{t("header.cart")}</span>
           </Link>
         </div>

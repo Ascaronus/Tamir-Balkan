@@ -203,3 +203,26 @@ pm2 list
 pm2 logs tamir-frontend
 pm2 restart tamir-frontend
 pm2 restart tamir-backend
+
+cd /root/tamir_balkan/backend
+npm install
+npx medusa db:migrate
+npm run store-locales
+npm run build
+pm2 restart tamir-backend
+pm2 logs tamir-backend
+
+cd /root/tamir_balkan/frontend
+npm install
+npm run build
+pm2 restart tamir-frontend
+pm2 logs tamir-frontend
+
+cd /root/tamir_balkan/backend-storefront
+npm install
+npm run build
+npm run start
+
+
+cd /root/tamir_balkan
+git pull

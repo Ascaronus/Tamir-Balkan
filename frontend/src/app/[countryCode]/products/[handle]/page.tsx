@@ -10,6 +10,7 @@ import {
   getStoreProductImageUrl,
 } from "@/lib/product-image"
 import { getTranslations } from "@/lib/i18n/server"
+import { AddToCartButton } from "@/components/cart/AddToCartButton"
 
 export const dynamic = "force-dynamic"
 
@@ -146,13 +147,19 @@ export default async function ProductPage({
             ) : null}
 
             <div className="mt-10 flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-8 text-sm font-semibold text-white opacity-60"
-              >
-                {t("product.addToCart")}
-              </button>
+              {selectedVariant?.id ? (
+                <AddToCartButton variantId={selectedVariant.id}>
+                  {t("product.addToCart")}
+                </AddToCartButton>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-8 text-sm font-semibold text-white opacity-60"
+                >
+                  {t("product.addToCart")}
+                </button>
+              )}
               <Link
                 href={`/${cc}/catalog`}
                 className="inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--store-border)] px-6 text-sm font-medium text-[var(--store-text)] hover:bg-[var(--store-bg-muted)]"

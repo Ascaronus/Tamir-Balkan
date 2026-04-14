@@ -5,6 +5,7 @@ import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { ShopHeader } from "./ShopHeader"
 import { ShopSidebar } from "./ShopSidebar"
 import { StoreFooter } from "./StoreFooter"
+import { CartProvider } from "@/components/cart/CartProvider"
 
 type Country = "rs" | "me"
 
@@ -17,9 +18,11 @@ export function StoreShell({
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const t = useTranslations()
+  const cc = countryCode ?? "rs"
 
   return (
-    <div className="flex min-h-screen bg-[var(--store-bg)]">
+    <CartProvider countryCode={cc}>
+      <div className="flex min-h-screen bg-[var(--store-bg)]">
       {mobileNavOpen ? (
         <button
           type="button"
@@ -49,6 +52,7 @@ export function StoreShell({
         <div className="flex-1">{children}</div>
         <StoreFooter />
       </div>
-    </div>
+      </div>
+    </CartProvider>
   )
 }
