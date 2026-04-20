@@ -389,17 +389,32 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   // 1b) Create subcategories from XML under canonical parents (no language duplicates)
   logger.info("Ensuring subcategories from Rozetka XML...")
   const existingSubByKey = new Map<string, string>()
+  const existingByHandle = new Map<string, { id: string; parent_category_id: string | null }>()
+  const existingByRozetkaId = new Map<string, { id: string; parent_category_id: string | null }>()
   const { data: allCategories } = await query.graph({
     entity: "product_category",
-    fields: ["id", "name", "parent_category_id"],
+    fields: ["id", "name", "handle", "parent_category_id", "metadata"],
     filters: {},
   })
   for (const c of allCategories ?? []) {
     const parent = (c as any).parent_category_id || ""
     existingSubByKey.set(`${parent}::${String((c as any).name)}`, String((c as any).id))
+    if ((c as any).handle) {
+      existingByHandle.set(String((c as any).handle), {
+        id: String((c as any).id),
+        parent_category_id: (c as any).parent_category_id ?? null,
+      })
+    }
+    const meta = (c as any).metadata as any
+    if (meta?.rozetka_category_id) {
+      existingByRozetkaId.set(String(meta.rozetka_category_id), {
+        id: String((c as any).id),
+        parent_category_id: (c as any).parent_category_id ?? null,
+      })
+    }
   }
 
-  const subToCreate: any[] = []
+  const subToUpsert: any[] = []
   const xmlIdToSubId = new Map<string, string>()
 
   for (const c of categoriesXml) {
@@ -413,7 +428,22 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     const parentId = canonKeyToCategoryId.get(canon)
     if (!parentId) continue
 
-    // Deduplicate RU/UA twins by collapsing to a stable key (use original id)
+    // Deterministic handle avoids collisions like "шапки" already exists.
+    const handle = `rozetka-${id}`
+
+    // If already exists by our handle or stored metadata, map it and skip.
+    const existingById = existingByRozetkaId.get(id)
+    if (existingById) {
+      xmlIdToSubId.set(id, existingById.id)
+      continue
+    }
+    const existingByH = existingByHandle.get(handle)
+    if (existingByH) {
+      xmlIdToSubId.set(id, existingByH.id)
+      continue
+    }
+
+    // Deduplicate RU/UA twins in display name, but keep unique handle per XML id
     const baseName = raw
     const key = `${parentId}::${baseName}`
     const existing = existingSubByKey.get(key)
@@ -436,8 +466,9 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       }
     }
 
-    // Create subcategory with English name to keep admin usable; keep translations in metadata.
-    subToCreate.push({
+    // Upsert subcategory. Store English display name, keep source+translations in metadata.
+    subToUpsert.push({
+      handle,
       name: nameEn || baseName,
       is_active: true,
       parent_category_id: parentId,
@@ -450,24 +481,19 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
         },
       },
     })
-    // We'll fill xmlIdToSubId after creation by matching on name+parent.
+    // We'll fill xmlIdToSubId after upsert by listing categories and reading metadata.
   }
 
-  if (subToCreate.length) {
-    const { result } = await createProductCategoriesWorkflow(container).run({
-      input: { product_categories: subToCreate },
-    })
-    for (const cat of result as any[]) {
-      const parent = String(cat.parent_category_id || "")
-      existingSubByKey.set(`${parent}::${String(cat.name)}`, String(cat.id))
-    }
+  if (subToUpsert.length) {
+    const productModule = container.resolve(Modules.PRODUCT) as IProductModuleService
+    await productModule.upsertProductCategories(subToUpsert as any)
   }
 
   // Rebuild mapping id->subId by searching metadata (more reliable) or name match fallback.
   if (categoriesXml.length) {
     const { data: catsAfter } = await query.graph({
       entity: "product_category",
-      fields: ["id", "name", "parent_category_id", "metadata"],
+      fields: ["id", "name", "handle", "parent_category_id", "metadata"],
       filters: {},
     })
     for (const c of catsAfter ?? []) {
