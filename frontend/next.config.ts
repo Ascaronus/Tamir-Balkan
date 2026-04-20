@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
         hostname: "medusa-public-images.s3.eu-west-1.amazonaws.com",
         pathname: "/**",
       },
+      // Source product images from tamir.ua feed (Rozetka XML)
+      {
+        protocol: "https",
+        hostname: "tamir.ua",
+        pathname: "/**",
+      },
       ...medusaUploadPatterns(),
     ],
   },
