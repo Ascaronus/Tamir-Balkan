@@ -693,15 +693,62 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
         metadata: p.metadata ?? {},
       } as any)
 
-      // Variant upsert by SKU
+      // Variants: update by SKU / option-combination; create missing.
       const variants = Array.isArray(p.variants) ? p.variants : []
       if (variants.length) {
-        await productModule.upsertProductVariants(
-          variants.map((v: any) => ({
-            ...v,
-            product_id: id,
-          })) as any
+        const existingVariants = await productModule.listProductVariants(
+          { product_id: id } as any,
+          { relations: ["options"] } as any
         )
+        const bySku = new Map<string, any>()
+        const byOptions = new Map<string, any>()
+
+        for (const ev of existingVariants as any[]) {
+          const sku = typeof ev?.sku === "string" ? ev.sku : ""
+          if (sku) bySku.set(sku, ev)
+
+          // Build a stable option signature (e.g. "Size=58|Color=Black")
+          const optsArr = Array.isArray(ev?.options) ? ev.options : []
+          const sig = optsArr
+            .map((o: any) => `${String(o?.option_id ?? "")}=${String(o?.value ?? "")}`)
+            .sort()
+            .join("|")
+          if (sig) byOptions.set(sig, ev)
+        }
+
+        const toCreate: any[] = []
+        for (const v of variants as any[]) {
+          const sku = typeof v?.sku === "string" ? v.sku : ""
+          const ev = sku ? bySku.get(sku) : null
+
+          // Match by option value as a fallback (we only have Size option in this importer)
+          let match = ev
+          if (!match) {
+            const size = v?.options?.Size
+            if (size) {
+              const hit = (existingVariants as any[]).find((x) =>
+                Array.isArray(x?.options) &&
+                x.options.some((o: any) => String(o?.value ?? "") === String(size))
+              )
+              if (hit) match = hit
+            }
+          }
+
+          if (match?.id) {
+            await productModule.updateProductVariants(match.id, {
+              title: v.title,
+              sku: v.sku,
+              prices: v.prices,
+              metadata: v.metadata,
+            } as any)
+          } else {
+            toCreate.push({ ...v, product_id: id })
+          }
+        }
+
+        if (toCreate.length) {
+          await productModule.createProductVariants(toCreate as any)
+        }
       }
     }
   }
