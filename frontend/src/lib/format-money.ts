@@ -1,4 +1,4 @@
-/** Форматирование цены для витрины (Medusa отдаёт сумму в основных единицах валюты). */
+/** Форматирование цены для витрины (Medusa обычно хранит суммы в minor units, например EUR в центах). */
 export function formatMoney(
   amount: number | null | undefined,
   currencyCode: string | null | undefined
@@ -10,13 +10,18 @@ export function formatMoney(
     return String(amount)
   }
   const code = currencyCode.toUpperCase()
+  const normalized =
+    code === "RSD"
+      ? amount
+      : // most currencies (EUR/USD) are stored in minor units in Medusa
+        amount / 100
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: code,
       maximumFractionDigits: code === "RSD" ? 0 : 2,
-    }).format(amount)
+    }).format(normalized)
   } catch {
-    return `${amount} ${currencyCode}`
+    return `${normalized} ${currencyCode}`
   }
 }

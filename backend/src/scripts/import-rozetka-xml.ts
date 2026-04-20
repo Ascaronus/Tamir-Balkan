@@ -9,6 +9,8 @@ import {
 } from "@medusajs/medusa/core-flows"
 import { XMLParser } from "fast-xml-parser"
 import crypto from "node:crypto"
+import type { IInventoryService } from "@medusajs/types/dist/inventory/service"
+import type { UpdateInventoryLevelInput } from "@medusajs/types/dist/inventory/mutations/inventory-level"
 
 type FxApiPairResponse = {
   base: string
@@ -193,6 +195,7 @@ const CATEGORY_CANON = {
   shirts: { en: "Shirts", sr: "Košulje" },
   accessory_set: { en: "Accessory sets", sr: "Setovi aksesoara" },
   boys_clothing: { en: "Boys clothing", sr: "Odeća za dečake" },
+  other: { en: "Other", sr: "Ostalo" },
 } as const
 
 const CATEGORY_ID_TO_CANON_KEY: Record<string, keyof typeof CATEGORY_CANON> = {
@@ -217,6 +220,12 @@ const CATEGORY_ID_TO_CANON_KEY: Record<string, keyof typeof CATEGORY_CANON> = {
   "622": "accessory_set",
   "637": "boys_clothing",
   "638": "boys_clothing",
+}
+
+type RozetkaCategory = { id: string; "#text"?: string }
+
+function categoryText(cat: RozetkaCategory): string {
+  return toText((cat as any)["#text"]).trim()
 }
 
 function getOfferParam(offer: RozetkaOffer, name: string): string | null {
@@ -324,6 +333,9 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   })
   const doc = parser.parse(xml) as any
   const offers = asArray<RozetkaOffer>(doc?.yml_catalog?.shop?.offers?.offer)
+  const categoriesXml = asArray<RozetkaCategory>(
+    doc?.yml_catalog?.shop?.categories?.category
+  )
 
   if (!offers.length) {
     throw new Error("No offers found in XML")
@@ -347,14 +359,14 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   )
 
   const canonKeyToCategoryId = new Map<keyof typeof CATEGORY_CANON, string>()
-  const toCreate = Object.entries(CATEGORY_CANON)
+  const toCreateCategories = Object.entries(CATEGORY_CANON)
     .map(([key, v]) => ({ key: key as keyof typeof CATEGORY_CANON, v }))
     .filter(({ v }) => !nameToId.has(v.en))
     .map(({ v }) => ({ name: v.en, is_active: true }))
 
-  if (toCreate.length) {
+  if (toCreateCategories.length) {
     const { result } = await createProductCategoriesWorkflow(container).run({
-      input: { product_categories: toCreate },
+      input: { product_categories: toCreateCategories },
     })
     for (const cat of result as any[]) {
       nameToId.set(String(cat.name), String(cat.id))
@@ -364,6 +376,99 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   for (const [key, v] of Object.entries(CATEGORY_CANON) as any) {
     const id = nameToId.get(v.en)
     if (id) canonKeyToCategoryId.set(key, id)
+  }
+
+  // 1b) Create subcategories from XML under canonical parents (no language duplicates)
+  logger.info("Ensuring subcategories from Rozetka XML...")
+  const existingSubByKey = new Map<string, string>()
+  const { data: allCategories } = await query.graph({
+    entity: "product_category",
+    fields: ["id", "name", "parent_category_id"],
+    filters: {},
+  })
+  for (const c of allCategories ?? []) {
+    const parent = (c as any).parent_category_id || ""
+    existingSubByKey.set(`${parent}::${String((c as any).name)}`, String((c as any).id))
+  }
+
+  const subToCreate: any[] = []
+  const xmlIdToSubId = new Map<string, string>()
+
+  for (const c of categoriesXml) {
+    const id = String((c as any).id ?? "")
+    if (!id) continue
+    const raw = categoryText(c)
+    if (!raw) continue
+
+    const canon =
+      CATEGORY_ID_TO_CANON_KEY[id] ?? ("other" as keyof typeof CATEGORY_CANON)
+    const parentId = canonKeyToCategoryId.get(canon)
+    if (!parentId) continue
+
+    // Deduplicate RU/UA twins by collapsing to a stable key (use original id)
+    const baseName = raw
+    const key = `${parentId}::${baseName}`
+    const existing = existingSubByKey.get(key)
+    if (existing) {
+      xmlIdToSubId.set(id, existing)
+      continue
+    }
+
+    // Optionally translate category name for metadata; actual stored name in Medusa stays EN-ish for now
+    let nameEn = baseName
+    let nameSr = baseName
+    if (translateEnabled) {
+      try {
+        ;[nameEn, nameSr] = await Promise.all([
+          googleTranslateText({ apiKey: googleKey, q: baseName, target: "en" }),
+          googleTranslateText({ apiKey: googleKey, q: baseName, target: "sr" }),
+        ])
+      } catch {
+        // ignore
+      }
+    }
+
+    // Create subcategory with English name to keep admin usable; keep translations in metadata.
+    subToCreate.push({
+      name: nameEn || baseName,
+      is_active: true,
+      parent_category_id: parentId,
+      metadata: {
+        rozetka_category_id: id,
+        rozetka_category_name_source: baseName,
+        i18n: {
+          en: { name: nameEn || baseName },
+          sr: { name: nameSr || baseName },
+        },
+      },
+    })
+    // We'll fill xmlIdToSubId after creation by matching on name+parent.
+  }
+
+  if (subToCreate.length) {
+    const { result } = await createProductCategoriesWorkflow(container).run({
+      input: { product_categories: subToCreate },
+    })
+    for (const cat of result as any[]) {
+      const parent = String(cat.parent_category_id || "")
+      existingSubByKey.set(`${parent}::${String(cat.name)}`, String(cat.id))
+    }
+  }
+
+  // Rebuild mapping id->subId by searching metadata (more reliable) or name match fallback.
+  if (categoriesXml.length) {
+    const { data: catsAfter } = await query.graph({
+      entity: "product_category",
+      fields: ["id", "name", "parent_category_id", "metadata"],
+      filters: {},
+    })
+    for (const c of catsAfter ?? []) {
+      const meta = (c as any).metadata as any
+      const xmlId = meta?.rozetka_category_id
+      if (typeof xmlId === "string") {
+        xmlIdToSubId.set(xmlId, String((c as any).id))
+      }
+    }
   }
 
   // 2) Group offers → products
@@ -427,9 +532,16 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     }
 
     const canonKey = first.categoryId
-      ? CATEGORY_ID_TO_CANON_KEY[String(first.categoryId)] ?? null
-      : null
-    const categoryId = canonKey ? canonKeyToCategoryId.get(canonKey) : undefined
+      ? CATEGORY_ID_TO_CANON_KEY[String(first.categoryId)] ??
+        ("other" as keyof typeof CATEGORY_CANON)
+      : ("other" as keyof typeof CATEGORY_CANON)
+    const parentCategoryId = canonKeyToCategoryId.get(canonKey)
+    const subCategoryId = first.categoryId
+      ? xmlIdToSubId.get(String(first.categoryId))
+      : undefined
+    const categoryIds = [subCategoryId, parentCategoryId].filter(
+      (v): v is string => Boolean(v)
+    )
 
     const pictures = asArray(first.picture).map(String).filter(Boolean).slice(0, 10)
     const images = pictures.length ? await uploadPictures(fileModule, pictures) : []
@@ -479,7 +591,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       description: descText,
       status: "published",
       images,
-      ...(categoryId ? { category_ids: [categoryId] } : {}),
+      ...(categoryIds.length ? { category_ids: categoryIds } : {}),
       options: [
         {
           title: "Size",
@@ -521,6 +633,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
 
   // 4) Inventory levels by SKU for the chosen stock location
   logger.info(`Linking inventory levels on location ${stockLocationId}...`)
+  const inventoryModule = container.resolve(Modules.INVENTORY) as IInventoryService
   const skus = Object.keys(skuToStock)
   const { data: inventoryItems } = await query.graph({
     entity: "inventory_item",
@@ -531,7 +644,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     (inventoryItems ?? []).map((it: any) => [String(it.sku), String(it.id)])
   )
 
-  const levels = skus
+  const desired = skus
     .map((sku) => {
       const inventory_item_id = skuToItemId.get(sku)
       if (!inventory_item_id) return null
@@ -543,9 +656,40 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     })
     .filter(Boolean) as any[]
 
-  if (levels.length) {
+  const itemIds = Array.from(
+    new Set(desired.map((l: { inventory_item_id: string }) => l.inventory_item_id))
+  )
+  const { data: existingLevels } = await query.graph({
+    entity: "inventory_level",
+    fields: ["id", "inventory_item_id", "location_id"],
+    filters: { inventory_item_id: itemIds, location_id: stockLocationId },
+  })
+  const levelKeyToId = new Map<string, string>(
+    (existingLevels ?? []).map((l: any) => [
+      `${l.inventory_item_id}::${l.location_id}`,
+      String(l.id),
+    ])
+  )
+
+  const toCreateLevels: any[] = []
+  const toUpdate: UpdateInventoryLevelInput[] = []
+  for (const l of desired as any[]) {
+    const k = `${l.inventory_item_id}::${l.location_id}`
+    const id = levelKeyToId.get(k)
+    if (id) {
+      toUpdate.push({ id, ...l })
+    } else {
+      toCreateLevels.push(l)
+    }
+  }
+
+  if (toUpdate.length) {
+    await inventoryModule.updateInventoryLevels(toUpdate)
+  }
+
+  if (toCreateLevels.length) {
     await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: levels },
+      input: { inventory_levels: toCreateLevels },
     })
   }
 
