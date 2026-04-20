@@ -738,7 +738,6 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
             await productModule.updateProductVariants(match.id, {
               title: v.title,
               sku: v.sku,
-              prices: v.prices,
               metadata: v.metadata,
             } as any)
           } else {
