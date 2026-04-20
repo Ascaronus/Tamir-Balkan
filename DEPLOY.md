@@ -234,8 +234,18 @@ rm -rf .next
 npm run build
 pm2 restart tamir-frontend
 
+cd /root/tamir_balkan/frontend
+npm run build
+pm2 restart tamir-frontend
+
+cd /root/tamir_balkan/backend
+export ROZETKA_UPDATE_EXISTING=true
+export ROZETKA_XML_URL="https://tamir.ua/rozetka/"
+export ROZETKA_STOCK_LOCATION_ID="sloc_01KNA4KNCV0D9RQYWKD6R2DY76"
+export GOOGLE_TRANSLATE_API_KEY="YOUR_GOOGLE_KEY"   # если нужен перевод
+npx medusa exec ./src/scripts/import-rozetka-xml.ts
+
 cd /root/tamir_balkan/backend
 export ROZETKA_XML_URL="https://tamir.ua/rozetka/"
-export ROZETKA_STOCK_LOCATION_ID="sloc_XXXXXXXXXXXX"
-export GOOGLE_TRANSLATE_API_KEY="YOUR_GOOGLE_KEY" # опционально: автоперевод title/description в EN/SR (sr-Latn)
+export ROZETKA_STOCK_LOCATION_ID="sloc_01KNA4KNCV0D9RQYWKD6R2DY76"
 npx medusa exec ./src/scripts/import-rozetka-xml.ts

@@ -11,6 +11,7 @@ import { XMLParser } from "fast-xml-parser"
 import crypto from "node:crypto"
 import type { IInventoryService } from "@medusajs/types/dist/inventory/service"
 import type { UpdateInventoryLevelInput } from "@medusajs/types/dist/inventory/mutations/inventory-level"
+import type { IProductModuleService } from "@medusajs/types/dist/product/service"
 
 type FxApiPairResponse = {
   base: string
@@ -307,6 +308,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const googleKey = process.env.GOOGLE_TRANSLATE_API_KEY || ""
   const translateEnabled = Boolean(googleKey)
+  const updateExisting = (process.env.ROZETKA_UPDATE_EXISTING || "true") !== "false"
 
   const stockLocationId =
     process.env.ROZETKA_STOCK_LOCATION_ID || process.env.STOCK_LOCATION_ID || ""
@@ -621,7 +623,10 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     fields: ["id", "handle"],
     filters: { handle: handles },
   })
-  const existingHandles = new Set((existingProducts ?? []).map((p: any) => String(p.handle)))
+  const existingHandleToId = new Map<string, string>(
+    (existingProducts ?? []).map((p: any) => [String(p.handle), String(p.id)])
+  )
+  const existingHandles = new Set(existingHandleToId.keys())
   const toCreateProducts = productsInput.filter((p) => !existingHandles.has(p.handle))
 
   logger.info(`Products to create: ${toCreateProducts.length} (skipped ${productsInput.length - toCreateProducts.length})`)
@@ -629,6 +634,38 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     await createProductsWorkflow(container).run({
       input: { products: toCreateProducts },
     })
+  }
+
+  // 3b) Update existing products: categories/images/description + upsert variants (by SKU)
+  if (updateExisting && existingHandles.size) {
+    logger.info(`Updating existing products: ${existingHandles.size}`)
+    const productModule = container.resolve(Modules.PRODUCT) as IProductModuleService
+
+    for (const p of productsInput) {
+      const id = existingHandleToId.get(String(p.handle))
+      if (!id) continue
+
+      // Product-level update
+      await productModule.updateProducts(id, {
+        title: p.title,
+        description: p.description,
+        // categories are additive here — overwrite with current mapping
+        category_ids: p.category_ids ?? [],
+        images: p.images ?? [],
+        metadata: p.metadata ?? {},
+      } as any)
+
+      // Variant upsert by SKU
+      const variants = Array.isArray(p.variants) ? p.variants : []
+      if (variants.length) {
+        await productModule.upsertProductVariants(
+          variants.map((v: any) => ({
+            ...v,
+            product_id: id,
+          })) as any
+        )
+      }
+    }
   }
 
   // 4) Inventory levels by SKU for the chosen stock location
