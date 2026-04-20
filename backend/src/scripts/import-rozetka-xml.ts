@@ -310,6 +310,11 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const translateEnabled = Boolean(googleKey)
   const updateExisting = (process.env.ROZETKA_UPDATE_EXISTING || "true") !== "false"
   const uploadImages = (process.env.ROZETKA_UPLOAD_IMAGES || "true") !== "false"
+  logger.info(
+    `Import flags: update_existing=${updateExisting ? "true" : "false"}, upload_images=${
+      uploadImages ? "true" : "false"
+    }`
+  )
 
   const stockLocationId =
     process.env.ROZETKA_STOCK_LOCATION_ID || process.env.STOCK_LOCATION_ID || ""
@@ -650,13 +655,15 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       const id = existingHandleToId.get(String(p.handle))
       if (!id) continue
 
-      // Product-level update
-      await productModule.updateProducts(id, {
+      // Product-level upsert (ensures images/thumbnail are actually overwritten)
+      const imgs = Array.isArray(p.images) ? p.images : []
+      await productModule.upsertProducts({
+        id,
         title: p.title,
         description: p.description,
-        // categories are additive here — overwrite with current mapping
         category_ids: p.category_ids ?? [],
-        images: p.images ?? [],
+        images: imgs,
+        thumbnail: imgs?.[0]?.url ?? null,
         metadata: p.metadata ?? {},
       } as any)
 
