@@ -234,3 +234,8 @@ rm -rf .next
 npm run build
 pm2 restart tamir-frontend
 
+cd /root/tamir_balkan/backend
+export ROZETKA_XML_URL="https://tamir.ua/rozetka/"
+export ROZETKA_STOCK_LOCATION_ID="sloc_XXXXXXXXXXXX"
+export GOOGLE_TRANSLATE_API_KEY="YOUR_GOOGLE_KEY" # опционально: автоперевод title/description в EN/SR (sr-Latn)
+npx medusa exec ./src/scripts/import-rozetka-xml.ts

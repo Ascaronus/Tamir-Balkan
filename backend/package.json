@@ -27,7 +27,8 @@
     "@medusajs/admin-sdk": "2.13.1",
     "@medusajs/cli": "2.13.1",
     "@medusajs/framework": "2.13.1",
-    "@medusajs/medusa": "2.13.1"
+    "@medusajs/medusa": "2.13.1",
+    "fast-xml-parser": "^5.7.1"
   },
   "devDependencies": {
     "@medusajs/test-utils": "2.13.1",
