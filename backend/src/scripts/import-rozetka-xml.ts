@@ -309,6 +309,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const googleKey = process.env.GOOGLE_TRANSLATE_API_KEY || ""
   const translateEnabled = Boolean(googleKey)
   const updateExisting = (process.env.ROZETKA_UPDATE_EXISTING || "true") !== "false"
+  const uploadImages = (process.env.ROZETKA_UPLOAD_IMAGES || "true") !== "false"
 
   const stockLocationId =
     process.env.ROZETKA_STOCK_LOCATION_ID || process.env.STOCK_LOCATION_ID || ""
@@ -546,7 +547,11 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     )
 
     const pictures = asArray(first.picture).map(String).filter(Boolean).slice(0, 10)
-    const images = pictures.length ? await uploadPictures(fileModule, pictures) : []
+    const images = pictures.length
+      ? uploadImages
+        ? await uploadPictures(fileModule, pictures)
+        : pictures.map((url) => ({ url }))
+      : []
 
     // options: Size
     const sizeValues = Array.from(

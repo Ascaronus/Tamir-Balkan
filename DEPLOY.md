@@ -243,6 +243,7 @@ export ROZETKA_UPDATE_EXISTING=true
 export ROZETKA_XML_URL="https://tamir.ua/rozetka/"
 export ROZETKA_STOCK_LOCATION_ID="sloc_01KNA4KNCV0D9RQYWKD6R2DY76"
 export GOOGLE_TRANSLATE_API_KEY="YOUR_GOOGLE_KEY"   # если нужен перевод
+export ROZETKA_UPLOAD_IMAGES=false # remote: использовать picture URL (tamir.ua), без загрузки в Medusa storage
 npx medusa exec ./src/scripts/import-rozetka-xml.ts
 
 cd /root/tamir_balkan/backend
