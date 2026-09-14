@@ -121,7 +121,6 @@ export async function addToCart(params: {
     return result.cart as Cart
   }
 
-  return cart
 }
 
 export async function updateLineItem(params: {

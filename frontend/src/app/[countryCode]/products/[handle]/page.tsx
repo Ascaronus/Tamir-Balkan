@@ -53,7 +53,7 @@ export default async function ProductPage({ params, searchParams }: {
     url,
     offers: (product.variants || []).flatMap(variant => {
       const price = variant.calculated_price
-      if (!price || !Number.isFinite(price.calculated_amount) || price.calculated_amount < 0) return []
+      if (!price || typeof price.calculated_amount !== "number" || !price.currency_code || !Number.isFinite(price.calculated_amount) || price.calculated_amount < 0) return []
       return [{ "@type": "Offer", price: price.calculated_amount,
         priceCurrency: price.currency_code.toUpperCase(),
         url: url + "?v_id=" + encodeURIComponent(variant.id),
