@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
     root: frontendRoot,
   },
   outputFileTracingRoot: frontendRoot,
+  async redirects() {
+    return [
+      { source: "/rs", destination: "/rs/catalog", permanent: true },
+      { source: "/me", destination: "/rs/catalog", permanent: true },
+      { source: "/me/:path*", destination: "/rs/:path*", permanent: true },
+    ]
+  },
   images: {
     remotePatterns: [
       {

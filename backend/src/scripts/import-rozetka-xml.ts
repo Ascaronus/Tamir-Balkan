@@ -1,3 +1,4 @@
+import { offerSize, offerStock, offerPictures, offerPriceRsd } from "../utils/rozetka"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import type { IFileModuleService } from "@medusajs/types/dist/file/service"
@@ -6,6 +7,10 @@ import {
   createInventoryLevelsWorkflow,
   createProductCategoriesWorkflow,
   createProductsWorkflow,
+  updateProductsWorkflow,
+  createProductVariantsWorkflow,
+  upsertVariantPricesWorkflow,
+  linkSalesChannelsToStockLocationWorkflow,
 } from "@medusajs/medusa/core-flows"
 import { XMLParser } from "fast-xml-parser"
 import crypto from "node:crypto"
@@ -51,7 +56,7 @@ function toText(v: unknown): string {
 }
 
 function toNumber(v: unknown): number | null {
-  const n = typeof v === "number" ? v : parseFloat(String(v ?? "").trim())
+  const n = typeof v === "number" ? v : Number(String(v ?? "").trim().replace(/\s/g, "").replace(",", "."))
   return Number.isFinite(n) ? n : null
 }
 
@@ -78,13 +83,13 @@ function stripHtml(input: string): string {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" as any })
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000) })
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
   return (await res.json()) as T
 }
 
 async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, { cache: "no-store" as any })
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000) })
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
   return await res.text()
 }
@@ -125,7 +130,7 @@ function splitChunks(text: string, maxLen: number): string[] {
 }
 
 function normalizeLang(target: "en" | "sr"): string {
-  return target === "sr" ? "sr-Latn" : "en"
+  return target === "sr" ? "sr" : "en"
 }
 
 async function googleTranslateText(params: {
@@ -168,7 +173,7 @@ async function downloadAsBase64(url: string): Promise<{
   mimeType: string
   filename: string
 }> {
-  const res = await fetch(url, { cache: "no-store" as any })
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000) })
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
   const contentType = res.headers.get("content-type") || "application/octet-stream"
   const buf = Buffer.from(await res.arrayBuffer())
@@ -231,21 +236,25 @@ function categoryText(cat: RozetkaCategory): string {
 
 function getOfferParam(offer: RozetkaOffer, name: string): string | null {
   const params = asArray(offer.param)
-  const hit = params.find((p) => String((p as any)?.name ?? "") === name)
+  const aliases = name === "Размер" ? ["размер", "розмір", "size", "veličina"] : [name.toLowerCase()]
+  const hit = params.find((p) => aliases.includes(String((p as any)?.name ?? "").toLowerCase().trim()))
   const v = hit ? toText((hit as any)["#text"]) : ""
   return v ? v.trim() : null
 }
 
 function productKeyFromOffer(offer: RozetkaOffer): string {
   // In this feed, same `url` repeats across sizes → use it as stable product key.
-  return offer.url
+  const url = new URL(offer.url)
+  url.search = ""
+  url.hash = ""
+  return url.href.replace(/\/$/, "")
 }
 
 function handleFromOffer(offer: RozetkaOffer): string {
   try {
     const u = new URL(offer.url)
     const last = u.pathname.split("/").filter(Boolean).pop() || offer.id
-    return slugify(last.replace(/\.html?$/i, ""))
+    return slugify(last.replace(/\.html?$/i, "")) || `rozetka-${crypto.createHash("sha256").update(offer.url).digest("hex").slice(0, 16)}`
   } catch {
     return slugify(offer.id)
   }
@@ -264,19 +273,21 @@ function baseTitleFromOfferName(name: string): string {
 }
 
 function moneyToMinor(amount: number, currency: "eur" | "rsd"): number {
-  if (currency === "eur") return Math.max(0, Math.round(amount * 100))
+  if (currency === "eur") return Math.max(0, Math.round(amount * 100) / 100)
   // RSD is usually no-decimal
   return Math.max(0, Math.round(amount))
 }
 
 async function getRatesFromFxApi() {
-  // fxapi.app endpoints described here:
-  // - https://fxapi.app/UAH/EUR (docs show /api/{base}/{target}.json)
-  // - https://fxapi.app/UAH/RSD
-  const eur = await fetchJson<FxApiPairResponse>("https://fxapi.app/api/UAH/EUR.json")
-  const rsd = await fetchJson<FxApiPairResponse>("https://fxapi.app/api/UAH/RSD.json")
-  if (!eur?.rate || !rsd?.rate) throw new Error("Failed to fetch fxapi rates")
-  return { uahToEur: eur.rate, uahToRsd: rsd.rate }
+  const explicit = Number(process.env.ROZETKA_UAH_TO_RSD)
+  if (Number.isFinite(explicit) && explicit > 0) return { uahToRsd: explicit }
+  try {
+    const rsd = await fetchJson<FxApiPairResponse>("https://fxapi.app/api/UAH/RSD.json")
+    if (!Number.isFinite(rsd?.rate) || rsd.rate <= 0) throw new Error("Invalid rate")
+    return { uahToRsd: rsd.rate }
+  } catch {
+    throw new Error("Cannot load UAH/RSD exchange rate. Set ROZETKA_UAH_TO_RSD to the intended positive conversion rate and retry. No products were changed.")
+  }
 }
 
 async function uploadPictures(
@@ -292,6 +303,7 @@ async function uploadPictures(
         filename: `${hashed}-${filename}`,
         mimeType,
         content: base64,
+        access: "public",
       }
       const created = await fileModule.createFiles(dto)
       if (created?.url) out.push({ url: created.url })
@@ -327,17 +339,19 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const xmlUrl = process.env.ROZETKA_XML_URL || "https://tamir.ua/rozetka/"
   logger.info(`Fetching Rozetka XML: ${xmlUrl}`)
 
-  const [{ uahToEur, uahToRsd }, xml] = await Promise.all([
+  const [{ uahToRsd }, xml] = await Promise.all([
     getRatesFromFxApi(),
     fetchText(xmlUrl),
   ])
-  logger.info(`Rates: 1 UAH → ${uahToEur} EUR, ${uahToRsd} RSD`)
+  logger.info(`Rate: 1 UAH → ${uahToRsd} RSD`)
 
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "",
     allowBooleanAttributes: true,
     processEntities: true,
+    parseTagValue: false,
+    parseAttributeValue: false,
   })
   const doc = parser.parse(xml) as any
   const offers = asArray<RozetkaOffer>(doc?.yml_catalog?.shop?.offers?.offer)
@@ -349,14 +363,33 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     throw new Error("No offers found in XML")
   }
 
+  const productModule = container.resolve(Modules.PRODUCT) as IProductModuleService
+  const [store] = await container.resolve(Modules.STORE).listStores()
+  const salesChannelId = process.env.ROZETKA_SALES_CHANNEL_ID || store?.default_sales_channel_id
+  if (!salesChannelId) throw new Error("No sales channel. Set ROZETKA_SALES_CHANNEL_ID.")
+  await container.resolve(Modules.STOCK_LOCATION).retrieveStockLocation(stockLocationId)
+  const [shippingProfile] = await container.resolve(Modules.FULFILLMENT).listShippingProfiles({ type: "default" })
+  if (!shippingProfile) throw new Error("Create a default shipping profile before importing.")
+  for (const offer of offers) {
+    if (!offer.id || !offer.url || toNumber(offer.price) === null || toNumber(offer.price)! <= 0) throw new Error(`Invalid offer ${offer.id}: id, URL and a positive price are required`)
+    if (!["UAH", "RSD"].includes(String(offer.currencyId || "UAH").toUpperCase())) throw new Error(`Unsupported currency for offer ${offer.id}`)
+  }
+  const combinations = new Set<string>()
+  const offerIds = new Set<string>()
+  for (const offer of offers) {
+    const combination = `${productKeyFromOffer(offer)}::${offerSize(offer)}`
+    if (combinations.has(combination)) throw new Error(`Duplicate size for product ${offer.url}: ${offerSize(offer)}. Split offers by product/color before importing.`)
+    if (offerIds.has(offer.id)) throw new Error(`Duplicate offer id ${offer.id}`)
+    combinations.add(combination); offerIds.add(offer.id)
+  }
+  if (process.env.ROZETKA_DRY_RUN === "true") {
+    logger.info(`Dry run valid: ${offers.length} offers. No records changed.`)
+    return
+  }
+  await linkSalesChannelsToStockLocationWorkflow(container).run({ input: { id: stockLocationId, add: [salesChannelId] } })
+
   // 1) Ensure canonical categories exist
   logger.info("Ensuring canonical categories (no duplicates)...")
-  const { result: existingCats } = await createProductCategoriesWorkflow(container).run({
-    input: {
-      product_categories: [],
-    },
-  })
-  // Note: workflow above with empty create is a no-op but returns empty; we'll list via query instead.
   const { data: currentCategories } = await query.graph({
     entity: "product_category",
     fields: ["id", "name"],
@@ -370,7 +403,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const toCreateCategories = Object.entries(CATEGORY_CANON)
     .map(([key, v]) => ({ key: key as keyof typeof CATEGORY_CANON, v }))
     .filter(({ v }) => !nameToId.has(v.en))
-    .map(({ v }) => ({ name: v.en, is_active: true }))
+    .map(({ v }) => ({ name: v.en, is_active: true, metadata: { i18n: { en: { name: v.en }, sr: { name: v.sr } } } }))
 
   if (toCreateCategories.length) {
     const { result } = await createProductCategoriesWorkflow(container).run({
@@ -384,6 +417,11 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   for (const [key, v] of Object.entries(CATEGORY_CANON) as any) {
     const id = nameToId.get(v.en)
     if (id) canonKeyToCategoryId.set(key, id)
+  }
+
+  for (const [key, names] of Object.entries(CATEGORY_CANON)) {
+    const id = canonKeyToCategoryId.get(key as keyof typeof CATEGORY_CANON)
+    if (id) await productModule.updateProductCategories(id, { metadata: { i18n: { en: { name: names.en }, sr: { name: names.sr } } } })
   }
 
   // 1b) Create subcategories from XML under canonical parents (no language duplicates)
@@ -453,8 +491,8 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     }
 
     // Optionally translate category name for metadata; actual stored name in Medusa stays EN-ish for now
-    let nameEn = baseName
-    let nameSr = baseName
+    let nameEn: string = CATEGORY_CANON[canon].en
+    let nameSr: string = CATEGORY_CANON[canon].sr
     if (translateEnabled) {
       try {
         ;[nameEn, nameSr] = await Promise.all([
@@ -577,7 +615,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       (v): v is string => Boolean(v)
     )
 
-    const pictures = asArray(first.picture).map(String).filter(Boolean).slice(0, 10)
+    const pictures = offerPictures(group)
     const images = pictures.length
       ? uploadImages
         ? await uploadPictures(fileModule, pictures)
@@ -588,29 +626,28 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     const sizeValues = Array.from(
       new Set(
         group
-          .map((o) => getOfferParam(o, "Размер"))
+          .map((o) => offerSize(o))
           .filter((v): v is string => Boolean(v))
       )
     )
 
     const variants = group.map((o) => {
-      const size = getOfferParam(o, "Размер") || "One size"
-      const priceUah = toNumber(o.price) ?? 0
-      const priceEur = priceUah * uahToEur
-      const priceRsd = priceUah * uahToRsd
+      const size = offerSize(o)
+      const priceRsd = offerPriceRsd(o, uahToRsd)
 
       const sku = slugify(String(o.id)).toUpperCase()
-      skuToStock[sku] = Math.max(0, Math.round(toNumber(o.stock_quantity) ?? 0))
+      skuToStock[sku] = offerStock(o)
 
       return {
         title: `${size}`,
         sku,
+        manage_inventory: true,
+        allow_backorder: false,
         options: {
           Size: size,
         },
         prices: [
-          { currency_code: "eur", amount: moneyToMinor(priceEur, "eur") },
-          { currency_code: "rsd", amount: moneyToMinor(priceRsd, "rsd") },
+          { currency_code: "rsd", amount: priceRsd },
         ],
         metadata: {
           rozetka_offer_id: o.id,
@@ -624,10 +661,13 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     })
 
     productsInput.push({
-      title,
+      title: titleEn,
       handle,
       description: descText,
       status: "published",
+      sales_channels: [{ id: salesChannelId }],
+      shipping_profile_id: shippingProfile.id,
+      thumbnail: images[0]?.url ?? null,
       images,
       ...(categoryIds.length ? { category_ids: categoryIds } : {}),
       options: [
@@ -672,98 +712,62 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     })
   }
 
-  // 3b) Update existing products: categories/images/description + upsert variants (by SKU)
-  if (updateExisting && existingHandles.size) {
-    logger.info(`Updating existing products: ${existingHandles.size}`)
-    const productModule = container.resolve(Modules.PRODUCT) as IProductModuleService
-
+  if (!updateExisting) {
+    for (const product of productsInput) {
+      if (existingHandles.has(product.handle)) for (const variant of product.variants) delete skuToStock[variant.sku]
+    }
+  }
+  if (updateExisting) {
     for (const p of productsInput) {
-      const id = existingHandleToId.get(String(p.handle))
+      const id = existingHandleToId.get(p.handle)
       if (!id) continue
-
-      // Product-level upsert (ensures images/thumbnail are actually overwritten)
-      const imgs = Array.isArray(p.images) ? p.images : []
-      await productModule.upsertProducts({
-        id,
-        title: p.title,
-        description: p.description,
-        category_ids: p.category_ids ?? [],
-        images: imgs,
-        thumbnail: imgs?.[0]?.url ?? null,
-        metadata: p.metadata ?? {},
-      } as any)
-
-      // Variants: update by SKU / option-combination; create missing.
-      const variants = Array.isArray(p.variants) ? p.variants : []
-      if (variants.length) {
-        const existingVariants = await productModule.listProductVariants(
-          { product_id: id } as any,
-          { relations: ["options"] } as any
-        )
-        const bySku = new Map<string, any>()
-        const byOptions = new Map<string, any>()
-
-        for (const ev of existingVariants as any[]) {
-          const sku = typeof ev?.sku === "string" ? ev.sku : ""
-          if (sku) bySku.set(sku, ev)
-
-          // Build a stable option signature (e.g. "Size=58|Color=Black")
-          const optsArr = Array.isArray(ev?.options) ? ev.options : []
-          const sig = optsArr
-            .map((o: any) => `${String(o?.option_id ?? "")}=${String(o?.value ?? "")}`)
-            .sort()
-            .join("|")
-          if (sig) byOptions.set(sig, ev)
-        }
-
-        const toCreate: any[] = []
-        for (const v of variants as any[]) {
-          const sku = typeof v?.sku === "string" ? v.sku : ""
-          const ev = sku ? bySku.get(sku) : null
-
-          // Match by option value as a fallback (we only have Size option in this importer)
-          let match = ev
-          if (!match) {
-            const size = v?.options?.Size
-            if (size) {
-              const hit = (existingVariants as any[]).find((x) =>
-                Array.isArray(x?.options) &&
-                x.options.some((o: any) => String(o?.value ?? "") === String(size))
-              )
-              if (hit) match = hit
-            }
-          }
-
-          if (match?.id) {
-            await productModule.updateProductVariants(match.id, {
-              title: v.title,
-              sku: v.sku,
-              metadata: v.metadata,
-            } as any)
-          } else {
-            toCreate.push({ ...v, product_id: id })
-          }
-        }
-
-        if (toCreate.length) {
-          await productModule.createProductVariants(toCreate as any)
-        }
+      const { variants, options, ...productData } = p
+      const existingProduct = await productModule.retrieveProduct(id, { relations: ["options", "options.values", "variants", "variants.options"] })
+      for (const option of options) {
+        const existingOption = existingProduct.options.find(current => current.title === option.title)
+        if (existingOption) {
+          await productModule.updateProductOptions(existingOption.id, { values: [...new Set([...existingOption.values.map(value => value.value), ...option.values])] as string[] })
+        } else await productModule.createProductOptions({ ...option, product_id: id })
+      }
+      await updateProductsWorkflow(container).run({ input: { products: [{ ...productData, id }] } })
+      for (const variant of variants) {
+        const match = existingProduct.variants.find(current => current.sku === variant.sku) ?? existingProduct.variants.find(current => current.options.some(option => option.value === variant.options.Size))
+        if (match) {
+          await productModule.updateProductVariants(match.id, { title: variant.title, sku: variant.sku, metadata: variant.metadata, manage_inventory: true, allow_backorder: false })
+          await upsertVariantPricesWorkflow(container).run({ input: { variantPrices: [{ variant_id: match.id, product_id: id, prices: variant.prices }], previousVariantIds: [] } })
+        } else await createProductVariantsWorkflow(container).run({ input: { product_variants: [{ ...variant, product_id: id }] } })
       }
     }
+  }
+
+  // Repair missing inventory links left by older imports using module-only creates.
+  const inventoryService = container.resolve(Modules.INVENTORY) as IInventoryService
+  const link = container.resolve(ContainerRegistrationKeys.LINK)
+  const importedSkus = Object.keys(skuToStock)
+  if (!importedSkus.length) { logger.info("No variants to update."); return }
+  const { data: importedVariants } = await query.graph({ entity: "product_variant", fields: ["id", "sku", "inventory_items.inventory_item_id"], filters: { sku: importedSkus } })
+  for (const variant of importedVariants) {
+    if (variant.inventory_items?.length) continue
+    const existingItems = await inventoryService.listInventoryItems({ sku: variant.sku! })
+    const item = existingItems[0] ?? await inventoryService.createInventoryItems({ sku: variant.sku! })
+    await link.create({ [Modules.PRODUCT]: { variant_id: variant.id }, [Modules.INVENTORY]: { inventory_item_id: item.id }, data: { required_quantity: 1 } })
   }
 
   // 4) Inventory levels by SKU for the chosen stock location
   logger.info(`Linking inventory levels on location ${stockLocationId}...`)
   const inventoryModule = container.resolve(Modules.INVENTORY) as IInventoryService
   const skus = Object.keys(skuToStock)
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
+  const { data: variantsWithInventory } = await query.graph({
+    entity: "product_variant",
+    fields: ["id", "sku", "inventory_items.inventory_item_id"],
     filters: { sku: skus },
   })
-  const skuToItemId = new Map<string, string>(
-    (inventoryItems ?? []).map((it: any) => [String(it.sku), String(it.id)])
-  )
+  const skuToItemId = new Map<string, string>()
+  for (const variant of variantsWithInventory) {
+    if (variant.inventory_items?.length !== 1) throw new Error(`Expected one inventory item for imported variant ${variant.id}`)
+    const inventoryId = variant.inventory_items[0]?.inventory_item_id
+    if (variant.sku && inventoryId) skuToItemId.set(variant.sku, inventoryId)
+  }
 
   const desired = skus
     .map((sku) => {
@@ -814,6 +818,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     })
   }
 
-  logger.info("Rozetka import finished.")
+  if (desired.length !== skus.length) throw new Error(`Inventory incomplete: ${desired.length}/${skus.length} linked. Review import before selling.`)
+  logger.info("Rozetka import finished. Review imported prices, sizes and actual stock in Admin before selling.")
 }
 

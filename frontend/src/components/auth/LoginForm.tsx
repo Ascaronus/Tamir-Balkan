@@ -31,8 +31,8 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
           try {
             await login(email.trim(), password)
             router.push(`/${countryCode}/account`)
-          } catch (e: any) {
-            setError(e?.message || t("auth.login.failed"))
+          } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : t("auth.login.failed"))
           }
         }}
       >

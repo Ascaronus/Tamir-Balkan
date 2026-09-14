@@ -4,9 +4,11 @@ import {
   createContext,
   useContext,
   useMemo,
+  useEffect,
   type ReactNode,
 } from "react"
-import type { Locale } from "@/lib/i18n/config"
+import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
+import { sdk } from "@/lib/medusa"
 import type { Messages } from "@/lib/i18n/messages"
 import { createTranslator, type TranslateFn } from "@/lib/i18n/translator"
 
@@ -26,6 +28,7 @@ export function LocaleProvider({
   messages: Messages
   children: ReactNode
 }) {
+  useEffect(() => { sdk.client.setLocale(medusaStoreLocale(locale)) }, [locale])
   const value = useMemo(() => {
     const t = createTranslator(messages)
     return { locale, t }

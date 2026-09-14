@@ -59,9 +59,9 @@ export default async function addBalkanRegions({ container }: ExecArgs) {
     {},
     { take: 100 }
   )
-  const names = new Set(existing.map((r: { name: string }) => r.name))
+  const serbia = await regionModuleService.listRegions({}, { relations: ["countries"], take: 100 })
 
-  if (!names.has("Serbia")) {
+  if (!serbia.some(region => region.countries?.some(country => country.iso_2 === "rs"))) {
     logger.info("Creating region Serbia (RSD)...")
     await createRegionsWorkflow(container).run({
       input: {
@@ -77,28 +77,8 @@ export default async function addBalkanRegions({ container }: ExecArgs) {
     })
   }
 
-  if (!names.has("Montenegro")) {
-    logger.info("Creating region Montenegro (EUR)...")
-    await createRegionsWorkflow(container).run({
-      input: {
-        regions: [
-          {
-            name: "Montenegro",
-            currency_code: "eur",
-            countries: ["me"],
-            payment_providers: ["pp_system_default"],
-          },
-        ],
-      },
-    })
-  }
+  const taxRegions = await container.resolve(Modules.TAX).listTaxRegions({ country_code: "rs" })
+  if (!taxRegions.length) await createTaxRegionsWorkflow(container).run({ input: [{ country_code: "rs", provider_id: "tp_system" }] })
 
-  await createTaxRegionsWorkflow(container).run({
-    input: [
-      { country_code: "rs", provider_id: "tp_system" },
-      { country_code: "me", provider_id: "tp_system" },
-    ],
-  })
-
-  logger.info("Balkan regions ready (Serbia RSD, Montenegro EUR).")
+  logger.info("Serbia region ready (RSD).")
 }

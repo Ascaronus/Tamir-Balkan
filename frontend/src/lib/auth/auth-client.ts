@@ -79,9 +79,9 @@ export async function signup(params: {
       last_name: params.last_name,
       phone: params.phone,
       metadata: params.notes ? { notes: params.notes } : undefined,
-    } as any,
+    },
     {},
-    headers as any
+    headers
   )
 
   await sdk.store.customer
@@ -97,9 +97,9 @@ export async function signup(params: {
         phone: params.phone,
         is_default_billing: true,
         is_default_shipping: true,
-      } as any,
+      },
       {},
-      headers as any
+      headers
     )
     .catch(() => null)
 

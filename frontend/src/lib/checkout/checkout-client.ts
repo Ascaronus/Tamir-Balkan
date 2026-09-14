@@ -6,7 +6,7 @@ export async function listShippingOptions(cartId: string) {
     shipping_options: HttpTypes.StoreCartShippingOption[]
   }>("/store/shipping-options", {
     method: "GET",
-    query: { cart_id: cartId } as any,
+    query: { cart_id: cartId },
     cache: "no-store",
   })
   return res.shipping_options ?? []
@@ -34,7 +34,7 @@ export async function setCartAddresses(params: {
       shipping_address,
       billing_address: shipping_address,
       metadata: notes ? { notes } : undefined,
-    } as any
+    }
   )
 }
 
@@ -43,7 +43,7 @@ export async function setShippingMethod(params: {
   optionId: string
 }) {
   const { cartId, optionId } = params
-  return sdk.store.cart.addShippingMethod(cartId, { option_id: optionId } as any)
+  return sdk.store.cart.addShippingMethod(cartId, { option_id: optionId })
 }
 
 export async function listPaymentProviders(regionId: string) {
@@ -51,7 +51,7 @@ export async function listPaymentProviders(regionId: string) {
     "/store/payment-providers",
     {
       method: "GET",
-      query: { region_id: regionId } as any,
+      query: { region_id: regionId },
       cache: "no-store",
     }
   )
@@ -64,12 +64,12 @@ export async function initiatePaymentSession(params: {
 }) {
   const { cart, providerId } = params
   // js-sdk exposes store.payment in Medusa v2
-  return (sdk.store.payment as any).initiatePaymentSession(cart, {
+  return sdk.store.payment.initiatePaymentSession(cart, {
     provider_id: providerId,
   })
 }
 
 export async function completeCart(cartId: string) {
-  return sdk.store.cart.complete(cartId) as any
+  return sdk.store.cart.complete(cartId)
 }
 

@@ -1,4 +1,5 @@
 import type { HttpTypes } from "@medusajs/types"
+import { requireQuantity } from "@/lib/store/commerce"
 import { sdk } from "@/lib/medusa"
 import { getStoredCartId, setStoredCartId, clearStoredCartId } from "./cart-storage"
 import { getRegionByCountry } from "@/lib/store/regions"
@@ -31,12 +32,24 @@ async function retrieveCart(cartId: string): Promise<Cart | null> {
     const cart = res.cart ?? null
     if (cart && isCartCompleted(cart)) return null
     return cart
-  } catch {
-    return null
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) return null
+    throw error
   }
 }
 
-export async function getOrCreateCart(countryCode: string): Promise<Cart> {
+const pendingCarts = new Map<string, Promise<Cart>>()
+
+export function getOrCreateCart(countryCode: string): Promise<Cart> {
+  const cc = countryCode.toLowerCase()
+  const pending = pendingCarts.get(cc)
+  if (pending) return pending
+  const request = loadOrCreateCart(cc).finally(() => pendingCarts.delete(cc))
+  pendingCarts.set(cc, request)
+  return request
+}
+
+async function loadOrCreateCart(countryCode: string): Promise<Cart> {
   const cc = countryCode.toLowerCase()
   const region = await getRegionByCountry(cc)
   if (!region?.id) {
@@ -58,7 +71,8 @@ export async function getOrCreateCart(countryCode: string): Promise<Cart> {
           } else {
             return updated
           }
-        } catch {
+        } catch (error) {
+          if (!isCartAlreadyCompletedError(error)) throw error
           clearStoredCartId()
         }
       } else {
@@ -71,7 +85,7 @@ export async function getOrCreateCart(countryCode: string): Promise<Cart> {
   }
 
   const created = await sdk.store.cart
-    .create({ region_id: region.id })
+    .create({ region_id: region.id, shipping_address: { country_code: cc } })
     .then(({ cart }) => cart as Cart)
 
   setStoredCartId(created.id)
@@ -84,6 +98,7 @@ export async function addToCart(params: {
   quantity?: number
 }): Promise<Cart> {
   const { countryCode, variantId, quantity = 1 } = params
+  requireQuantity(quantity)
   let cart = await getOrCreateCart(countryCode)
 
   const run = () =>
@@ -115,6 +130,7 @@ export async function updateLineItem(params: {
   quantity: number
 }): Promise<Cart> {
   const { countryCode, lineItemId, quantity } = params
+  requireQuantity(quantity)
   let cart = await getOrCreateCart(countryCode)
 
   try {

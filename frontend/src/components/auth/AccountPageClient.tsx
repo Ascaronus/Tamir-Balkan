@@ -7,18 +7,19 @@ import type { HttpTypes } from "@medusajs/types"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { sdk } from "@/lib/medusa"
 import { getAuthToken } from "@/lib/auth/auth-storage"
-import { addToCart } from "@/lib/cart/cart-client"
+import { useCart } from "@/components/cart/CartProvider"
 import { AccountProfileForm } from "@/components/auth/AccountProfileForm"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 function authHeaders() {
   const token = getAuthToken()
-  return token ? ({ authorization: `Bearer ${token}` } as any) : (undefined as any)
+  return token ? { authorization: `Bearer ${token}` } : undefined
 }
 
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
   const t = useTranslations()
   const router = useRouter()
+  const { addItem, isMutating } = useCart()
   const { customer, isReady, logout } = useAuth()
   const [orders, setOrders] = useState<HttpTypes.StoreOrder[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
@@ -43,8 +44,8 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         })
         const nextOrders = res.orders ?? []
         if (!cancelled) setOrders(nextOrders)
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || t("account.loadOrdersFailed"))
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : t("account.loadOrdersFailed"))
       } finally {
         if (!cancelled) setLoadingOrders(false)
       }
@@ -52,7 +53,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
     return () => {
       cancelled = true
     }
-  }, [isReady, customer])
+  }, [isReady, customer, t])
 
   if (!isReady) {
     return (
@@ -128,7 +129,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           <div className="mt-3 text-sm text-red-700">{error}</div>
         ) : orders.length ? (
           <ul className="mt-4 divide-y divide-[var(--store-border)]">
-            {orders.map((o: any) => (
+            {orders.map((o) => (
               <li key={o.id} className="py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -142,6 +143,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                     </div>
                   </div>
                   <button
+                    disabled={isMutating}
                     type="button"
                     onClick={async () => {
                       try {
@@ -157,16 +159,12 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                         for (const it of items) {
                           const vid = it.variant_id
                           if (vid) {
-                            await addToCart({
-                              countryCode,
-                              variantId: vid,
-                              quantity: it.quantity ?? 1,
-                            })
+                            await addItem(vid, it.quantity ?? 1)
                           }
                         }
                         router.push(`/${countryCode}/cart`)
-                      } catch (e: any) {
-                        setError(e?.message || t("account.repeatFailed"))
+                      } catch (e: unknown) {
+                        setError(e instanceof Error ? e.message : t("account.repeatFailed"))
                       }
                     }}
                     className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--store-text)] px-5 text-sm font-semibold text-white"

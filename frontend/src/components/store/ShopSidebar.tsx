@@ -4,11 +4,10 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState, Suspense } from "react"
 import { useLocaleContext, useTranslations } from "@/components/i18n/LocaleProvider"
-import { medusaStoreLocale } from "@/lib/i18n/config"
-import { sdk } from "@/lib/medusa"
+import { listStoreProductCategories } from "@/lib/store/categories"
 import type { HttpTypes } from "@medusajs/types"
 
-type Country = "rs" | "me"
+type Country = "rs"
 
 /** API может вернуть плоский список или дерево с `category_children`. */
 function normalizeCategoriesFromApi(
@@ -135,7 +134,7 @@ function DesktopCategoryBranch({
           ▾
         </span>
       </Link>
-      <ul className="mt-0.5 hidden space-y-0.5 border-l border-white/12 py-0.5 pl-2.5 ml-2 group-hover/cat:block">
+      <ul className="mt-0.5 hidden space-y-0.5 border-l border-white/12 py-0.5 pl-2.5 ml-2 group-hover/cat:block group-focus-within/cat:block">
         {children.map((c) => (
           <DesktopCategoryBranch
             key={c.id}
@@ -177,19 +176,8 @@ function ShopSidebarInner({
       setLoading(true)
       setError(null)
       try {
-        const { product_categories } = await sdk.client.fetch<{
-          product_categories: HttpTypes.StoreProductCategory[]
-        }>(`/store/product-categories`, {
-          method: "GET",
-          query: {
-            limit: 100,
-            offset: 0,
-            fields: "id,name,handle,parent_category_id,rank,*category_children",
-          },
-          headers: { "x-medusa-locale": medusaStoreLocale(locale) },
-          cache: "no-store",
-        })
-        if (!cancelled) setCategories(product_categories ?? [])
+        const product_categories = await listStoreProductCategories(locale)
+        if (!cancelled) setCategories(product_categories)
       } catch (e) {
         if (!cancelled)
           setError(
@@ -231,7 +219,7 @@ function ShopSidebarInner({
       <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label={t("sidebar.title")}>
         {!countryCode ? (
           <p className="px-3 py-2 text-sm leading-relaxed text-white/70">
-            {t("sidebar.pickRegionHint")}
+            {t("sidebar.serbia")}
           </p>
         ) : (
           <>
@@ -309,13 +297,6 @@ function ShopSidebarInner({
               className={`text-sm ${countryCode === "rs" ? "text-[var(--store-accent)]" : "text-white/75 hover:text-white"}`}
             >
               {t("sidebar.serbia")}
-            </Link>
-            <Link
-              href="/me/catalog"
-              onClick={onNavigate}
-              className={`text-sm ${countryCode === "me" ? "text-[var(--store-accent)]" : "text-white/75 hover:text-white"}`}
-            >
-              {t("sidebar.montenegro")}
             </Link>
           </div>
         </div>

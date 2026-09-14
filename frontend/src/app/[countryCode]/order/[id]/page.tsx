@@ -9,12 +9,12 @@ export default async function OrderPage(props: {
 }) {
   const { countryCode, id } = await props.params
   const cc = countryCode.toLowerCase()
-  if (cc !== "rs" && cc !== "me") notFound()
+  if (cc !== "rs") notFound()
 
   const { t } = await getTranslations()
 
   return (
-    <StoreShell countryCode={cc as "rs" | "me"}>
+    <StoreShell countryCode={cc as "rs"}>
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
         <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
           <h1 className="text-xl font-semibold text-[var(--store-text)]">

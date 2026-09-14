@@ -28,7 +28,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
   const [address1, setAddress1] = useState("")
   const [city, setCity] = useState("")
   const [postalCode, setPostalCode] = useState("")
-  const [country, setCountry] = useState<"rs" | "me">("rs")
+  const [country, setCountry] = useState<"rs">("rs")
   const [notes, setNotes] = useState("")
   const [addressId, setAddressId] = useState<string | null>(null)
 
@@ -201,12 +201,11 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             <select
               value={country}
               onChange={(e) =>
-                setCountry(e.target.value === "me" ? "me" : "rs")
+                setCountry("rs")
               }
               className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
             >
               <option value="rs">{t("countries.rs")}</option>
-              <option value="me">{t("countries.me")}</option>
             </select>
           </label>
 

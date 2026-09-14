@@ -9,10 +9,10 @@ export default async function LoginPage(props: {
 }) {
   const { countryCode } = await props.params
   const cc = countryCode.toLowerCase()
-  if (cc !== "rs" && cc !== "me") notFound()
+  if (cc !== "rs") notFound()
 
   return (
-    <StoreShell countryCode={cc as "rs" | "me"}>
+    <StoreShell countryCode={cc as "rs"}>
       <div className="mx-auto max-w-md px-4 py-10 sm:px-6">
         <LoginForm countryCode={cc} />
       </div>

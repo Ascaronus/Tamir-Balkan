@@ -7,14 +7,16 @@ import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { CartLink } from "@/components/cart/CartLink"
 import { useAuth } from "@/components/auth/AuthProvider"
 
-type Country = "rs" | "me"
+type Country = "rs"
 
 export function ShopHeader({
   countryCode,
   onOpenCatalog,
+  menuOpen = false,
 }: {
   countryCode?: Country
   onOpenCatalog: () => void
+  menuOpen?: boolean
 }) {
   const t = useTranslations()
   const cartHref = countryCode ? `/${countryCode}/cart` : "/"
@@ -27,7 +29,7 @@ export function ShopHeader({
       <div className="mx-auto max-w-[1600px] px-3 pt-2 sm:px-5">
         <div className="flex flex-wrap items-center justify-end gap-2 gap-y-1 text-[0.72rem] uppercase tracking-[0.08em] text-[var(--store-text)]">
           <span className="mr-auto hidden sm:inline text-[var(--store-text-muted)] normal-case tracking-normal">
-            +381 11 000 0000
+            {t("header.deliverySerbia")}
           </span>
           <LanguageSwitcher />
           <Link
@@ -39,17 +41,6 @@ export function ShopHeader({
             }
           >
             RS
-          </Link>
-          <span className="text-[var(--store-border)]">|</span>
-          <Link
-            href="/me/catalog"
-            className={
-              countryCode === "me"
-                ? "font-semibold text-[var(--store-text)]"
-                : "text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
-            }
-          >
-            ME
           </Link>
           <span className="text-[var(--store-border)]">|</span>
           <Link
@@ -73,7 +64,7 @@ export function ShopHeader({
             type="button"
             onClick={onOpenCatalog}
             className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center gap-2 rounded-md px-1 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[var(--store-text)] hover:bg-black/[0.04] md:hidden"
-            aria-expanded="false"
+            aria-expanded={menuOpen}
             aria-controls="store-sidebar"
           >
             <span className="flex flex-col gap-1" aria-hidden>

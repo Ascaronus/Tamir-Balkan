@@ -1,66 +1,33 @@
 import type { HttpTypes } from "@medusajs/types"
 
-function colorKeywordFromVariant(
-  variant: HttpTypes.StoreProductVariant
-): string | null {
-  for (const o of variant.options ?? []) {
-    const title = o.option?.title?.toLowerCase() ?? ""
-    if (
-      title !== "color" &&
-      title !== "colour" &&
-      title !== "цвет" &&
-      title !== "цветовая группа"
-    )
-      continue
-    const v = o.value?.toLowerCase() ?? ""
-    if (v.includes("white") || v.includes("бел")) return "white"
-    if (v.includes("black") || v.includes("черн") || v.includes("чёрн"))
-      return "black"
-  }
-  const t = (variant.title ?? "").toLowerCase()
-  if (t.includes("white") || t.includes("бел")) return "white"
-  if (t.includes("black") || t.includes("черн") || t.includes("чёрн"))
-    return "black"
-  return null
+export function normalizeImageUrl(value?: string | null): string | undefined {
+  if (!value?.trim()) return undefined
+  const base = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000"
+  try {
+    const url = new URL(value.trim(), base)
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined
+    if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(url.hostname)) {
+      const publicBase = new URL(base)
+      url.protocol = publicBase.protocol
+      url.host = publicBase.host
+    }
+    return url.href
+  } catch { return undefined }
 }
 
-/** Картинки для варианта: сначала явная привязка в Medusa; иначе эвристика по Color + URL (сид без variant.images). */
-export function getImagesForVariant(
-  product: HttpTypes.StoreProduct,
-  variantId?: string | null
-): HttpTypes.StoreProductImage[] {
-  const all = product.images ?? []
-  if (!variantId || !product.variants?.length) return all
-
-  const variant = product.variants.find((v) => v.id === variantId)
-  if (!variant) return all
-
-  // Сначала эвристика по URL: в админке часто к вариантам вешают одно и то же превью —
-  // тогда variant.images есть, но белый вариант всё равно показывает чёрное фото.
-  const kw = colorKeywordFromVariant(variant)
-  if (kw) {
-    const byUrl = all.filter((img) => img.url?.toLowerCase().includes(kw))
-    if (byUrl.length) return byUrl
-  }
-
-  if (variant.images?.length) {
-    const ids = new Set(variant.images.map((i) => i.id))
-    const linked = all.filter((i) => ids.has(i.id))
-    if (linked.length) return linked
-  }
-
-  return all
+/** Explicit variant photos first; every product photo remains accessible. */
+export function getImagesForVariant(product: HttpTypes.StoreProduct, variantId?: string | null): { id: string; url: string }[] {
+  const variant = product.variants?.find((v) => v.id === variantId)
+  const sources = [...(variant?.images ?? []), ...(product.images ?? []), ...(product.thumbnail ? [{ id: "thumbnail", url: product.thumbnail }] : [])]
+  const seen = new Set<string>()
+  return sources.flatMap((image) => {
+    const url = normalizeImageUrl(image.url)
+    if (!url || seen.has(url)) return []
+    seen.add(url)
+    return [{ id: image.id || url, url }]
+  })
 }
 
-export function getStoreProductImageUrl(
-  product: HttpTypes.StoreProduct
-): string | undefined {
-  const fromGallery = product.images?.[0]?.url
-  if (fromGallery) return fromGallery
-  const th = product.thumbnail
-  if (typeof th === "string") return th
-  if (th && typeof th === "object" && "url" in th) {
-    return (th as { url: string }).url
-  }
-  return undefined
+export function getStoreProductImageUrl(product: HttpTypes.StoreProduct): string | undefined {
+  return normalizeImageUrl(product.thumbnail) ?? getImagesForVariant(product)[0]?.url
 }

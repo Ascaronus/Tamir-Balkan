@@ -17,6 +17,7 @@ export async function listRegions(): Promise<HttpTypes.StoreRegion[]> {
 export async function getRegionByCountry(
   countryCode: string
 ): Promise<HttpTypes.StoreRegion | null> {
+  if (countryCode.toLowerCase() !== "rs") return null
   const regions = await listRegions()
 
   const match = regions.find((r) =>

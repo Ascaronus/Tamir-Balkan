@@ -1,5 +1,7 @@
 import Link from "next/link"
-import Image from "next/image"
+import { ProductImage } from "@/components/store/ProductImage"
+import { localizedText } from "@/lib/i18n/content"
+import { canPurchase } from "@/lib/store/commerce"
 import { listProductsByCountry } from "@/lib/store/products"
 import { getStoreProductCategoryById } from "@/lib/store/categories"
 import { StoreShell } from "@/components/store/StoreShell"
@@ -12,14 +14,15 @@ export default async function CatalogPage({
   searchParams,
 }: {
   params: Promise<{ countryCode: string }>
-  searchParams: Promise<{ category_id?: string }>
+  searchParams: Promise<{ category_id?: string; page?: string; q?: string }>
 }) {
   const { t, locale } = await getTranslations()
   const { countryCode } = await params
-  const { category_id: categoryIdParam } = await searchParams
+  const { category_id: categoryIdParam, page: pageParam, q } = await searchParams
+  const page = Math.max(1, Math.min(100000, Number.parseInt(pageParam ?? "1", 10) || 1))
   const cc = countryCode.toLowerCase()
 
-  if (cc !== "rs" && cc !== "me") {
+  if (cc !== "rs") {
     return (
       <StoreShell>
         <div className="px-4 py-10">
@@ -37,17 +40,19 @@ export default async function CatalogPage({
     )
   }
 
-  const region = cc === "rs" || cc === "me" ? cc : undefined
+  const region = cc === "rs" ? cc : undefined
   const categoryId = categoryIdParam?.trim() || undefined
 
   const activeCategory = categoryId
     ? await getStoreProductCategoryById(categoryId, locale)
     : null
 
-  const { products } = await listProductsByCountry({
+  const { products, count } = await listProductsByCountry({
     countryCode: cc,
     limit: 24,
-    offset: 0,
+    offset: (page - 1) * 24,
+    locale,
+    q: q?.trim() || undefined,
     categoryId,
   })
 
@@ -59,7 +64,15 @@ export default async function CatalogPage({
     : t("catalog.emptyDefault")
 
   const regionLabel =
-    cc === "rs" ? t("catalog.regionRs") : t("catalog.regionMe")
+    t("catalog.regionRs")
+
+  const pages = Math.max(1, Math.ceil(count / 24))
+  const pageHref = (n: number) => {
+    const query = new URLSearchParams({ page: String(n) })
+    if (categoryId) query.set("category_id", categoryId)
+    if (q) query.set("q", q)
+    return `/rs/catalog?${query}`
+  }
 
   return (
     <StoreShell countryCode={region}>
@@ -85,10 +98,15 @@ export default async function CatalogPage({
           {activeCategory ? activeCategory.name : t("catalog.catalog")}
         </h1>
         <p className="mt-2 text-sm text-[var(--store-text-muted)]">
-          {t("catalog.region")} {regionLabel}
+          {regionLabel} · {t("catalog.count", { n: count })}
         </p>
       </div>
 
+      <form action="/rs/catalog" className="mx-4 mt-5 flex max-w-xl gap-2 sm:mx-6">
+        {categoryId && <input type="hidden" name="category_id" value={categoryId} />}
+        <input key={q ?? ""} name="q" defaultValue={q} aria-label={t("catalog.search")} placeholder={t("catalog.searchPlaceholder")} className="h-11 min-w-0 flex-1 rounded-xl border bg-white px-3 text-sm" />
+        <button className="rounded-xl bg-[var(--store-text)] px-4 text-sm font-semibold text-white">{t("catalog.search")}</button>
+      </form>
       <div className="px-4 py-8 sm:px-6">
         {products.length === 0 ? (
           <div className="rounded-2xl border border-[var(--store-border)] bg-white p-10 text-center text-[var(--store-text-muted)]">
@@ -97,30 +115,20 @@ export default async function CatalogPage({
         ) : (
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((p) => {
-              const primaryVariant = p.variants?.[0]
+              const primaryVariant = p.variants?.find(canPurchase) ?? p.variants?.[0]
               const calculated = primaryVariant?.calculated_price
-              const variantId = primaryVariant?.id
+              const title = localizedText(p, "title", p.title, locale)
               const imgUrl = getStoreProductImageUrl(p)
 
               return (
                 <li key={p.id}>
                   <Link
-                    href={
-                      variantId
-                        ? `/${cc}/products/${encodeURIComponent(p.handle)}?v_id=${variantId}`
-                        : `/${cc}/products/${encodeURIComponent(p.handle)}`
-                    }
+                    href={`/rs/products/${encodeURIComponent(p.handle)}`}
                     className="group block cursor-pointer overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md"
                   >
-                    <div className="relative aspect-[3/4] bg-[var(--store-bg-muted)]">
+                    <div className="relative aspect-[3/4] overflow-hidden bg-[var(--store-bg-muted)]">
                       {imgUrl ? (
-                        <Image
-                          src={imgUrl}
-                          alt={p.title}
-                          fill
-                          sizes="(max-width: 640px) 50vw, 25vw"
-                          className="pointer-events-none object-cover transition duration-300 group-hover:scale-[1.02] select-none"
-                        />
+                        <ProductImage src={imgUrl} alt={title} className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-[var(--store-text-muted)]">
                           {t("catalog.noPhoto")}
@@ -129,13 +137,14 @@ export default async function CatalogPage({
                     </div>
                     <div className="p-4">
                       <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-[var(--store-text)]">
-                        {p.title}
+                        {title}
                       </p>
                       {calculated ? (
                         <p className="mt-2 text-sm font-semibold text-[var(--store-text)]">
                           {formatMoney(
                             calculated.calculated_amount,
-                            calculated.currency_code
+                            calculated.currency_code,
+                            locale === "sr" ? "sr-Latn-RS" : "en-GB"
                           )}
                         </p>
                       ) : (
@@ -151,6 +160,11 @@ export default async function CatalogPage({
           </ul>
         )}
       </div>
+      {pages > 1 && <nav className="mb-8 flex items-center justify-center gap-4 text-sm" aria-label={t("catalog.page", { n: page, total: pages })}>
+        {page > 1 && <Link href={pageHref(Math.min(page - 1, pages))} className="rounded-full border px-4 py-2">← {t("common.previous")}</Link>}
+        <span>{t("catalog.page", { n: page, total: pages })}</span>
+        {page < pages && <Link href={pageHref(page + 1)} className="rounded-full border px-4 py-2">{t("common.next")} →</Link>}
+      </nav>}
     </StoreShell>
   )
 }

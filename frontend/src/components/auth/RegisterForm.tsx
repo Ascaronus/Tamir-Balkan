@@ -12,7 +12,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
   const { signup, isMutating } = useAuth()
 
   const defaultCountry = useMemo(() => {
-    return countryCode.toLowerCase() === "me" ? "ME" : "RS"
+    return "RS"
   }, [countryCode])
 
   const [firstName, setFirstName] = useState("")
@@ -53,8 +53,8 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
               postal_code: postalCode.trim(),
             })
             router.push(`/${countryCode}/account`)
-          } catch (e: any) {
-            setError(e?.message || t("auth.register.failed"))
+          } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : t("auth.register.failed"))
           }
         }}
       >
@@ -94,7 +94,6 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
           >
             <option value="RS">{t("countries.rs")}</option>
-            <option value="ME">{t("countries.me")}</option>
           </select>
         </label>
 

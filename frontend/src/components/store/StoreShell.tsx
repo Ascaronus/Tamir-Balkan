@@ -8,7 +8,7 @@ import { StoreFooter } from "./StoreFooter"
 import { CartProvider } from "@/components/cart/CartProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
 
-type Country = "rs" | "me"
+type Country = "rs"
 
 export function StoreShell({
   children,
@@ -41,15 +41,16 @@ export function StoreShell({
         }`}
       >
         <ShopSidebar
-          countryCode={countryCode}
+          countryCode={cc}
           onNavigate={() => setMobileNavOpen(false)}
         />
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col md:pl-0">
         <ShopHeader
-          countryCode={countryCode}
-          onOpenCatalog={() => setMobileNavOpen(true)}
+          countryCode={cc}
+          menuOpen={mobileNavOpen}
+          onOpenCatalog={() => setMobileNavOpen(open => !open)}
         />
         <div className="flex-1">{children}</div>
         <StoreFooter />

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Tamir Balkan — clothing store",
-    "description": "Online store: Serbia and Montenegro"
+    "description": "Tamir Balkan — clothing and accessories. Delivery across Serbia."
   },
   "header": {
     "cart": "Cart",
@@ -9,15 +9,20 @@
     "catalog": "Catalog",
     "homeAria": "Tamir Balkan — home",
     "account": "Account",
-    "login": "Login"
+    "login": "Login",
+    "deliverySerbia": "Delivery across Serbia"
   },
   "common": {
     "loading": "Loading…",
-    "itemPlaceholder": "Item"
+    "itemPlaceholder": "Item",
+    "retry": "Try again",
+    "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
+    "loadFailed": "Unable to load the shop. Please try again."
   },
   "countries": {
-    "rs": "Serbia",
-    "me": "Montenegro"
+    "rs": "Serbia"
   },
   "cartPage": {
     "loading": "Loading…",
@@ -27,7 +32,8 @@
     "remove": "Remove",
     "subtotal": "Subtotal",
     "checkout": "Checkout",
-    "guestCheckoutHint": "You can checkout without registration."
+    "guestCheckoutHint": "You can checkout without registration.",
+    "updateFailed": "The cart could not be updated. Check availability and try again."
   },
   "checkout": {
     "title": "Checkout",
@@ -54,19 +60,23 @@
     "payment": "Payment",
     "paymentCod": "Payment on delivery",
     "paymentStripe": "Card (Stripe)",
-    "noShipping": "No shipping options. Configure them in Medusa Admin (Settings → Regions or Locations & shipping).",
-    "noPaymentProviders": "Payment providers are not available. Ensure your publishable key has a sales channel and providers are enabled for the region.",
+    "noShipping": "No delivery methods are available for this address.",
+    "noPaymentProviders": "Payment is currently unavailable. Please try again later.",
     "placeOrder": "Place order",
     "placingOrder": "Placing order…",
     "failed": "Checkout failed",
     "errorCod": "Payment on delivery is not configured in this region.",
     "errorStripe": "Stripe is not configured in this region.",
-    "errorStripeFlow": "Stripe flow is not wired yet. Choose payment on delivery for now."
+    "errorStripeFlow": "Stripe flow is not wired yet. Choose payment on delivery for now.",
+    "shippingRequired": "Select a delivery method before placing the order.",
+    "prepareDelivery": "Confirm address and show delivery",
+    "preparingDelivery": "Checking delivery…",
+    "cartChanged": "The cart has changed. Confirm the delivery address again."
   },
   "order": {
     "confirmed": "Order confirmed",
     "orderId": "Order ID:",
-    "adminNote": "The order is now visible in Medusa Admin (Orders)."
+    "adminNote": "Thank you for your order."
   },
   "auth": {
     "login": {
@@ -131,9 +141,7 @@
     "loadingMenu": "Loading menu…",
     "region": "Region",
     "serbia": "Serbia (RSD)",
-    "montenegro": "Montenegro (EUR)",
-    "pickRegionHint": "Choose a region on the home page — the catalog will open with prices in RSD or EUR.",
-    "noCategoriesHint": "No categories yet. Create them in the admin: Products → Categories, then assign each product to a category.",
+    "noCategoriesHint": "No categories yet.",
     "categoriesError": "Failed to load categories"
   },
   "footer": {
@@ -142,12 +150,10 @@
   "home": {
     "badge": "Online store",
     "title": "Men’s clothing and accessories",
-    "subtitle": "Choose your delivery country — catalog and prices in dinars (RSD) or euros (EUR).",
+    "subtitle": "Delivery across Serbia. Prices in RSD.",
     "regionHeading": "Region",
     "serbiaTitle": "Serbia",
     "serbiaDesc": "Prices in RSD · delivery in Serbia",
-    "montenegroTitle": "Montenegro",
-    "montenegroDesc": "Prices in EUR · delivery in Montenegro",
     "toCatalog": "Go to catalog →"
   },
   "catalog": {
@@ -155,14 +161,17 @@
     "catalog": "Catalog",
     "region": "Region:",
     "regionRs": "Serbia (RSD)",
-    "regionMe": "Montenegro (EUR)",
     "unsupportedTitle": "Unsupported country",
     "backHome": "Back to home",
     "emptyDefault": "No products for this region yet.",
     "emptyCategoryMissing": "Category not found or products are not in this category.",
-    "emptyCategory": "No products in «{name}» yet. In the admin open the product → Categories and add this category, or pick another category in the menu.",
+    "emptyCategory": "No products in {name} yet.",
     "noPhoto": "No photo",
-    "priceOnRequest": "Price on request"
+    "priceOnRequest": "Price on request",
+    "search": "Search products",
+    "searchPlaceholder": "Product name…",
+    "page": "Page {n} of {total}",
+    "count": "{n} products"
   },
   "product": {
     "home": "Home",
@@ -172,7 +181,19 @@
     "variant": "Variant",
     "inStock": "In stock: {n} pcs.",
     "addToCart": "Add to cart",
-    "backToCatalog": "← Back to catalog"
+    "backToCatalog": "← Back to catalog",
+    "zoom": "Enlarge photo",
+    "photos": "Product photos",
+    "photoNumber": "Photo {n}",
+    "outOfStock": "Out of stock",
+    "available": "In stock",
+    "backorder": "Available on backorder",
+    "oneSize": "One size",
+    "quantity": "Quantity",
+    "alreadyInCart": "Already in cart: {n}",
+    "adding": "Adding…",
+    "added": "Added to cart — view cart",
+    "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again."
   },
   "lang": {
     "sr": "Serbian",

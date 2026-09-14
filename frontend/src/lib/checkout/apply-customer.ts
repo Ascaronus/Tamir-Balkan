@@ -3,16 +3,15 @@ export type CheckoutFormValues = {
   firstName: string
   lastName: string
   phone: string
-  country: "rs" | "me"
+  country: "rs"
   city: string
   postalCode: string
   address1: string
   notes: string
 }
 
-export function normalizeCountryCode(cc: string | undefined | null): "rs" | "me" {
-  const u = (cc || "rs").toLowerCase()
-  return u === "me" ? "me" : "rs"
+export function normalizeCountryCode(cc: string | undefined | null): "rs" {
+  return "rs"
 }
 
 export function customerHasSavedAddressRecord(customer: {

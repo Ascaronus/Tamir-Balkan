@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { locales, medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { sdk } from "@/lib/medusa"
@@ -10,10 +10,13 @@ export function LanguageSwitcher() {
   const router = useRouter()
   const { locale, t } = useLocaleContext()
   const [busy, setBusy] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState(false)
 
   async function setLocale(next: Locale) {
     if (next === locale || busy) return
     setBusy(true)
+    setError(false)
     try {
       const res = await fetch("/api/locale", {
         method: "POST",
@@ -22,8 +25,10 @@ export function LanguageSwitcher() {
       })
       if (res.ok) {
         sdk.client.setLocale(medusaStoreLocale(next))
-        router.refresh()
-      }
+        startTransition(() => router.refresh())
+      } else { setError(true) }
+    } catch {
+      setError(true)
     } finally {
       setBusy(false)
     }
@@ -35,11 +40,13 @@ export function LanguageSwitcher() {
       role="group"
       aria-label={t("lang.label")}
     >
+      {error && <span role="alert" className="text-red-700">{t("common.retry")}</span>}
       {locales.map((code) => (
         <button
           key={code}
           type="button"
-          disabled={busy}
+          disabled={busy || pending}
+          aria-pressed={locale === code}
           onClick={() => setLocale(code)}
           className={`rounded px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
             locale === code

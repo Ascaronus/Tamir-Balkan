@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useCart } from "@/components/cart/CartProvider"
@@ -17,10 +17,10 @@ import {
   setCartAddresses,
   setShippingMethod,
 } from "@/lib/checkout/checkout-client"
+import { formatMoney } from "@/lib/format-money"
 import { clearCartId } from "@/lib/cart/cart-client"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
-type PaymentChoice = "cod" | "stripe"
 
 function pickProviders(paymentProviders: { id: string }[]) {
   const stripe = paymentProviders.find((p) => p.id.toLowerCase().includes("stripe"))
@@ -33,7 +33,7 @@ function pickProviders(paymentProviders: { id: string }[]) {
 export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const t = useTranslations()
   const router = useRouter()
-  const { cart, isReady, isMutating, refresh } = useCart()
+  const { cart, isReady, isMutating } = useCart()
   const { customer, isReady: authReady, refresh: refreshAuth } = useAuth()
 
   const [loading, setLoading] = useState(false)
@@ -47,7 +47,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [country, setCountry] = useState(countryCode.toLowerCase() === "me" ? "me" : "rs")
+  const [country, setCountry] = useState("rs")
   const [city, setCity] = useState("")
   const [postalCode, setPostalCode] = useState("")
   const [notes, setNotes] = useState("")
@@ -60,7 +60,10 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
   const [paymentProviders, setPaymentProviders] = useState<{ id: string }[]>([])
   const providers = useMemo(() => pickProviders(paymentProviders), [paymentProviders])
-  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("cod")
+  const [preparedAddress, setPreparedAddress] = useState("")
+  const submitLock = useRef(false)
+  const addressKey = JSON.stringify([firstName, lastName, email, phone, country, city, postalCode, address1, notes, cart?.items?.map(item => [item.id, item.quantity])])
+  const deliveryPrepared = preparedAddress === addressKey
 
   useEffect(() => {
     if (!authReady) return
@@ -102,38 +105,18 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   }, [authReady, customer?.id, addressSource, countryCode])
 
   useEffect(() => {
-    if (!isReady || !cart?.id) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const opts = await listShippingOptions(cart.id)
-        if (!cancelled) {
-          setShippingOptions(opts as any)
-          if (opts?.length && !selectedShipping) {
-            setSelectedShipping(opts[0].id)
-          }
-        }
-      } catch {}
-    })()
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, cart?.id])
-
-  useEffect(() => {
     if (!isReady || !cart?.region_id) return
     let cancelled = false
     ;(async () => {
       try {
         const pp = await listPaymentProviders(cart.region_id!)
-        if (!cancelled) setPaymentProviders(pp as any)
-      } catch {}
+        if (!cancelled) setPaymentProviders(pp)
+      } catch { if (!cancelled) setError(t("checkout.noPaymentProviders")) }
     })()
     return () => {
       cancelled = true
     }
-  }, [isReady, cart?.region_id])
+  }, [isReady, cart?.region_id, t])
 
   if (!isReady) {
     return (
@@ -156,7 +139,6 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     )
   }
 
-  const canStripe = Boolean(providers.stripe)
   const canCod = Boolean(providers.system)
 
   return (
@@ -176,6 +158,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         className="rounded-2xl border border-[var(--store-border)] bg-white p-6"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (submitLock.current) return
+          submitLock.current = true
           setLoading(true)
           setError(null)
           try {
@@ -186,7 +170,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               shipping_address: {
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                address_1: address1.trim() || "-",
+                address_1: address1.trim(),
                 city: city.trim() || undefined,
                 postal_code: postalCode.trim(),
                 country_code: country,
@@ -195,47 +179,26 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               notes: notes.trim() || undefined,
             })
 
-            // 2) shipping method
-            if (selectedShipping) {
-              await setShippingMethod({ cartId: cart.id, optionId: selectedShipping })
-            }
-
-            // 3) payment session
-            const refreshedCart = (await refresh(), (await (async () => cart)()))
-            const currentCart = refreshedCart || cart
-
-            if (paymentChoice === "cod") {
-              if (!providers.system) {
-                throw new Error(t("checkout.errorCod"))
-              }
-              await initiatePaymentSession({
-                cart: currentCart as any,
-                providerId: providers.system.id,
-              })
-            } else {
-              if (!providers.stripe) {
-                throw new Error(t("checkout.errorStripe"))
-              }
-              await initiatePaymentSession({
-                cart: currentCart as any,
-                providerId: providers.stripe.id,
-              })
-              // Stripe requires client-side confirmation flow; we'll add it next.
-              throw new Error(t("checkout.errorStripeFlow"))
-            }
-
-            // 4) complete cart → order
-            const result = await completeCart(cart.id)
-            clearCartId()
-            await refresh()
-            if (result?.type === "order" && result?.order?.id) {
-              router.push(`/${countryCode}/order/${result.order.id}`)
+            if (!deliveryPrepared) {
+              const options = await listShippingOptions(cart.id)
+              setShippingOptions(options)
+              setSelectedShipping(options[0]?.id ?? "")
+              setPreparedAddress(addressKey)
+              if (!options.length) throw new Error(t("checkout.noShipping"))
               return
             }
-            router.push(`/${countryCode}/catalog`)
-          } catch (e: any) {
-            setError(e?.message || t("checkout.failed"))
+            if (!selectedShipping || !shippingOptions.some(option => option.id === selectedShipping)) throw new Error(t("checkout.shippingRequired"))
+            if (!providers.system) throw new Error(t("checkout.errorCod"))
+            const { cart: currentCart } = await setShippingMethod({ cartId: cart.id, optionId: selectedShipping })
+            await initiatePaymentSession({ cart: currentCart, providerId: providers.system.id })
+            const result = await completeCart(cart.id)
+            if (result.type !== "order" || !result.order?.id) throw new Error(t("checkout.failed"))
+            clearCartId()
+            router.push(`/${countryCode}/order/${result.order.id}`)
+          } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : t("checkout.failed"))
           } finally {
+            submitLock.current = false
             setLoading(false)
           }
         }}
@@ -323,7 +286,6 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             </span>
             <select value={country} onChange={(e) => setCountry(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm">
               <option value="rs">{t("countries.rs")}</option>
-              <option value="me">{t("countries.me")}</option>
             </select>
           </label>
           <label className="grid gap-1">
@@ -339,7 +301,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.city")}
             </span>
-            <input value={city} onChange={(e) => setCity(e.target.value)} className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={city} onChange={(e) => setCity(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
@@ -360,8 +322,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           {t("checkout.shipping")}
         </h2>
         <div className="mt-4 grid gap-2">
-          {shippingOptions.length ? (
-            shippingOptions.map((o: any) => (
+          {deliveryPrepared && shippingOptions.length ? (
+            shippingOptions.map((o) => (
               <label key={o.id} className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
                 <input
                   type="radio"
@@ -371,13 +333,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
                   onChange={() => setSelectedShipping(o.id)}
                 />
                 <span className="text-sm text-[var(--store-text)]">
-                  {o.name || o.id}
+                  {o.name || o.id}{typeof o.amount === "number" ? ` — ${formatMoney(o.amount, cart.currency_code)}` : ""}
                 </span>
               </label>
             ))
           ) : (
             <div className="text-sm text-[var(--store-text-muted)]">
-              {t("checkout.noShipping")}
+              {t(deliveryPrepared ? "checkout.noShipping" : "checkout.prepareDelivery")}
             </div>
           )}
         </div>
@@ -391,25 +353,12 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               type="radio"
               name="payment"
               value="cod"
-              checked={paymentChoice === "cod"}
-              onChange={() => setPaymentChoice("cod")}
+              checked={canCod}
+              readOnly
               disabled={!canCod}
             />
             <span className="text-sm text-[var(--store-text)]">
               {t("checkout.paymentCod")}
-            </span>
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
-            <input
-              type="radio"
-              name="payment"
-              value="stripe"
-              checked={paymentChoice === "stripe"}
-              onChange={() => setPaymentChoice("stripe")}
-              disabled={!canStripe}
-            />
-            <span className="text-sm text-[var(--store-text)]">
-              {t("checkout.paymentStripe")}
             </span>
           </label>
           {!paymentProviders.length ? (
@@ -427,10 +376,10 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
         <button
           type="submit"
-          disabled={loading || isMutating}
+          disabled={loading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping))}
           className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {loading ? t("checkout.placingOrder") : t("checkout.placeOrder")}
+          {loading ? t(deliveryPrepared ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}
         </button>
       </form>
     </div>

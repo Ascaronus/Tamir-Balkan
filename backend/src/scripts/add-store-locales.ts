@@ -51,7 +51,7 @@ export default async function addStoreLocales({ container }: ExecArgs) {
     Modules.TRANSLATION
   ) as ITranslationModuleService
 
-  const raw = process.env.STORE_LOCALE_CODES?.trim() || "en,sr"
+  const raw = process.env.STORE_LOCALE_CODES?.trim() || "en,sr,sr-RS"
   const toAdd = raw
     .split(",")
     .map((s) => s.trim())

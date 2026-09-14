@@ -1,150 +1,76 @@
 "use client"
 
-import type { HttpTypes } from "@medusajs/types"
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react"
-import {
-  addToCart as addToCartApi,
-  getOrCreateCart,
-  removeLineItem as removeLineItemApi,
-  updateLineItem as updateLineItemApi,
-  type Cart,
-} from "@/lib/cart/cart-client"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { addToCart, getOrCreateCart, removeLineItem, updateLineItem, type Cart } from "@/lib/cart/cart-client"
+import { stableItems } from "@/lib/store/commerce"
 
 type CartContextValue = {
   cart: Cart | null
   isReady: boolean
   isMutating: boolean
+  error: string | null
   itemCount: number
-  refresh: () => Promise<void>
+  refresh: () => Promise<Cart>
   addItem: (variantId: string, quantity?: number) => Promise<void>
   updateItemQuantity: (lineItemId: string, quantity: number) => Promise<void>
   removeItem: (lineItemId: string) => Promise<void>
 }
-
 const CartContext = createContext<CartContextValue | null>(null)
 
-function countItems(cart: Cart | null): number {
-  if (!cart?.items?.length) return 0
-  return cart.items.reduce((sum, it) => sum + (it.quantity ?? 0), 0)
-}
-
-export function CartProvider({
-  countryCode,
-  children,
-}: {
-  countryCode: string
-  children: React.ReactNode
-}) {
+export function CartProvider({ countryCode, children }: { countryCode: string; children: React.ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null)
   const [isReady, setIsReady] = useState(false)
-  const [isMutating, setIsMutating] = useState(false)
+  const [pending, setPending] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
+  const generation = useRef(0)
+  const commit = useCallback((next: Cart) => {
+    setCart(previous => ({ ...next, items: stableItems(next.items ?? [], previous?.id === next.id ? previous.items ?? [] : []) }))
+    return next
+  }, [])
 
-  const refresh = useCallback(async () => {
-    const next = await getOrCreateCart(countryCode)
-    setCart(next)
-  }, [countryCode])
+  const run = useCallback((operation: () => Promise<Cart>): Promise<Cart> => {
+    const version = generation.current
+    setPending(n => n + 1)
+    const task = queue.current.catch(() => undefined).then(async () => {
+      if (version !== generation.current) throw new Error("Cart session changed")
+      setError(null)
+      const next = await operation()
+      if (version === generation.current) commit(next)
+      return next
+    }).catch((e: unknown) => {
+      if (version === generation.current) setError(e instanceof Error ? e.message : "Cart request failed")
+      throw e
+    }).finally(() => setPending(n => Math.max(0, n - 1)))
+    queue.current = task
+    return task
+  }, [commit])
 
+  const refresh = useCallback(() => run(() => getOrCreateCart(countryCode)), [countryCode, run])
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const next = await getOrCreateCart(countryCode)
-        if (!cancelled) setCart(next)
-      } finally {
-        if (!cancelled) setIsReady(true)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [countryCode])
-
-  /** После выхода из аккаунта очищаем JWT SDK и `tb_cart_id`; подхватываем и пересоздаём гостевую корзину. */
-  useEffect(() => {
-    const onReset = () => {
+    let mounted = true
+    const initialize = () => {
+      generation.current += 1
       setIsReady(false)
-      void (async () => {
-        try {
-          const next = await getOrCreateCart(countryCode)
-          setCart(next)
-        } finally {
-          setIsReady(true)
-        }
-      })()
+      void refresh().catch(() => undefined).finally(() => { if (mounted) setIsReady(true) })
     }
-    if (typeof window === "undefined") return
-    window.addEventListener("tb-cart-reset", onReset)
-    return () => window.removeEventListener("tb-cart-reset", onReset)
-  }, [countryCode])
+    initialize()
+    window.addEventListener("tb-cart-reset", initialize)
+    return () => { mounted = false; generation.current += 1; window.removeEventListener("tb-cart-reset", initialize) }
+  }, [refresh])
 
-  const addItem = useCallback(
-    async (variantId: string, quantity = 1) => {
-      setIsMutating(true)
-      try {
-        const next = await addToCartApi({ countryCode, variantId, quantity })
-        setCart(next)
-      } finally {
-        setIsMutating(false)
-      }
-    },
-    [countryCode]
-  )
-
-  const updateItemQuantity = useCallback(
-    async (lineItemId: string, quantity: number) => {
-      setIsMutating(true)
-      try {
-        const next = await updateLineItemApi({ countryCode, lineItemId, quantity })
-        setCart(next)
-      } finally {
-        setIsMutating(false)
-      }
-    },
-    [countryCode]
-  )
-
-  const removeItem = useCallback(
-    async (lineItemId: string) => {
-      setIsMutating(true)
-      try {
-        const next = await removeLineItemApi({ countryCode, lineItemId })
-        setCart(next)
-      } finally {
-        setIsMutating(false)
-      }
-    },
-    [countryCode]
-  )
-
-  const value = useMemo<CartContextValue>(
-    () => ({
-      cart,
-      isReady,
-      isMutating,
-      itemCount: countItems(cart),
-      refresh,
-      addItem,
-      updateItemQuantity,
-      removeItem,
-    }),
-    [cart, isReady, isMutating, refresh, addItem, updateItemQuantity, removeItem]
-  )
-
+  const value = useMemo<CartContextValue>(() => ({
+    cart, isReady, isMutating: pending > 0, error,
+    itemCount: cart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
+    refresh,
+    addItem: async (variantId, quantity = 1) => { await run(() => addToCart({ countryCode, variantId, quantity })) },
+    updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, lineItemId, quantity })) },
+    removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, lineItemId })) },
+  }), [cart, isReady, pending, error, refresh, run, countryCode])
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
-
 export function useCart() {
-  const ctx = useContext(CartContext)
-  if (!ctx) {
-    throw new Error("useCart must be used within CartProvider")
-  }
-  return ctx
+  const value = useContext(CartContext)
+  if (!value) throw new Error("useCart must be used within CartProvider")
+  return value
 }
-

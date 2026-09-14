@@ -11,7 +11,7 @@ const HEADER_CANDIDATES = [
   "x-appengine-country",
 ] as const
 
-const STORE_COUNTRIES = new Set(["rs", "me"])
+const STORE_COUNTRIES = new Set(["rs"])
 
 export function normalizeCountryCode(raw: string | null | undefined): string | null {
   if (!raw || raw === "XX" || raw === "T1") return null
