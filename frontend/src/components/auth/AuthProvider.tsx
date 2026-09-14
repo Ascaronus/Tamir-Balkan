@@ -58,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const next = await retrieveCustomerApi()
           if (!cancelled) setCustomer(next)
         }
+      } catch {
+        // Keep the stored token on transient backend/network errors.
       } finally {
         if (!cancelled) setIsReady(true)
       }
@@ -90,8 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }) => {
     setIsMutating(true)
     try {
-      await signupApi(params)
-      await refresh()
+      const created = await signupApi(params)
+      setCustomer(created)
     } finally {
       setIsMutating(false)
     }

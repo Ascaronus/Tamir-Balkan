@@ -71,7 +71,8 @@
     "shippingRequired": "Izaberite način dostave pre poručivanja.",
     "prepareDelivery": "Potvrdi adresu i prikaži dostavu",
     "preparingDelivery": "Provera dostave…",
-    "cartChanged": "Korpa je promenjena. Ponovo potvrdite adresu dostave."
+    "cartChanged": "Korpa je promenjena. Ponovo potvrdite adresu dostave.",
+    "retryShipping": "Ponovo izračunaj dostavu"
   },
   "order": {
     "confirmed": "Porudžbina je primljena",
@@ -106,7 +107,9 @@
       "creating": "Kreiranje…",
       "submit": "Napravi nalog",
       "hasAccount": "Već imate nalog?",
-      "signInLink": "Prijavite se"
+      "signInLink": "Prijavite se",
+      "addressFailed": "Nalog je kreiran, ali adresa nije sačuvana. Pošaljite obrazac ponovo sa istom e-adresom i lozinkom.",
+      "profileFailed": "Profil još nije spreman. Pošaljite obrazac ponovo sa istom e-adresom i lozinkom."
     }
   },
   "account": {

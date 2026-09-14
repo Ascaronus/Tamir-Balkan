@@ -4,7 +4,7 @@ import type { HttpTypes } from "@medusajs/types"
 export function stockLimit(variant?: Pick<HttpTypes.StoreProductVariant, "manage_inventory" | "allow_backorder" | "inventory_quantity">): number | null {
   if (!variant) return 0
   if (variant.manage_inventory === false || variant.allow_backorder) return null
-  return typeof variant.inventory_quantity === "number" ? Math.max(0, Math.floor(variant.inventory_quantity)) : 0
+  return typeof variant.inventory_quantity === "number" && Number.isFinite(variant.inventory_quantity) ? Math.max(0, Math.floor(variant.inventory_quantity)) : 0
 }
 
 export function canPurchase(variant?: HttpTypes.StoreProductVariant): boolean {
@@ -24,4 +24,11 @@ export function stableItems<T extends { id: string; created_at?: string | Date }
 
 export function requireQuantity(quantity: number): void {
   if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("Quantity must be a positive integer")
+}
+
+/** Preserve other selected options instead of silently switching size/color. */
+export function matchingVariant(variants: HttpTypes.StoreProductVariant[], current: HttpTypes.StoreProductVariant | undefined, optionId: string, value: string) {
+  return variants.find(v => v.options?.some(o => o.option_id === optionId && o.value === value) &&
+    (current?.options ?? []).every(selected => selected.option_id === optionId ||
+      v.options?.some(o => o.option_id === selected.option_id && o.value === selected.value)))
 }

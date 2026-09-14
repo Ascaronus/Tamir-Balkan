@@ -1,3 +1,4 @@
+import { completeRegistration } from "./registration-flow"
 import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
 import { clearAuthToken, getAuthToken, setAuthToken } from "./auth-storage"
@@ -8,35 +9,24 @@ function authHeaders(token: string | null): Record<string, string> {
   return { authorization: `Bearer ${token}` }
 }
 
-export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null> {
-  const token = getAuthToken()
-  if (!token) return null
+async function customerForToken(token: string): Promise<HttpTypes.StoreCustomer | null> {
   try {
     const res = await sdk.client.fetch<{ customer: HttpTypes.StoreCustomer }>(
-      "/store/customers/me",
-      {
-        method: "GET",
-        headers: authHeaders(token),
-        cache: "no-store",
-        query: { fields: "+addresses.*" } as Record<string, string>,
+      "/store/customers/me", {
+        method: "GET", headers: authHeaders(token), cache: "no-store",
+        query: { fields: "*addresses" },
       }
     )
     return res.customer ?? null
-  } catch {
-    try {
-      const res = await sdk.client.fetch<{ customer: HttpTypes.StoreCustomer }>(
-        "/store/customers/me",
-        {
-          method: "GET",
-          headers: authHeaders(token),
-          cache: "no-store",
-        }
-      )
-      return res.customer ?? null
-    } catch {
-      return null
-    }
+  } catch (error) {
+    if ([401, 404].includes((error as { status?: number }).status ?? 0)) return null
+    throw error
   }
+}
+
+export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null> {
+  const token = getAuthToken()
+  return token ? customerForToken(token) : null
 }
 
 export async function login(params: { email: string; password: string }) {
@@ -62,57 +52,42 @@ export async function signup(params: {
   city?: string
   postal_code: string
 }) {
-  const token = await sdk.auth.register("customer", "emailpass", {
-    email: params.email,
-    password: params.password,
-  })
-  if (typeof token !== "string") {
-    throw new Error("Unexpected register flow")
+  const credentials = { email: params.email.trim(), password: params.password }
+  const requireToken = (value: unknown): string => {
+    if (typeof value !== "string") throw new Error("Unexpected authentication flow")
+    return value
   }
-  setAuthToken(token)
-
-  const headers = authHeaders(token)
-  const { customer } = await sdk.store.customer.create(
-    {
-      email: params.email,
-      first_name: params.first_name,
-      last_name: params.last_name,
-      phone: params.phone,
-      metadata: params.notes ? { notes: params.notes } : undefined,
+  return completeRegistration<HttpTypes.StoreCustomer>({
+    register: async () => requireToken(await sdk.auth.register("customer", "emailpass", credentials)),
+    login: async () => requireToken(await sdk.auth.login("customer", "emailpass", credentials)),
+    findCustomer: customerForToken,
+    saveToken: setAuthToken,
+    createCustomer: async token => {
+      const { customer } = await sdk.store.customer.create({
+        email: credentials.email, first_name: params.first_name,
+        last_name: params.last_name, phone: params.phone,
+        metadata: params.notes ? { notes: params.notes } : undefined,
+      }, {}, authHeaders(token))
+      return customer
     },
-    {},
-    headers
-  )
-
-  await sdk.store.customer
-    .createAddress(
-      {
-        first_name: params.first_name,
-        last_name: params.last_name,
-        address_1: "-",
-        address_2: "",
-        city: params.city || undefined,
-        postal_code: params.postal_code,
-        country_code: params.country_code,
-        phone: params.phone,
-        is_default_billing: true,
-        is_default_shipping: true,
-      },
-      {},
-      headers
-    )
-    .catch(() => null)
-
-  // Ensure we have a fresh login token for subsequent requests
-  const loginToken = await sdk.auth.login("customer", "emailpass", {
-    email: params.email,
-    password: params.password,
+    ensureAddress: async (customer, token) => {
+      // Existing accounts keep their saved address; retries never overwrite it.
+      const current = await customerForToken(token)
+      if (!current) throw new Error("REGISTRATION_PROFILE_FAILED")
+      if (current.addresses?.length) return current
+      try {
+        const result = await sdk.store.customer.createAddress({
+          first_name: params.first_name, last_name: params.last_name,
+          address_1: "-", city: params.city || undefined,
+          postal_code: params.postal_code, country_code: params.country_code,
+          phone: params.phone, is_default_billing: true, is_default_shipping: true,
+        }, {}, authHeaders(token))
+        return result.customer ?? customer
+      } catch {
+        throw new Error("REGISTRATION_ADDRESS_FAILED")
+      }
+    },
   })
-  if (typeof loginToken === "string") {
-    setAuthToken(loginToken)
-  }
-
-  return customer
 }
 
 export async function logout() {

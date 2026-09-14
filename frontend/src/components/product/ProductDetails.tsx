@@ -8,7 +8,7 @@ import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { ProductImage } from "@/components/store/ProductImage"
 import { getImagesForVariant } from "@/lib/product-image"
 import { formatMoney } from "@/lib/format-money"
-import { canPurchase, stockLimit } from "@/lib/store/commerce"
+import { canPurchase, stockLimit, matchingVariant } from "@/lib/store/commerce"
 import { localizedText, optionLabel } from "@/lib/i18n/content"
 
 export function ProductDetails({ product, initialVariantId }: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
@@ -16,7 +16,13 @@ export function ProductDetails({ product, initialVariantId }: { product: HttpTyp
   const { cart, addItem, isReady, isMutating } = useCart()
   const variants = product.variants ?? []
   const [variantId, setVariantId] = useState(initialVariantId ?? variants.find(canPurchase)?.id ?? variants[0]?.id)
-  const variant = variants.find(v => v.id === variantId) ?? variants[0]
+  const initialVariant = variants.find(v => v.id === variantId) ?? variants[0]
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() =>
+    Object.fromEntries((initialVariant?.options ?? []).map(o => [o.option_id, o.value])))
+  const variant = product.options?.length
+    ? variants.find(v => (product.options ?? []).every(option =>
+        v.options?.some(o => o.option_id === option.id && o.value === selectedOptions[option.id])))
+    : initialVariant
   const images = getImagesForVariant(product, variant?.id)
   const [imageIndex, setImageIndex] = useState(0)
   const activeIndex = Math.min(imageIndex, Math.max(0, images.length - 1))
@@ -33,6 +39,8 @@ export function ProductDetails({ product, initialVariantId }: { product: HttpTyp
   const purchasable = canPurchase(variant) && remaining !== 0
   function selectVariant(id: string) {
     setVariantId(id); setImageIndex(0); setQuantity(1); setMessage(null)
+    const next = variants.find(v => v.id === id)
+    setSelectedOptions(Object.fromEntries((next?.options ?? []).map(o => [o.option_id, o.value])))
     const url = new URL(window.location.href)
     url.searchParams.set("v_id", id)
     window.history.replaceState(null, "", url)
@@ -61,11 +69,20 @@ export function ProductDetails({ product, initialVariantId }: { product: HttpTyp
       <p className="mt-6 text-2xl font-semibold">{variant?.calculated_price ? formatMoney(variant.calculated_price.calculated_amount, variant.calculated_price.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB") : t("product.priceOnRequest")}</p>
       {(product.options ?? []).map(option => <fieldset key={option.id} className="mt-6"><legend className="text-sm font-semibold">{optionLabel(option.title, locale)}</legend><div className="mt-2 flex flex-wrap gap-2">
         {[...new Set((option.values ?? []).map(value => value.value))].map(value => {
-          const candidates = variants.filter(v => v.options?.some(o => o.option_id === option.id && o.value === value))
-          const selected = variant?.options?.some(o => o.option_id === option.id && o.value === value)
-          const matching = candidates.find(v => v.options?.every(o => o.option_id === option.id || variant?.options?.some(current => current.option_id === o.option_id && current.value === o.value)))
-          const target = matching ?? candidates.find(canPurchase) ?? candidates[0]
-          return <button type="button" key={value} disabled={!target} aria-pressed={Boolean(selected)} onClick={() => target && selectVariant(target.id)} className={`min-w-12 rounded-full border px-4 py-2 text-sm disabled:opacity-30 ${selected ? "border-[var(--store-text)] bg-[var(--store-text)] text-white" : "border-[var(--store-border)]"}`}>{value === "One size" ? t("product.oneSize") : value}</button>
+          const selected = selectedOptions[option.id] === value
+          const target = matchingVariant(variants, variant, option.id, value)
+          const exists = variants.some(v => v.options?.some(o => o.option_id === option.id && o.value === value))
+          return <button type="button" key={value} disabled={!exists} aria-pressed={Boolean(selected)} onClick={() => {
+            if (target && variant) { selectVariant(target.id); return }
+            const next = { ...selectedOptions, [option.id]: value }
+            setSelectedOptions(next); setImageIndex(0); setQuantity(1); setMessage(null)
+            const matched = variants.find(v => (product.options ?? []).every(o =>
+              v.options?.some(choice => choice.option_id === o.id && choice.value === next[o.id])))
+            const url = new URL(window.location.href)
+            if (matched) url.searchParams.set("v_id", matched.id)
+            else url.searchParams.delete("v_id")
+            window.history.replaceState(null, "", url)
+          }} className={`min-w-12 rounded-full border px-4 py-2 text-sm disabled:opacity-30 ${selected ? "border-[var(--store-text)] bg-[var(--store-text)] text-white" : "border-[var(--store-border)]"}`}>{value === "One size" ? t("product.oneSize") : value}</button>
         })}
       </div></fieldset>)}
       {!product.options?.length && variants.length > 1 && <label className="mt-6 grid gap-2">{t("product.variant")}<select value={variant?.id} onChange={e => selectVariant(e.target.value)} className="rounded-lg border p-3">{variants.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select></label>}
