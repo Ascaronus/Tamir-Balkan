@@ -72,12 +72,15 @@
     "prepareDelivery": "Potvrdi adresu i prikaži dostavu",
     "preparingDelivery": "Provera dostave…",
     "cartChanged": "Korpa je promenjena. Ponovo potvrdite adresu dostave.",
-    "retryShipping": "Ponovo izračunaj dostavu"
+    "retryShipping": "Ponovo izračunaj dostavu",
+    "retryPayment": "Ponovo učitaj načine plaćanja"
   },
   "order": {
     "confirmed": "Porudžbina je primljena",
     "orderId": "Broj porudžbine:",
-    "adminNote": "Hvala na porudžbini."
+    "adminNote": "Hvala na porudžbini.",
+    "unverified": "Porudžbina nije potvrđena",
+    "unverifiedHint": "Otvorite potvrdu u pregledaču u kom ste poručili ili se prijavite na nalog korišćen za kupovinu."
   },
   "auth": {
     "login": {
@@ -89,7 +92,8 @@
       "signingIn": "Prijavljivanje…",
       "signIn": "Prijavi se",
       "noAccount": "Nemate nalog?",
-      "createOne": "Napravite ga"
+      "createOne": "Napravite ga",
+      "profileMissing": "Podaci za prijavu postoje, ali registracija nije završena. Otvorite Kreiraj nalog i ponovo pošaljite podatke sa istim imejlom i lozinkom."
     },
     "register": {
       "title": "Napravi nalog",
@@ -135,7 +139,8 @@
     "profileSaved": "Podaci su sačuvani.",
     "profileLoadError": "Ne mogu da učitam profil.",
     "profileSaveError": "Čuvanje nije uspelo.",
-    "postalRequired": "Unesite poštanski broj za adresu."
+    "postalRequired": "Unesite poštanski broj za adresu.",
+    "repeatPartial": "Neki artikli su možda već u korpi. Pokušajte ponovo da dodate samo preostalu količinu ili proverite korpu. Nedostupni artikli se ne mogu dodati."
   },
   "sidebar": {
     "title": "Katalog",

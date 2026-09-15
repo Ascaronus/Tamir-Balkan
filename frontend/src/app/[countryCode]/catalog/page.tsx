@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { normalizeCatalogQuery, type CatalogQuery } from "@/lib/store/search-params"
 import { ProductImage } from "@/components/store/ProductImage"
 import { localizedText } from "@/lib/i18n/content"
 import { canPurchase } from "@/lib/store/commerce"
@@ -14,11 +15,11 @@ export default async function CatalogPage({
   searchParams,
 }: {
   params: Promise<{ countryCode: string }>
-  searchParams: Promise<{ category_id?: string; page?: string; q?: string }>
+  searchParams: Promise<CatalogQuery>
 }) {
   const { t, locale } = await getTranslations()
   const { countryCode } = await params
-  const { category_id: categoryIdParam, page: pageParam, q } = await searchParams
+  const { category_id: categoryIdParam, page: pageParam, q } = normalizeCatalogQuery(await searchParams)
   const page = Math.max(1, Math.min(100000, Number.parseInt(pageParam ?? "1", 10) || 1))
   const cc = countryCode.toLowerCase()
 
@@ -173,9 +174,9 @@ import type { Metadata } from "next"
 import { siteUrl } from "@/lib/seo"
 
 export async function generateMetadata({ searchParams }: {
-  searchParams: Promise<{ category_id?: string; page?: string; q?: string }>
+  searchParams: Promise<CatalogQuery>
 }): Promise<Metadata> {
-  const query = await searchParams
+  const query = normalizeCatalogQuery(await searchParams)
   const { locale, t } = await getTranslations()
   const category = query.category_id?.trim() ? await getStoreProductCategoryById(query.category_id.trim(), locale) : null
   const canonical = new URL(siteUrl("/"))

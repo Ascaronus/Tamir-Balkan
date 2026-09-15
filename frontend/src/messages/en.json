@@ -72,12 +72,15 @@
     "prepareDelivery": "Confirm address and show delivery",
     "preparingDelivery": "Checking delivery…",
     "cartChanged": "The cart has changed. Confirm the delivery address again.",
-    "retryShipping": "Recalculate delivery"
+    "retryShipping": "Recalculate delivery",
+    "retryPayment": "Retry payment methods"
   },
   "order": {
     "confirmed": "Order confirmed",
     "orderId": "Order ID:",
-    "adminNote": "Thank you for your order."
+    "adminNote": "Thank you for your order.",
+    "unverified": "Order not verified",
+    "unverifiedHint": "Open the confirmation in the browser where you placed the order, or sign in to the account used for the purchase."
   },
   "auth": {
     "login": {
@@ -89,7 +92,8 @@
       "signingIn": "Signing in…",
       "signIn": "Sign in",
       "noAccount": "No account?",
-      "createOne": "Create one"
+      "createOne": "Create one",
+      "profileMissing": "Your sign-in details exist, but registration is incomplete. Open Create account and submit your details again using the same email and password."
     },
     "register": {
       "title": "Create account",
@@ -135,7 +139,8 @@
     "profileSaved": "Your details were saved.",
     "profileLoadError": "Could not load profile.",
     "profileSaveError": "Could not save changes.",
-    "postalRequired": "Enter a postal code for the address."
+    "postalRequired": "Enter a postal code for the address.",
+    "repeatPartial": "Some items may already be in your cart. Retry to add only the missing quantity, or review your cart. Unavailable items cannot be added."
   },
   "sidebar": {
     "title": "Catalog",

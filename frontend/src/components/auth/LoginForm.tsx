@@ -32,7 +32,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
             await login(email.trim(), password)
             router.push(`/${countryCode}/account`)
           } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : t("auth.login.failed"))
+            setError(e instanceof Error && e.message === "CUSTOMER_PROFILE_MISSING" ? t("auth.login.profileMissing") : e instanceof Error ? e.message : t("auth.login.failed"))
           }
         }}
       >

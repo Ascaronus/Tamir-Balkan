@@ -12,7 +12,7 @@ function normalizePhone(input: string): string {
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { phone, password } = (req.body ?? {}) as Body
 
-  if (!phone || !password) {
+  if (typeof phone !== "string" || typeof password !== "string" || !phone || !password) {
     return res.status(400).json({ message: "phone and password are required" })
   }
 
@@ -38,10 +38,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(401).json({ message: "invalid credentials" })
   }
 
-  const baseUrl = `${req.protocol}://${req.get("host")}`
+  // Never forward credentials to a destination controlled by the request Host.
+  const port = Number(process.env.PORT || 9000)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return res.status(503).json({ message: "authentication unavailable" })
+  const baseUrl = `http://127.0.0.1:${port}`
 
   const authResp = await fetch(`${baseUrl}/auth/customer/emailpass`, {
     method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
     headers: {
       "content-type": "application/json",
     },
@@ -49,8 +54,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       email: customer.email,
       password,
     }),
-  })
+  }).catch(() => null)
 
+  if (!authResp) return res.status(503).json({ message: "authentication unavailable" })
   if (!authResp.ok) {
     return res.status(401).json({ message: "invalid credentials" })
   }
