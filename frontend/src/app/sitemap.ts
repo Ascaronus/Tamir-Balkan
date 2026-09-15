@@ -12,7 +12,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const product of products) {
       if (!product.handle || seen.has(product.handle)) continue
       seen.add(product.handle)
-      entries.push({ url: siteUrl("/rs/products/" + encodeURIComponent(product.handle)) })
+      const updatedAt = product.updated_at ? new Date(product.updated_at) : null
+      entries.push({
+        url: siteUrl("/rs/products/" + encodeURIComponent(product.handle)),
+        ...(updatedAt && Number.isFinite(updatedAt.getTime())
+          ? { lastModified: updatedAt }
+          : {}),
+      })
     }
     if (!products.length || offset + products.length >= count) break
   }
