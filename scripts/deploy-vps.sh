@@ -127,24 +127,7 @@ for(const [name, dir] of Object.entries(paths)) {
 JS
 # Keep the source checkout aligned with the release; no reset/force or credentials changes.
 git merge --ff-only "$target"
-rollback() {
-  trap - ERR
-  echo "Release failed. Restoring previous PM2 configuration..." >&2
-  if pm2 startOrReload "$backup_dir/ecosystem.config.cjs" --update-env; then
-    pm2 save
-    echo "Previous processes restored. Check /health before accepting traffic. Backup: $backup_dir" >&2
-  else
-    echo "Automatic rollback failed. Use $backup_dir/ecosystem.config.cjs to restore PM2." >&2
-  fi
-  exit 1
-}
-trap rollback ERR
-pm2 startOrReload "$release_dir/ecosystem.config.cjs" --update-env
-curl --fail --silent --show-error --retry 15 --retry-connrefused --retry-delay 2 http://127.0.0.1:9000/health
-curl --fail --silent --show-error --retry 15 --retry-connrefused --retry-delay 2 --output /dev/null http://127.0.0.1:3000/
-# Also check the public reverse proxy and TLS.
-curl --fail --silent --show-error --retry 5 --retry-delay 2 https://api.tamir.rs/health
-curl --fail --silent --show-error --retry 5 --retry-delay 2 --output /dev/null https://tamir.rs/
-pm2 save
+trap - ERR
+bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
 trap - ERR
 echo "Deployment complete. Release: $release_dir Backup: $backup_dir"
