@@ -67,8 +67,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
   useEffect(() => {
     if (!authReady) return
-    void refreshAuth()
-  }, [authReady, refreshAuth])
+    void refreshAuth().catch(() => setError(t("checkout.failed")))
+  }, [authReady, refreshAuth, t])
 
   useEffect(() => {
     if (!authReady || !customer || addressSource !== "account") return
@@ -183,8 +183,11 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               const options = await listShippingOptions(cart.id)
               setShippingOptions(options)
               setSelectedShipping(options[0]?.id ?? "")
+              if (!options.length) {
+                setPreparedAddress("")
+                throw new Error(t("checkout.noShipping"))
+              }
               setPreparedAddress(addressKey)
-              if (!options.length) throw new Error(t("checkout.noShipping"))
               return
             }
             if (!selectedShipping || !shippingOptions.some(option => option.id === selectedShipping)) throw new Error(t("checkout.shippingRequired"))

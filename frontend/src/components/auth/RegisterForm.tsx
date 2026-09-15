@@ -2,11 +2,12 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 export function RegisterForm({ countryCode }: { countryCode: string }) {
+  const submitLock = useRef(false)
   const t = useTranslations()
   const router = useRouter()
   const { signup, isMutating } = useAuth()
@@ -39,6 +40,8 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
         className="mt-6 grid gap-4"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (submitLock.current) return
+          submitLock.current = true
           setError(null)
           try {
             await signup({
@@ -54,7 +57,9 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             })
             router.push(`/${countryCode}/account`)
           } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : t("auth.register.failed"))
+            setError(e instanceof Error && e.message === "REGISTRATION_ADDRESS_FAILED" ? t("auth.register.addressFailed") : e instanceof Error && e.message === "REGISTRATION_PROFILE_FAILED" ? t("auth.register.profileFailed") : e instanceof Error ? e.message : t("auth.register.failed"))
+          } finally {
+            submitLock.current = false
           }
         }}
       >

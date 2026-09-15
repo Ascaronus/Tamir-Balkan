@@ -168,3 +168,22 @@ export default async function CatalogPage({
     </StoreShell>
   )
 }
+
+import type { Metadata } from "next"
+import { siteUrl } from "@/lib/seo"
+
+export async function generateMetadata({ searchParams }: {
+  searchParams: Promise<{ category_id?: string; page?: string; q?: string }>
+}): Promise<Metadata> {
+  const query = await searchParams
+  const { locale, t } = await getTranslations()
+  const category = query.category_id?.trim() ? await getStoreProductCategoryById(query.category_id.trim(), locale) : null
+  const canonical = new URL(siteUrl("/"))
+  const page = Math.max(1, Math.min(100000, Number.parseInt(query.page || "1", 10) || 1))
+  if (query.category_id || page > 1) canonical.pathname = "/rs/catalog"
+  if (query.category_id) canonical.searchParams.set("category_id", query.category_id.trim())
+  if (page > 1) canonical.searchParams.set("page", String(page))
+  return { title: (category?.name || t("catalog.catalog")) + " | Tamir",
+    alternates: { canonical: canonical.href },
+    ...(query.q?.trim() ? { robots: { index: false, follow: true } } : {}) }
+}

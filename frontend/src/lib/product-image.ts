@@ -6,10 +6,11 @@ export function normalizeImageUrl(value?: string | null): string | undefined {
   try {
     const url = new URL(value.trim(), base)
     if (url.protocol !== "http:" && url.protocol !== "https:") return undefined
-    if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]"].includes(url.hostname)) {
+    if (["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "178.104.108.200"].includes(url.hostname)) {
       const publicBase = new URL(base)
       url.protocol = publicBase.protocol
-      url.host = publicBase.host
+      url.hostname = publicBase.hostname
+      url.port = publicBase.port
     }
     return url.href
   } catch { return undefined }

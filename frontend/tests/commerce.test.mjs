@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { stockLimit, canPurchase, stableItems, requireQuantity } from '../src/lib/store/commerce.ts'
+import { stockLimit, canPurchase, stableItems, requireQuantity, matchingVariant } from '../src/lib/store/commerce.ts'
 import { formatMoney } from '../src/lib/format-money.ts'
 import { getImagesForVariant, normalizeImageUrl } from '../src/lib/product-image.ts'
 import { localizedText } from '../src/lib/i18n/content.ts'
@@ -67,4 +67,24 @@ test('import conversion validates currency and rate, preserving major units',()=
   assert.equal(offerPriceRsd({id:'1',price:'1200',currencyId:'RSD'},2.5),1200)
   assert.throws(()=>offerPriceRsd({id:'1',price:'bad'},2))
   assert.throws(()=>offerPriceRsd({id:'1',price:100,currencyId:'EUR'},2))
+})
+
+test('legacy upload URLs use HTTPS without rewriting external image hosts', () => {
+  const previous = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
+  try {
+    process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL = 'https://api.tamir.rs'
+    assert.equal(normalizeImageUrl('http://178.104.108.200:9000/static/a.jpg?x=1'), 'https://api.tamir.rs/static/a.jpg?x=1')
+    assert.equal(normalizeImageUrl('https://tamir.ua/a.jpg'), 'https://tamir.ua/a.jpg')
+    assert.equal(stockLimit({manage_inventory:true,inventory_quantity:NaN}),0)
+    assert.equal(stockLimit({manage_inventory:true,inventory_quantity:Infinity}),0)
+  } finally {
+    if(previous === undefined) delete process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
+    else process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL = previous
+  }
+})
+test('option matching never silently replaces another selected option', () => {
+  const redM={id:'red-m',options:[{option_id:'size',value:'M'},{option_id:'color',value:'red'}]}
+  const blueS={id:'blue-s',options:[{option_id:'size',value:'S'},{option_id:'color',value:'blue'}]}
+  assert.equal(matchingVariant([redM,blueS],redM,'size','S'),undefined)
+  assert.equal(matchingVariant([redM,blueS],redM,'color','red')?.id,'red-m')
 })

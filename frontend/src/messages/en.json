@@ -71,7 +71,8 @@
     "shippingRequired": "Select a delivery method before placing the order.",
     "prepareDelivery": "Confirm address and show delivery",
     "preparingDelivery": "Checking delivery…",
-    "cartChanged": "The cart has changed. Confirm the delivery address again."
+    "cartChanged": "The cart has changed. Confirm the delivery address again.",
+    "retryShipping": "Recalculate delivery"
   },
   "order": {
     "confirmed": "Order confirmed",
@@ -106,7 +107,9 @@
       "creating": "Creating…",
       "submit": "Create account",
       "hasAccount": "Already have an account?",
-      "signInLink": "Sign in"
+      "signInLink": "Sign in",
+      "addressFailed": "Your account was created, but the address could not be saved. Submit again with the same email and password to finish.",
+      "profileFailed": "Your profile is not ready. Submit again with the same email and password."
     }
   },
   "account": {

@@ -108,20 +108,19 @@ export async function addToCart(params: {
     })
 
   try {
-    await run()
+    const result = await run()
+    return result.cart as Cart
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw e
     clearStoredCartId()
     cart = await getOrCreateCart(countryCode)
-    await sdk.store.cart.createLineItem(cart.id, {
+    const result = await sdk.store.cart.createLineItem(cart.id, {
       variant_id: variantId,
       quantity,
     })
+    return result.cart as Cart
   }
 
-  const refreshed = await retrieveCart(cart.id)
-  if (!refreshed) throw new Error("Failed to refresh cart")
-  return refreshed
 }
 
 export async function updateLineItem(params: {
@@ -134,7 +133,8 @@ export async function updateLineItem(params: {
   let cart = await getOrCreateCart(countryCode)
 
   try {
-    await sdk.store.cart.updateLineItem(cart.id, lineItemId, { quantity })
+    const result = await sdk.store.cart.updateLineItem(cart.id, lineItemId, { quantity })
+    return result.cart as Cart
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw e
     clearStoredCartId()
@@ -142,9 +142,7 @@ export async function updateLineItem(params: {
     // line item от старой completed-корзины в новой нет — только свежая корзина
   }
 
-  const refreshed = await retrieveCart(cart.id)
-  if (!refreshed) throw new Error("Failed to refresh cart")
-  return refreshed
+  return cart
 }
 
 export async function removeLineItem(params: {
@@ -155,7 +153,8 @@ export async function removeLineItem(params: {
   let cart = await getOrCreateCart(countryCode)
 
   try {
-    await sdk.store.cart.deleteLineItem(cart.id, lineItemId)
+    const result = await sdk.store.cart.deleteLineItem(cart.id, lineItemId)
+    return result.parent as Cart
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw e
     // Позиции от старой корзины уже неактуальны — только новая пустая корзина
@@ -163,9 +162,7 @@ export async function removeLineItem(params: {
     cart = await getOrCreateCart(countryCode)
   }
 
-  const refreshed = await retrieveCart(cart.id)
-  if (!refreshed) throw new Error("Failed to refresh cart")
-  return refreshed
+  return cart
 }
 
 export async function clearCartId() {

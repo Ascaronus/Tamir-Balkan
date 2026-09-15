@@ -1,0 +1,40 @@
+name: Verify storefront and backend
+on:
+  push:
+    branches: [main, fix/store-reliability]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://127.0.0.1:9000
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: pk_ci_placeholder
+      NEXT_TELEMETRY_DISABLED: "1"
+      STORE_CORS: http://localhost:3000
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:3000,http://localhost:9000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: node --test frontend/tests/*.test.mjs
+      - run: npm run lint -- --quiet
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npm ci --no-audit --no-fund
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+      - run: bash -n scripts/deploy-vps.sh
