@@ -27,6 +27,12 @@ test('full import only retires missing variants of the exact feed',()=>{
 test('catalog normalizes arrays, whitespace and invalid pages',()=>{
   assert.deepEqual(normalizeCatalogQuery({q:[' x ','y'],category_id:['c','d'],page:'-5'}),{q:'x',category_id:'c',page:'1'})
 })
+test('full import tolerates nullable inventory relations returned by Medusa',()=>{
+  assert.deepEqual(missingSourceInventory([
+    {sku:'old',metadata:{rozetka_feed_source:'feed'},inventory_items:[null,{}, {inventory_item_id:null}, {inventory_item_id:'valid'}]},
+    {sku:'other',inventory_items:null},
+  ],'feed',new Set()),['valid'])
+})
 test('full feed never zeroes an inventory item shared with another source',()=>{
  const shared={inventory_item_id:'shared'}
  assert.deepEqual(missingSourceInventory([
