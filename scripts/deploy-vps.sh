@@ -112,7 +112,7 @@ const app=config.apps.find(app=>app.name==='tamir-frontend')
 const r=spawnSync('npm',['run','build'],{cwd:app.cwd,env:{...process.env,...app.env},stdio:'inherit'})
 if(r.status!==0) process.exit(r.status || 1)
 JS
-(cd "$release_dir" && node --test frontend/tests/*.test.mjs)
+(cd "$release_dir/frontend" && npm test)
 node <<'JS'
 const fs=require('node:fs'), path=require('node:path')
 const paths=JSON.parse(fs.readFileSync(path.join(process.env.TAMIR_BACKUP,'media-paths.json')))
