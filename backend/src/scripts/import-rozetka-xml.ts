@@ -1,3 +1,4 @@
+import { missingSourceInventory } from "../utils/import-scope"
 import { offerSize, offerStock, offerPictures, offerPriceRsd } from "../utils/rozetka"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
@@ -321,6 +322,9 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   const googleKey = process.env.GOOGLE_TRANSLATE_API_KEY || ""
   const translateEnabled = Boolean(googleKey)
   const updateExisting = (process.env.ROZETKA_UPDATE_EXISTING || "true") !== "false"
+  const importMode = process.env.ROZETKA_IMPORT_MODE || "incremental"
+  if (!["full", "incremental"].includes(importMode)) throw new Error("ROZETKA_IMPORT_MODE must be full or incremental")
+  if (importMode === "full" && !updateExisting) throw new Error("Full import requires ROZETKA_UPDATE_EXISTING=true")
   const uploadImages = (process.env.ROZETKA_UPLOAD_IMAGES || "true") !== "false"
   logger.info(
     `Import flags: update_existing=${updateExisting ? "true" : "false"}, upload_images=${
@@ -337,6 +341,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   }
 
   const xmlUrl = process.env.ROZETKA_XML_URL || "https://tamir.ua/rozetka/"
+  const feedSource = crypto.createHash("sha256").update(new URL(xmlUrl).href).digest("hex")
   logger.info(`Fetching Rozetka XML: ${xmlUrl}`)
 
   const [{ uahToRsd }, xml] = await Promise.all([
@@ -650,6 +655,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
           { currency_code: "rsd", amount: priceRsd },
         ],
         metadata: {
+          rozetka_feed_source: feedSource,
           rozetka_offer_id: o.id,
           rozetka_url: o.url,
           i18n: {
@@ -819,6 +825,22 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
   }
 
   if (desired.length !== skus.length) throw new Error(`Inventory incomplete: ${desired.length}/${skus.length} linked. Review import before selling.`)
+  if (importMode === "full") {
+    const sourceVariants: Parameters<typeof missingSourceInventory>[0] = []
+    const present = new Set(importedSkus)
+    for (let skip = 0; ; skip += 100) {
+      const { data: page } = await query.graph({ entity: "product_variant",
+        fields: ["id", "sku", "metadata", "inventory_items.inventory_item_id"], pagination: { take: 100, skip } })
+      sourceVariants.push(...page)
+      if (page.length < 100) break
+    }
+    const absentIds = new Set(missingSourceInventory(sourceVariants, feedSource, present))
+    if (absentIds.size) {
+      const levels = await inventoryModule.listInventoryLevels({ inventory_item_id: [...absentIds], location_id: stockLocationId }, { take: null })
+      await inventoryModule.updateInventoryLevels(levels.map(level => ({ id: level.id, inventory_item_id: level.inventory_item_id, location_id: level.location_id, stocked_quantity: 0 })))
+      logger.info(`Full feed reconciliation: zeroed ${levels.length} missing inventory levels at the selected location.`)
+    }
+  }
   logger.info("Rozetka import finished. Review imported prices, sizes and actual stock in Admin before selling.")
 }
 

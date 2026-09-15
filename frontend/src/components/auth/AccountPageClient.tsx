@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { HttpTypes } from "@medusajs/types"
+import { applyReorder, reorderTargets } from "@/lib/cart/reorder"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { sdk } from "@/lib/medusa"
 import { getAuthToken } from "@/lib/auth/auth-storage"
@@ -19,8 +20,14 @@ function authHeaders() {
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
   const t = useTranslations()
   const router = useRouter()
-  const { addItem, isMutating } = useCart()
+  const { addItem, refresh: refreshCart, isMutating } = useCart()
   const { customer, isReady, logout } = useAuth()
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [repeating, setRepeating] = useState(false)
+  const repeatLock = useRef(false)
+  const plans = useRef(new Map<string, { cartId: string; targets: Record<string, number> }>())
+  const [repeatError, setRepeatError] = useState<string | null>(null)
   const [orders, setOrders] = useState<HttpTypes.StoreOrder[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,11 +46,14 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         }>("/store/orders", {
           method: "GET",
           headers: authHeaders(),
-          query: { limit: 50, offset: 0 },
+          query: { limit: 50, offset, order: "-created_at" },
           cache: "no-store",
         })
         const nextOrders = res.orders ?? []
-        if (!cancelled) setOrders(nextOrders)
+        if (!cancelled) {
+          setOrders(nextOrders)
+          setHasMore(nextOrders.length === 50)
+        }
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : t("account.loadOrdersFailed"))
       } finally {
@@ -53,7 +63,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
     return () => {
       cancelled = true
     }
-  }, [isReady, customer, t])
+  }, [isReady, customer, t, offset])
 
   if (!isReady) {
     return (
@@ -115,12 +125,17 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         </div>
       </div>
 
-      <AccountProfileForm countryCode={countryCode} />
+      <AccountProfileForm key={customer.id} countryCode={countryCode} />
 
       <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
         <h2 className="text-lg font-semibold text-[var(--store-text)]">
           {t("account.orders")}
         </h2>
+        {repeatError && <p role="alert" className="mt-3 text-red-700">{repeatError}</p>}
+        <div className="mt-3 flex gap-3">
+          <button type="button" disabled={loadingOrders || offset === 0} onClick={() => setOffset(n => Math.max(0, n - 50))} className="rounded border px-3 py-2 disabled:opacity-40">{t("common.previous")}</button>
+          <button type="button" disabled={loadingOrders || !hasMore} onClick={() => setOffset(n => n + 50)} className="rounded border px-3 py-2 disabled:opacity-40">{t("common.next")}</button>
+        </div>
         {loadingOrders ? (
           <div className="mt-3 text-sm text-[var(--store-text-muted)]">
             {t("account.loadingOrders")}
@@ -143,28 +158,43 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                     </div>
                   </div>
                   <button
-                    disabled={isMutating}
+                    disabled={isMutating || repeating}
                     type="button"
                     onClick={async () => {
+                      if (repeatLock.current) return
+                      repeatLock.current = true
+                      setRepeating(true)
                       try {
-                        setError(null)
+                        setRepeatError(null)
                         const { order } = await sdk.client.fetch<{
-                          order: { items?: { variant_id?: string; quantity?: number }[] }
+                          order: { items?: { variant_id?: string; quantity: number }[] }
                         }>(`/store/orders/${o.id}`, {
                           method: "GET",
                           headers: authHeaders(),
                           cache: "no-store",
                         })
                         const items = order?.items ?? []
-                        for (const it of items) {
-                          const vid = it.variant_id
-                          if (vid) {
-                            await addItem(vid, it.quantity ?? 1)
-                          }
+                        const current = await refreshCart()
+                        const planKey = customer.id + ":" + o.id
+                        let plan = plans.current.get(planKey)
+                        if (!plan || plan.cartId !== current.id) {
+                          plan = { cartId: current.id, targets: reorderTargets(current.items ?? [], items) }
+                          plans.current.set(planKey, plan)
                         }
+                        const cartId = plan.cartId
+                        await applyReorder(plan.targets, {
+                          items: async () => {
+                            const next = await refreshCart()
+                            if (next.id !== cartId) throw new Error("Cart changed")
+                            return next.items ?? []
+                          }, add: addItem,
+                        })
                         router.push(`/${countryCode}/cart`)
                       } catch (e: unknown) {
-                        setError(e instanceof Error ? e.message : t("account.repeatFailed"))
+                        setRepeatError(t("account.repeatPartial"))
+                      } finally {
+                        repeatLock.current = false
+                        setRepeating(false)
                       }
                     }}
                     className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--store-text)] px-5 text-sm font-semibold text-white"

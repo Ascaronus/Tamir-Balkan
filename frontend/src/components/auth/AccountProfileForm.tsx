@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/lib/checkout/apply-customer"
 
 export function AccountProfileForm({ countryCode }: { countryCode: string }) {
+  const saveLock = useRef(false)
   const t = useTranslations()
   const { customer, refresh } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -86,11 +87,16 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           className="mt-6 grid gap-4"
           onSubmit={async (e) => {
             e.preventDefault()
+            if (saveLock.current) return
+            saveLock.current = true
             setSaving(true)
             setError(null)
             setOk(false)
             try {
+              const wantAddress = addressId != null || Boolean(postalCode.trim() || address1.trim() || city.trim())
+              if (wantAddress && !postalCode.trim()) throw new Error(t("account.postalRequired"))
               const current = await retrieveCustomer()
+              if (!current) throw new Error(t("account.profileLoadError"))
               const prevMeta =
                 current &&
                 typeof current.metadata === "object" &&
@@ -99,26 +105,21 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
                   ? { ...(current.metadata as Record<string, unknown>) }
                   : {}
               if (notes.trim()) prevMeta.notes = notes.trim()
-              else delete prevMeta.notes
+              else prevMeta.notes = null
 
               await updateCustomerProfile({
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
                 phone: phone.trim(),
-                metadata: Object.keys(prevMeta).length ? prevMeta : undefined,
+                metadata: prevMeta,
               })
 
-              const wantAddress =
-                addressId != null ||
-                Boolean(
-                  postalCode.trim() || address1.trim() || city.trim()
-                )
               if (wantAddress) {
                 if (!postalCode.trim()) {
                   throw new Error(t("account.postalRequired"))
                 }
-                await upsertCustomerShippingAddress({
-                  addressId,
+                const updated = await upsertCustomerShippingAddress({
+                  addressId: addressId ?? getDefaultAddressId(current as unknown as Record<string, unknown>),
                   first_name: firstName.trim(),
                   last_name: lastName.trim(),
                   phone: phone.trim(),
@@ -127,6 +128,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
                   postal_code: postalCode.trim(),
                   country_code: country,
                 })
+                setAddressId(getDefaultAddressId(updated as unknown as Record<string, unknown>))
               }
 
               await refresh()
@@ -135,6 +137,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               const msg = err instanceof Error ? err.message : String(err)
               setError(msg || t("account.profileSaveError"))
             } finally {
+              saveLock.current = false
               setSaving(false)
             }
           }}

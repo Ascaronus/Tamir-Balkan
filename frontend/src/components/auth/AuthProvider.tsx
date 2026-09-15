@@ -73,7 +73,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsMutating(true)
     try {
       await loginApi({ email, password })
-      await refresh()
+      const profile = await retrieveCustomerApi()
+      setCustomer(profile)
+      if (!profile) throw new Error("CUSTOMER_PROFILE_MISSING")
     } finally {
       setIsMutating(false)
     }

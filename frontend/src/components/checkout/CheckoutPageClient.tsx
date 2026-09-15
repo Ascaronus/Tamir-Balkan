@@ -18,6 +18,7 @@ import {
   setShippingMethod,
 } from "@/lib/checkout/checkout-client"
 import { formatMoney } from "@/lib/format-money"
+import { saveReceipt } from "@/lib/checkout/receipt"
 import { clearCartId } from "@/lib/cart/cart-client"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
@@ -58,6 +59,9 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   >([])
   const [selectedShipping, setSelectedShipping] = useState<string>("")
 
+  const [paymentAttempt, setPaymentAttempt] = useState(0)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState(false)
   const [paymentProviders, setPaymentProviders] = useState<{ id: string }[]>([])
   const providers = useMemo(() => pickProviders(paymentProviders), [paymentProviders])
   const [preparedAddress, setPreparedAddress] = useState("")
@@ -109,14 +113,17 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     let cancelled = false
     ;(async () => {
       try {
+        setPaymentLoading(true)
+        setPaymentError(false)
         const pp = await listPaymentProviders(cart.region_id!)
         if (!cancelled) setPaymentProviders(pp)
-      } catch { if (!cancelled) setError(t("checkout.noPaymentProviders")) }
+      } catch { if (!cancelled) setPaymentError(true) }
+      finally { if (!cancelled) setPaymentLoading(false) }
     })()
     return () => {
       cancelled = true
     }
-  }, [isReady, cart?.region_id, t])
+  }, [isReady, cart?.region_id, t, paymentAttempt])
 
   if (!isReady) {
     return (
@@ -196,6 +203,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             await initiatePaymentSession({ cart: currentCart, providerId: providers.system.id })
             const result = await completeCart(cart.id)
             if (result.type !== "order" || !result.order?.id) throw new Error(t("checkout.failed"))
+            saveReceipt(result.order)
             clearCartId()
             router.push(`/${countryCode}/order/${result.order.id}`)
           } catch (e: unknown) {
@@ -351,6 +359,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           {t("checkout.payment")}
         </h2>
         <div className="mt-4 grid gap-2">
+          {(paymentError || !paymentProviders.length) && <button type="button" disabled={paymentLoading || loading} onClick={() => setPaymentAttempt(n => n + 1)} className="rounded-xl border px-4 py-2">{t("checkout.retryPayment")}</button>}
           <label className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
             <input
               type="radio"
@@ -379,7 +388,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
         <button
           type="submit"
-          disabled={loading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping))}
+          disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping))}
           className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
           {loading ? t(deliveryPrepared ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}

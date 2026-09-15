@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import type { HttpTypes } from "@medusajs/types"
 import { useCart } from "@/components/cart/CartProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
@@ -11,7 +12,13 @@ import { formatMoney } from "@/lib/format-money"
 import { canPurchase, stockLimit, matchingVariant } from "@/lib/store/commerce"
 import { localizedText, optionLabel } from "@/lib/i18n/content"
 
-export function ProductDetails({ product, initialVariantId }: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
+export function ProductDetails(props: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
+  const searchParams = useSearchParams()
+  const selectedId = searchParams.get("v_id") ?? props.initialVariantId
+  return <ProductSelection key={props.product.id + ":" + (selectedId ?? "default")} product={props.product} initialVariantId={selectedId} />
+}
+
+function ProductSelection({ product, initialVariantId }: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
   const { t, locale } = useLocaleContext()
   const { cart, addItem, isReady, isMutating } = useCart()
   const variants = product.variants ?? []
@@ -80,7 +87,7 @@ export function ProductDetails({ product, initialVariantId }: { product: HttpTyp
               v.options?.some(choice => choice.option_id === o.id && choice.value === next[o.id])))
             const url = new URL(window.location.href)
             if (matched) url.searchParams.set("v_id", matched.id)
-            else url.searchParams.delete("v_id")
+            else return
             window.history.replaceState(null, "", url)
           }} className={`min-w-12 rounded-full border px-4 py-2 text-sm disabled:opacity-30 ${selected ? "border-[var(--store-text)] bg-[var(--store-text)] text-white" : "border-[var(--store-border)]"}`}>{value === "One size" ? t("product.oneSize") : value}</button>
         })}
