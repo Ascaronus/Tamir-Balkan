@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { OrderHistoryDetails } from "./OrderHistoryDetails"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import type { HttpTypes } from "@medusajs/types"
@@ -145,7 +146,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         ) : orders.length ? (
           <ul className="mt-4 divide-y divide-[var(--store-border)]">
             {orders.map((o) => (
-              <li key={o.id} className="py-4">
+              <li key={customer.id + ":" + o.id} className="py-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-[var(--store-text)]">
@@ -202,6 +203,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                     {t("account.repeatOrder")}
                   </button>
                 </div>
+                <OrderHistoryDetails order={o} />
               </li>
             ))}
           </ul>
