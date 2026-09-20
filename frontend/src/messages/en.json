@@ -253,7 +253,7 @@
   },
   "legal": {
     "links": "Legal information",
-    "terms": "Test project terms",
+    "terms": "Terms of use",
     "draft": "Test project notice. Operator address and contact details have not yet been provided.",
     "seller": "Project operator",
     "name": "Legal name",
@@ -264,6 +264,9 @@
     "phone": "Phone",
     "returns": "Address for correspondence / returns (if applicable)",
     "missing": "Not provided",
-    "checkout": "Read the test project terms of use."
+    "checkout": "Read the test project terms of use.",
+    "privacy": "Privacy policy",
+    "privacyContact": "Privacy enquiries",
+    "contactPending": "The contact channel for privacy requests has not yet been published."
   }
 }

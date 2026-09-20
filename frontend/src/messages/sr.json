@@ -253,7 +253,7 @@
   },
   "legal": {
     "links": "Pravne informacije",
-    "terms": "Uslovi testnog projekta",
+    "terms": "Uslovi korišćenja",
     "draft": "Obaveštenje o testnom projektu. Adresa i kontakt podaci operatera još nisu navedeni.",
     "seller": "Operater projekta",
     "name": "Poslovno ime",
@@ -264,6 +264,9 @@
     "phone": "Telefon",
     "returns": "Adresa za dopisivanje / povrat (ako je primenljivo)",
     "missing": "Nije navedeno",
-    "checkout": "Pročitajte uslove korišćenja testnog projekta."
+    "checkout": "Pročitajte uslove korišćenja testnog projekta.",
+    "privacy": "Politika privatnosti",
+    "privacyContact": "Pitanja o privatnosti",
+    "contactPending": "Kontakt za zahteve u vezi sa privatnošću još nije objavljen."
   }
 }
