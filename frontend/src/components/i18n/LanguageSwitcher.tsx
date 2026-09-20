@@ -14,7 +14,7 @@ export function LanguageSwitcher() {
   const [error, setError] = useState(false)
 
   async function setLocale(next: Locale) {
-    if (next === locale || busy) return
+    if (busy) return
     setBusy(true)
     setError(false)
     try {
@@ -53,7 +53,7 @@ export function LanguageSwitcher() {
               ? "bg-[var(--store-text)] text-white"
               : "text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
           }`}
-          title={code === "sr" ? t("lang.sr") : t("lang.en")}
+          title={t(`lang.${code}`)}
         >
           {code}
         </button>

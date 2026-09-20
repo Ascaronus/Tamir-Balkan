@@ -30,7 +30,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={locale === "sr" ? "sr" : "en"}
+      lang={locale}
       className={`${inter.variable} h-full antialiased`}
     >
       <head>
