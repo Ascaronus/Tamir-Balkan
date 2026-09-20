@@ -238,5 +238,32 @@
   },
   "shell": {
     "closeMenu": "Zatvori meni"
+  },
+  "cookies": {
+    "settings": "Podešavanja kolačića",
+    "title": "Vaš izbor kolačića",
+    "description": "Uz vašu saglasnost, TAMIR koristi Google Analytics za merenje poseta i unapređenje prodavnice. Analitika je opciona i isključena dok je ne prihvatite. Možete je odbiti i nastaviti kupovinu.",
+    "necessary": "Neophodno skladištenje omogućava rad korpe, prijave, jezika i čuvanje izbora kolačića. Ostaje uključeno. Vaš izbor pamtimo 180 dana.",
+    "policy": "Politika kolačića",
+    "accept": "Prihvati analitiku",
+    "reject": "Odbij analitiku",
+    "close": "Zatvori bez izmena",
+    "withdraw": "Saglasnost možete povući izborom Odbij analitiku. Stranica će se ponovo učitati radi zaustavljanja već učitane analitike; nesačuvani unosi u obrascima mogu biti izgubljeni.",
+    "saveError": "Pregledač nije sačuvao izbor. Analitika neće biti uključena bez sačuvane saglasnosti. Proverite podešavanja kolačića i pokušajte ponovo."
+  },
+  "legal": {
+    "links": "Pravne informacije",
+    "terms": "Uslovi prodaje",
+    "draft": "Nacrt — podaci o prodavcu i konačni uslovi još nisu potvrđeni. Ovaj dokument nije potpuna ponuda za prihvatanje.",
+    "seller": "Prodavac koji posluje pod brendom TAMIR",
+    "name": "Poslovno ime",
+    "address": "Adresa sedišta",
+    "pib": "PIB",
+    "registration": "Matični broj",
+    "email": "E-pošta za korisničku podršku i reklamacije",
+    "phone": "Telefon",
+    "returns": "Adresa za povrat robe",
+    "missing": "Nije navedeno",
+    "checkout": "Pre slanja porudžbine pročitajte uslove prodaje."
   }
 }

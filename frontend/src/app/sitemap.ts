@@ -1,11 +1,13 @@
 import type { MetadataRoute } from "next"
 import { listProductsByCountry } from "@/lib/store/products"
+import { getSeller } from "@/lib/legal/seller"
 import { siteUrl } from "@/lib/seo"
 
 export const dynamic = "force-dynamic"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries: MetadataRoute.Sitemap = [{ url: siteUrl("/") }]
+  const entries: MetadataRoute.Sitemap = [{ url: siteUrl("/") }, { url: siteUrl("/cookies") }]
+  if (getSeller().published) entries.push({ url: siteUrl("/terms") })
   const seen = new Set<string>()
   for (let offset = 0; ; offset += 100) {
     const { products, count } = await listProductsByCountry({ countryCode: "rs", limit: 100, offset })

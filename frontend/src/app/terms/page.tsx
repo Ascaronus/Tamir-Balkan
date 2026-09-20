@@ -1,0 +1,28 @@
+import type { Metadata } from "next"
+import { StoreShell } from "@/components/store/StoreShell"
+import { getTranslations } from "@/lib/i18n/server"
+import { terms } from "@/lib/legal/content"
+import { getSeller } from "@/lib/legal/seller"
+import { siteUrl } from "@/lib/seo"
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale } = await getTranslations()
+  return { title: terms[locale].title, alternates: { canonical: siteUrl("/terms") }, robots: { index: getSeller().published, follow: true } }
+}
+
+export default async function TermsPage() {
+  const { locale, t } = await getTranslations()
+  const content = terms[locale]
+  const seller = getSeller()
+  return <StoreShell countryCode="rs">
+    <main className="mx-auto max-w-3xl px-5 py-10 text-[var(--store-text)]">
+      <h1 className="text-3xl font-semibold">{content.title}</h1>
+      {!seller.published && <p role="note" className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">{t("legal.draft")}</p>}
+      {content.sections.map(section => <section key={section.title} className="mt-7"><h2 className="text-xl font-semibold">{section.title}</h2><p className="mt-3 whitespace-pre-line leading-7">{section.text}</p></section>)}
+      <section className="mt-8 border-t pt-6">
+        <h2 className="text-xl font-semibold">{t("legal.seller")}</h2>
+        <dl className="mt-4 space-y-3">{Object.entries(seller.details).map(([key, value]) => <div key={key}><dt className="font-semibold">{t(`legal.${key}`)}</dt><dd className="break-words">{value || t("legal.missing")}</dd></div>)}</dl>
+      </section>
+    </main>
+  </StoreShell>
+}

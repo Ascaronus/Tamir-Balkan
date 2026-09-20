@@ -238,5 +238,32 @@
   },
   "shell": {
     "closeMenu": "Close menu"
+  },
+  "cookies": {
+    "settings": "Cookie settings",
+    "title": "Your cookie choice",
+    "description": "With your permission, TAMIR uses Google Analytics to measure visits and improve the store. Analytics is optional and remains off until you accept. You can reject it and continue shopping.",
+    "necessary": "Essential storage keeps your cart, sign-in, language and cookie choice working. It stays enabled. Your choice is remembered for 180 days.",
+    "policy": "Cookie policy",
+    "accept": "Accept analytics",
+    "reject": "Reject analytics",
+    "close": "Close without changes",
+    "withdraw": "You can withdraw consent by choosing Reject analytics. The page will reload to stop previously loaded analytics; unsaved form entries may be lost.",
+    "saveError": "Your browser did not save the choice. Analytics will not be enabled without a saved acceptance. Check your cookie settings and try again."
+  },
+  "legal": {
+    "links": "Legal information",
+    "terms": "Terms of sale",
+    "draft": "Draft — seller details and final terms have not yet been confirmed. This document is not a complete offer for acceptance.",
+    "seller": "Seller trading under the TAMIR brand",
+    "name": "Legal name",
+    "address": "Registered address",
+    "pib": "PIB (tax ID)",
+    "registration": "Registration number",
+    "email": "Customer service and complaints email",
+    "phone": "Phone",
+    "returns": "Return address",
+    "missing": "Not provided",
+    "checkout": "Please read the terms of sale before placing your order."
   }
 }

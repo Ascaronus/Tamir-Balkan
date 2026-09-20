@@ -386,6 +386,10 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           </div>
         ) : null}
 
+        <p className="mt-6 text-sm">
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">{t("legal.checkout")}</a>
+        </p>
+
         <button
           type="submit"
           disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping))}
