@@ -9,6 +9,18 @@ const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfill
 module.exports = defineConfig({
   modules: [
     {
+      resolve: "@medusajs/medusa/file",
+      options: {
+        providers: [{
+          resolve: "@medusajs/medusa/file-local",
+          id: "local",
+          options: {
+            backend_url: `${(process.env.MEDUSA_PUBLIC_BACKEND_URL || (process.env.NODE_ENV === "production" ? "https://api.tamir.rs" : "http://localhost:9000")).replace(/\/$/, "")}/static`,
+          },
+        }],
+      },
+    },
+    {
       resolve: "@medusajs/medusa/translation",
     },
     {
