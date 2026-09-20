@@ -253,17 +253,17 @@
   },
   "legal": {
     "links": "Legal information",
-    "terms": "Terms of sale",
-    "draft": "Draft — seller details and final terms have not yet been confirmed. This document is not a complete offer for acceptance.",
-    "seller": "Seller trading under the TAMIR brand",
+    "terms": "Test project terms",
+    "draft": "Test project notice. Operator address and contact details have not yet been provided.",
+    "seller": "Project operator",
     "name": "Legal name",
     "address": "Registered address",
     "pib": "PIB (tax ID)",
     "registration": "Registration number",
     "email": "Customer service and complaints email",
     "phone": "Phone",
-    "returns": "Return address",
+    "returns": "Address for correspondence / returns (if applicable)",
     "missing": "Not provided",
-    "checkout": "Please read the terms of sale before placing your order."
+    "checkout": "Read the test project terms of use."
   }
 }

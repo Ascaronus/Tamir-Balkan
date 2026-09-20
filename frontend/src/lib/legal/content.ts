@@ -3,34 +3,56 @@ import type { Locale } from "@/lib/i18n/config"
 type Section = { title: string; text: string }
 type LegalContent = { title: string; sections: Section[] }
 export const terms: Record<Locale, LegalContent> = {
-  sr: {
-    title: "TAMIR — Uslovi prodaje",
-    sections: [
-      { title: "1. Primena", text: "Ovi uslovi uređuju internet kupovinu robe pod brendom TAMIR na tamir.rs za isporuku u Srbiji. Ugovorna strana je prodavac naveden u podacima ispod, a ne sam naziv brenda. Potrošač je fizičko lice koje kupuje van svoje poslovne delatnosti. Obavezna prava potrošača prema propisima Republike Srbije ne mogu se isključiti ovim uslovima." },
-      { title: "2. Proizvodi, cene i dostupnost", text: "Pre poručivanja proverite opis, veličinu, varijantu, količinu i cenu proizvoda. Fotografije služe prikazu proizvoda; boje na ekranu mogu odstupati, ali roba mora odgovarati ugovorenim svojstvima. Cene, primenjeni porezi, trošak odabrane dostave i ukupna obaveza plaćanja prikazuju se pre konačnog slanja porudžbine. Dodavanje u korpu samo po sebi ne rezerviše zalihe. Nedostupna roba ne sme biti zamenjena drugom bez vašeg pristanka." },
-      { title: "3. Poručivanje i plaćanje", text: "Kupac unosi tačne kontakt podatke i adresu, proverava porudžbinu i bira ponuđeni način dostave i plaćanja. Konačno slanje porudžbine podrazumeva obavezu plaćanja prikazanog ukupnog iznosa. Uspešan prijem se prikazuje brojem porudžbine. Ako potvrda izostane ili se pojavi greška, proverite status sa prodavcem pre ponovnog poručivanja. Prodavac dostavlja potvrdu ugovora i potrebna obaveštenja na trajnom nosaču podataka, najkasnije pri isporuci. Ne uvode se naknadni troškovi bez izričitog pristanka kupca." },
-      { title: "4. Isporuka", text: "Isporuka se vrši na dogovorenu adresu u Srbiji. Dostupni načini, troškovi i dogovoreni rok dostave moraju biti saopšteni pre zaključivanja ugovora. Ako drugi rok nije dogovoren, primenjuje se zakonski rok isporuke. Rizik slučajnog gubitka ili oštećenja prelazi na potrošača kada on ili lice koje je odredio, a koje nije prevoznik, preuzme robu. U slučaju kašnjenja ili oštećenja obratite se prodavcu; zakonska prava ostaju očuvana." },
-      { title: "5. Odustanak od kupovine na daljinu", text: "Potrošač po pravilu može odustati bez navođenja razloga u roku od 14 dana od prijema robe, uz zakonom propisane izuzetke. Kod odvojenih isporuka iz iste porudžbine rok se računa prema pravilima zakona. Pošaljite nedvosmislenu izjavu prodavcu e-poštom ili na navedenu adresu i sačuvajte dokaz slanja. Robu vratite bez odlaganja, najkasnije 14 dana od slanja izjave. Direktni troškovi povrata padaju na kupca samo ako je o tome unapred obavešten. Odgovornost za umanjenu vrednost odnosi se na rukovanje preko onoga što je potrebno za utvrđivanje prirode, svojstava i funkcionalnosti robe; otvaranje ambalaže samo po sebi ne ukida pravo na odustanak." },
-      { title: "6. Povraćaj novca", text: "Kod valjanog odustanka prodavac vraća primljene uplate, uključujući trošak najjeftinije standardne ponuđene dostave, bez odlaganja, najkasnije 14 dana od prijema izjave. Povraćaj može zadržati do prijema robe ili dok kupac ne dostavi dokaz o slanju, u skladu sa zakonom. Koristi se isti način plaćanja, osim ako kupac izričito prihvati drugi način bez dodatnih troškova. Za uplatu pouzećem način povraćaja dogovara se sa kupcem." },
-      { title: "7. Saobraznost i reklamacije", text: "Prodavac odgovara za nesaobraznost robe u zakonskom roku, po pravilu dve godine od predaje nove robe potrošaču. Reklamaciju možete podneti putem navedenih kontakata, uz opis problema i račun ili drugi dokaz kupovine. Prodavac potvrđuje prijem i odgovara najkasnije u roku od osam dana. Rok rešavanja je najviše 15 dana, odnosno 30 dana za tehničku robu i nameštaj, uz produženje samo pod zakonskim uslovima i uz saglasnost potrošača. Prava na opravku, zamenu, umanjenje cene ili raskid ostvaruju se pod zakonskim uslovima. Originalna ambalaža nije uslov za reklamaciju." },
-      { title: "8. Sporovi i izmene", text: "Za prigovor se prvo obratite prodavcu. Potrošač zadržava pravo na nadležno telo za vansudsko rešavanje potrošačkog spora i na sudsku zaštitu. Prodavac učestvuje u vansudskom postupku kada je to zakonom obavezno. Izmene uslova važe za buduće kupovine i ne umanjuju prava iz već zaključenih ugovora. Srpska verzija služi poslovanju u Srbiji; engleska verzija olakšava razumevanje, bez ograničavanja obaveznih prava." },
-      { title: "9. Izjava o odustanku — primer", text: "Prima: prodavac, na adresu ili e-poštu navedenu ispod. Ovim izjavljujem da odustajem od ugovora o kupovini sledeće robe: ____. Broj porudžbine: ____. Datum poručivanja / prijema: ____. Ime i prezime kupca: ____. Adresa: ____. Datum: ____. Potpis (samo ako se šalje na papiru): ____. Ovaj primer ne ograničava pravo da upotrebite drugu nedvosmislenu izjavu ili propisani obrazac." },
-    ],
+  "sr": {
+    "title": "TAMIR — Uslovi korišćenja testnog projekta",
+    "sections": [
+      {
+        "title": "1. O projektu",
+        "text": "TAMIR na adresi tamir.rs je testni i demonstracioni projekat preduzetnika Igor Demin pr Novi Sad (matični broj: 67195051; PIB: 113932057). Sajt je namenjen predstavljanju i ispitivanju funkcionalnosti internet platforme."
+      },
+      {
+        "title": "2. Informativni sadržaj",
+        "text": "Informacije, proizvodi prikazani u katalogu, fotografije, opisi, cene, podaci o dostupnosti i funkcionalnosti predstavljeni su u svrhu upoznavanja i demonstracije. Mogu sadržati testne podatke, nepotpune podatke ili greške i mogu se menjati tokom razvoja. Sam prikaz proizvoda ili cene nije obavezujuća ponuda za prodaju niti potvrda stvarne dostupnosti."
+      },
+      {
+        "title": "3. Korišćenje funkcionalnosti",
+        "text": "Registracija, korisnički nalog, korpa i obrasci za poručivanje deo su prikazanog funkcionalnog prototipa. Automatski prikaz broja, statusa ili potvrde tokom testiranja nije sam po sebi garancija stvarne isporuke. Pre bilo kakvog stvarnog plaćanja ili dogovora o kupovini potrebno je posebno potvrditi identitet prodavca, cenu, dostupnost, način isporuke i uslove konkretne transakcije."
+      },
+      {
+        "title": "4. Podaci i kolačići",
+        "text": "Oznaka testnog projekta ne znači da su podaci uneseni u obrasce fiktivni ili da se ne obrađuju. Nemojte unositi tuđe lične podatke ili podatke platnih kartica u testne obrasce. Upotreba analitičkih kolačića zavisi od vašeg izbora opisanog u Politici kolačića; korišćenje sajta samo po sebi nije saglasnost za analitiku."
+      },
+      {
+        "title": "5. Obavezna prava",
+        "text": "Ovo obaveštenje opisuje testnu i informativnu namenu projekta. Ono ne isključuje odgovornost propisanu zakonom, prava na zaštitu podataka ili prava potrošača ako se preko sajta u stvarnosti zaključi ili izvrši kupovina. Naziv „testni projekat” ne menja pravnu prirodu stvarno preduzetih radnji."
+      }
+    ]
   },
-  en: {
-    title: "TAMIR — Terms of sale",
-    sections: [
-      { title: "1. Scope", text: "These terms govern online purchases of goods under the TAMIR brand at tamir.rs for delivery in Serbia. Your contracting party is the seller identified below, not the brand name itself. A consumer is an individual buying outside their business activity. These terms do not exclude mandatory consumer rights under Serbian law." },
-      { title: "2. Products, prices and availability", text: "Check the description, size, variant, quantity and price before ordering. Photographs illustrate the goods; screen colours may vary, but the goods must match their agreed characteristics. Prices, applicable taxes, selected delivery charges and the total amount payable are shown before final submission. Adding an item to your cart does not reserve stock. Unavailable goods must not be replaced without your agreement." },
-      { title: "3. Ordering and payment", text: "Provide accurate contact and delivery details, review your order and select an available delivery and payment method. Final submission entails an obligation to pay the displayed total. Successful receipt is shown with an order number. If no confirmation appears or an error occurs, check the status with the seller before ordering again. The seller supplies contract confirmation and required information on a durable medium no later than delivery. Additional charges require your express agreement." },
-      { title: "4. Delivery", text: "Goods are delivered to the agreed address in Serbia. Available methods, charges and the agreed delivery period must be disclosed before the contract is concluded. Where no different period is agreed, the statutory delivery period applies. Risk of accidental loss or damage passes when you or a person you designate, other than the carrier, takes possession. Contact the seller about delay or damage; your statutory rights remain unaffected." },
-      { title: "5. Withdrawal from a distance purchase", text: "Consumers generally have 14 days from receipt of goods to withdraw without giving a reason, subject to statutory exceptions. Separate deliveries under one order follow the statutory rules for calculating this period. Send an unambiguous withdrawal statement to the seller by email or to the address below and retain proof of sending. Return the goods promptly and within 14 days of sending the statement. You bear direct return costs only if informed of this beforehand. Liability for diminished value concerns handling beyond what is necessary to establish the nature, characteristics and functioning of the goods; opening packaging alone does not remove the withdrawal right." },
-      { title: "6. Refunds", text: "Following valid withdrawal, the seller refunds payments received, including the least expensive standard delivery offered, promptly and within 14 days of receiving the statement. The seller may withhold reimbursement until receiving the goods or evidence of return, as permitted by law. Refunds use the same payment method unless you expressly agree to another method without additional charges. For cash-on-delivery purchases, the refund method is agreed with you." },
-      { title: "7. Conformity and complaints", text: "The seller is responsible for non-conformity during the statutory period, generally two years from delivery of new goods to a consumer. Submit a complaint using the contacts below, describing the issue and providing a receipt or other proof of purchase. The seller acknowledges receipt and responds within eight days. Resolution is due within 15 days, or 30 days for technical goods and furniture; extensions require the statutory conditions and the consumer’s agreement. Repair, replacement, price reduction and termination rights apply under the conditions laid down by law. Original packaging is not required to submit a complaint." },
-      { title: "8. Disputes and changes", text: "Please first address complaints to the seller. Consumers retain access to the competent out-of-court consumer dispute resolution body and the courts. The seller participates in out-of-court proceedings where legally required. Changes apply to future purchases and do not reduce rights under existing contracts. The Serbian version serves operations in Serbia; the English version assists understanding without restricting mandatory rights." },
-      { title: "9. Example withdrawal statement", text: "To: the seller at the postal or email address below. I hereby withdraw from the contract for the following goods: ____. Order number: ____. Ordered / received on: ____. Consumer’s name: ____. Address: ____. Date: ____. Signature (only for a paper statement): ____. This example does not restrict your right to use another unambiguous statement or the prescribed form." },
-    ],
-  },
+  "en": {
+    "title": "TAMIR — Test project terms of use",
+    "sections": [
+      {
+        "title": "1. About the project",
+        "text": "TAMIR at tamir.rs is a test and demonstration project operated by Igor Demin pr Novi Sad (registration number: 67195051; PIB / tax ID: 113932057). The site presents and tests the functionality of an online platform."
+      },
+      {
+        "title": "2. Information and demonstrations",
+        "text": "Information, products displayed in the catalogue, photographs, descriptions, prices, availability information and functionality are presented for familiarisation and demonstration purposes. They may contain test data, incomplete information or errors and may change during development. Displaying a product or price alone is not a binding offer to sell or confirmation of actual availability."
+      },
+      {
+        "title": "3. Using the features",
+        "text": "Registration, customer accounts, the cart and ordering forms are part of the demonstrated functional prototype. An automatically displayed number, status or confirmation during testing is not by itself a guarantee of actual delivery. Before any real payment or purchase agreement, the seller’s identity, price, availability, delivery arrangements and terms of the specific transaction must be separately confirmed."
+      },
+      {
+        "title": "4. Data and cookies",
+        "text": "Describing the site as a test project does not mean that data entered into forms is fictitious or is not processed. Do not enter other people’s personal information or payment card details into test forms. Analytics cookies depend on your choice as described in the Cookie policy; using the site does not itself constitute consent to analytics."
+      },
+      {
+        "title": "5. Mandatory rights",
+        "text": "This notice describes the project’s testing and informational purpose. It does not exclude liability imposed by law, data protection rights or consumer rights if a purchase is actually concluded or fulfilled through the site. The label “test project” does not change the legal nature of actions actually taken."
+      }
+    ]
+  }
 }
 
 export const cookiePolicy: Record<Locale, LegalContent> = {
@@ -38,12 +60,12 @@ export const cookiePolicy: Record<Locale, LegalContent> = {
     { title: "Neophodno skladištenje", text: "Prodavnica koristi kolačiće i skladište pregledača za funkcije koje tražite. store_locale čuva ručno izabran jezik do godinu dana. tamir_consent_v1 čuva prihvatanje ili odbijanje analitike 180 dana. Lokalno skladište tb_cart_id pamti korpu, a tb_customer_token prijavu do odjave, uklanjanja ili prestanka važenja sesije. Podaci potvrde porudžbine gosta nalaze se u skladištu sesije kartice pregledača. Odbijanje analitike ne isključuje ove funkcije." },
     { title: "Opciona analitika", text: "Google Analytics (G-0L34ZN3ZB6) učitava se tek nakon prihvatanja. Prikuplja podatke o pregledima stranica, korišćenju sajta, uređaju i pregledaču, uz onlajn identifikatore. Google obrađuje ove podatke kao pružalac usluge; obrada može uključiti prenos podataka van Srbije. Kolačići _ga i _ga_* prepoznaju pregledač i sesije; podešeni su na najviše 180 dana od poslednjeg ažuriranja. Google signals i personalizacija oglasa nisu uključeni ovom integracijom. Analitički podaci nisu nužno anonimni." },
     { title: "Vaš izbor", text: "Prihvati analitiku i Odbij analitiku dostupni su na prvom dolasku. Bez izbora ili posle odbijanja Google tag se ne učitava. Izbor važi 180 dana, osim ako ranije obrišete podatke pregledača ili se verzija pravila promeni. Podešavanja kolačića u podnožju omogućavaju promenu izbora. Povlačenje saglasnosti briše dostupne analitičke kolačiće za ovaj sajt i ponovo učitava stranicu da zaustavi već učitanu analitiku. Ono ne briše automatski podatke ranije poslate Google-u." },
-    { title: "Kontrola i informacije", text: "Kolačiće i lokalno skladište možete obrisati i u podešavanjima pregledača. Brisanje neophodnih podataka može odjaviti nalog ili ukloniti vezu sa korpom. Za informacije o prodavcu i kontakt za pitanja o obradi podataka pogledajte Uslove prodaje. Dodatne informacije o Google-ovoj obradi dostupne su u politici navedenoj ispod." },
+    { title: "Kontrola i informacije", text: "Kolačiće i lokalno skladište možete obrisati i u podešavanjima pregledača. Brisanje neophodnih podataka može odjaviti nalog ili ukloniti vezu sa korpom. Za informacije o operateru projekta i kontakt za pitanja o obradi podataka pogledajte Uslove korišćenja. Dodatne informacije o Google-ovoj obradi dostupne su u politici navedenoj ispod." },
   ] },
   en: { title: "TAMIR — Cookie policy", sections: [
     { title: "Essential storage", text: "The store uses cookies and browser storage for functions you request. store_locale saves your manual language choice for up to one year. tamir_consent_v1 remembers acceptance or rejection of analytics for 180 days. Local storage tb_cart_id remembers the cart, and tb_customer_token maintains sign-in until logout, removal or session expiry. Guest order confirmation data is kept in the browser tab’s session storage. Rejecting analytics does not disable these functions." },
     { title: "Optional analytics", text: "Google Analytics (G-0L34ZN3ZB6) loads only after acceptance. It collects page views, site usage, device and browser information with online identifiers. Google processes this information as the service provider; processing may involve transfers outside Serbia. The _ga and _ga_* cookies recognise browsers and sessions and are configured for up to 180 days after their last update. This integration does not enable Google signals or advertising personalisation. Analytics data is not necessarily anonymous." },
     { title: "Your choice", text: "Accept analytics and Reject analytics are available on your first visit. Without a choice or after rejection, the Google tag is not loaded. Your choice lasts 180 days unless you clear browser data earlier or the policy version changes. Cookie settings in the footer lets you change your choice. Withdrawing consent deletes accessible analytics cookies for this site and reloads the page to stop previously loaded analytics. It does not automatically delete information already sent to Google." },
-    { title: "Control and information", text: "You can also delete cookies and local storage in your browser settings. Removing essential data may sign you out or remove the link to your cart. See Terms of sale for seller identification and contact information for data processing questions. Further information about Google’s processing is available in its policy linked below." },
+    { title: "Control and information", text: "You can also delete cookies and local storage in your browser settings. Removing essential data may sign you out or remove the link to your cart. See Terms of use for project operator identification and contact information for data processing questions. Further information about Google’s processing is available in its policy linked below." },
   ] },
 }

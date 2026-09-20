@@ -253,17 +253,17 @@
   },
   "legal": {
     "links": "Pravne informacije",
-    "terms": "Uslovi prodaje",
-    "draft": "Nacrt — podaci o prodavcu i konačni uslovi još nisu potvrđeni. Ovaj dokument nije potpuna ponuda za prihvatanje.",
-    "seller": "Prodavac koji posluje pod brendom TAMIR",
+    "terms": "Uslovi testnog projekta",
+    "draft": "Obaveštenje o testnom projektu. Adresa i kontakt podaci operatera još nisu navedeni.",
+    "seller": "Operater projekta",
     "name": "Poslovno ime",
     "address": "Adresa sedišta",
     "pib": "PIB",
     "registration": "Matični broj",
     "email": "E-pošta za korisničku podršku i reklamacije",
     "phone": "Telefon",
-    "returns": "Adresa za povrat robe",
+    "returns": "Adresa za dopisivanje / povrat (ako je primenljivo)",
     "missing": "Nije navedeno",
-    "checkout": "Pre slanja porudžbine pročitajte uslove prodaje."
+    "checkout": "Pročitajte uslove korišćenja testnog projekta."
   }
 }
