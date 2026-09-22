@@ -11,6 +11,8 @@ export async function completeRegistration<T>(steps: {
   try {
     token = await steps.register()
   } catch (registrationError) {
+    // CAPTCHA/rate-limit failures must never enter partial-account recovery.
+    if (registrationError instanceof Error && /CAPTCHA|TOO_MANY_REQUESTS|REVIEWS_UNAVAILABLE/.test(registrationError.message)) throw registrationError
     try { token = await steps.login() }
     catch { throw registrationError }
   }

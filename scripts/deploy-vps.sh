@@ -103,7 +103,9 @@ for(const [name, dir] of Object.entries(paths)) {
 }
 JS
 trap 'echo "Build/preparation failed. Existing PM2 processes were not stopped. Backup: $backup_dir" >&2' ERR
-(cd "$release_dir/backend" && npm ci --no-audit --no-fund && npm run build)
+(cd "$release_dir/backend" && npm ci --no-audit --no-fund)
+node "$release_dir/scripts/check-review-config.cjs"
+(cd "$release_dir/backend" && npm run build)
 (cd "$release_dir/frontend" && npm ci --no-audit --no-fund && npm run lint -- --quiet)
 node <<'JS'
 const fs=require('node:fs'), path=require('node:path'), {spawnSync}=require('node:child_process')
@@ -125,9 +127,20 @@ for(const [name, dir] of Object.entries(paths)) {
   }
 }
 JS
+# Additive review schema, after verification and before switching any live process.
+node <<'JS'
+const path = require('node:path'), { spawnSync } = require('node:child_process')
+const config = require(path.join(process.env.TAMIR_RELEASE, 'ecosystem.config.cjs'))
+const app = config.apps.find(app => app.name === 'tamir-backend')
+const result = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/setup-reviews.ts'], {
+  cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
+})
+if (result.status !== 0) process.exit(result.status || 1)
+JS
 # Keep the source checkout aligned with the release; no reset/force or credentials changes.
 git merge --ff-only "$target"
 trap - ERR
 bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
 trap - ERR
 echo "Deployment complete. Release: $release_dir Backup: $backup_dir"
+

@@ -1,3 +1,5 @@
+import { reviewSummaries } from "@/lib/reviews/server"
+import { Stars, ReviewIcon } from "@/components/reviews/Stars"
 import Link from "next/link"
 import { normalizeCatalogQuery, type CatalogQuery } from "@/lib/store/search-params"
 import { ProductImage } from "@/components/store/ProductImage"
@@ -57,6 +59,7 @@ export default async function CatalogPage({
     categoryId,
   })
 
+  const summaries = await reviewSummaries(products.map(p => p.id))
   const catalogHref = `/${cc}/catalog`
   const emptyHint = categoryId
     ? activeCategory
@@ -122,10 +125,10 @@ export default async function CatalogPage({
               const imgUrl = getStoreProductImageUrl(p)
 
               return (
-                <li key={p.id}>
+                <li key={p.id} className="overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md">
                   <Link
                     href={`/rs/products/${encodeURIComponent(p.handle)}`}
-                    className="group block cursor-pointer overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md"
+                    className="group block cursor-pointer"
                   >
                     <div className="relative aspect-[3/4] overflow-hidden bg-[var(--store-bg-muted)]">
                       {imgUrl ? (
@@ -154,6 +157,10 @@ export default async function CatalogPage({
                         </p>
                       )}
                     </div>
+                  </Link>
+                  <Link href={`/rs/products/${encodeURIComponent(p.handle)}#reviews`} className="flex flex-wrap items-center gap-1.5 px-4 pb-4 text-xs text-[var(--store-text-muted)] hover:text-[var(--store-text)]" aria-label={t("reviews.show")}>
+                    <ReviewIcon />
+                    {summaries ? <><Stars rating={summaries[p.id]?.rating ?? 0} count={summaries[p.id]?.count ?? 0} emptyLabel={t("reviews.noRatings")} /><span>· {t("reviews.count", { n: summaries[p.id]?.count ?? 0 })}</span></> : <span>{t("reviews.title")}</span>}
                   </Link>
                 </li>
               )
