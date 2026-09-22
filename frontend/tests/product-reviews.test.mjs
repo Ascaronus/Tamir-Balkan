@@ -74,14 +74,14 @@ function ui(customer = null, response = {reviews:[],count:0,rating:0,has_review:
  },{window:{location:{hash},addEventListener(){},removeEventListener(){}},document:{getElementById:()=>null}})
  return {h,render:()=>h.render(()=>component.ProductReviews({productId:'prod_1',initial:{rating:4.5,count:2}})),get calls(){return calls},get posted(){return posted},get captchaCalls(){return captchaCalls}}
 }
-test('review section starts collapsed and a guest can expand only reading',async()=>{
+test('review section starts expanded and a guest can collapse only reading',async()=>{
  const a=ui();let tree=a.render();await a.h.flush();tree=a.render()
  assert.equal(find(tree,n=>n.type==='form'),null)
- assert.equal(find(tree,n=>n.props?.id==='product-review-content'),null)
- assert.equal(a.calls,0)
+ assert.equal(find(tree,n=>n.props?.id==='product-review-content').props.hidden,false)
+ assert.ok(a.calls>0)
  find(tree,n=>n.type==='button'&&n.props['aria-controls']).props.onClick()
  a.render();await a.h.flush();tree=a.render()
- assert.ok(find(tree,n=>n.props?.id==='product-review-content'))
+ assert.equal(find(tree,n=>n.props?.id==='product-review-content').props.hidden,true)
  assert.equal(find(tree,n=>n.type==='form'),null)
  assert.ok(JSON.stringify(tree).includes('reviews.signIn'))
 })
@@ -99,9 +99,9 @@ test('negative review text is collapsed, manually revealable; guest reaction but
  const item=find(tree,n=>typeof n.type==='function'&&n.props?.review)
  const child=hooks();Object.assign(a.h.react,child.react)
  let card=child.render(()=>item.type(item.props))
- assert.equal(find(card,n=>n.type==='p'&&n.props.children==='Review text'),null)
+ assert.equal(find(card,n=>n.type==='p'&&n.props.children==='Review text').props.hidden,true)
  assert.ok(find(card,n=>n.type==='button'&&n.props['aria-label']==='reviews.helpful').props.disabled)
  find(card,n=>n.type==='button'&&n.props['aria-expanded']===false).props.onClick()
  card=child.render(()=>item.type(item.props))
- assert.ok(find(card,n=>n.type==='p'&&n.props.children==='Review text'))
+ assert.equal(find(card,n=>n.type==='p'&&n.props.children==='Review text').props.hidden,false)
 })

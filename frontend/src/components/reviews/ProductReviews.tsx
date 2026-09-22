@@ -11,7 +11,7 @@ import { Stars, ReviewIcon, Thumb } from "./Stars"
 export function ProductReviews({ productId, initial }: { productId: string; initial: Summary | null }) {
   const { t, locale } = useLocaleContext()
   const { customer, isReady } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [data, setData] = useState<ReviewList | null>(null)
   const [summary, setSummary] = useState(initial)
   const [loading, setLoading] = useState(false)
@@ -42,9 +42,9 @@ export function ProductReviews({ productId, initial }: { productId: string; init
     return () => window.removeEventListener("hashchange", reveal)
   }, [])
   useEffect(() => {
-    if (open && isReady) void load()
+    if (isReady) void load()
     return () => { generation.current++ }
-  }, [open, isReady, customer?.id, load])
+  }, [isReady, customer?.id, load])
   return <section id="reviews" className="mt-10 scroll-mt-6 border-t border-[var(--store-border)] pt-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -53,7 +53,7 @@ export function ProductReviews({ productId, initial }: { productId: string; init
       </div>
       <button type="button" aria-expanded={open} aria-controls="product-review-content" className="min-h-10 text-sm underline underline-offset-4" onClick={() => setOpen(v => !v)}>{t(open ? "reviews.collapse" : "reviews.show")}</button>
     </div>
-    {open && <div id="product-review-content" className="review-reveal mt-4">
+    <div hidden={!open} id="product-review-content" className="review-reveal mt-4">
       {error && <p role="alert" className="my-3 text-sm text-red-700">{t(error)} <button className="underline" type="button" onClick={() => void load()}>{t("reviews.retry")}</button></p>}
       {notice && <p role="status" className="my-3 text-sm">{t(notice)}</p>}
       {loading && <p role="status" className="py-3 text-sm">{t("reviews.loading")}</p>}
@@ -92,24 +92,23 @@ export function ProductReviews({ productId, initial }: { productId: string; init
         </fieldset>
       </form>}
       <button type="button" className="mt-4 text-xs underline" onClick={() => { setOpen(false); document.getElementById("reviews")?.scrollIntoView({ block: "start" }) }}>{t("reviews.collapse")}</button>
-    </div>}
+    </div>
     {captcha}
   </section>
 }
 function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; signedIn: boolean; locale: string; onVoted: (value: Partial<Review>) => void }) {
   const { t } = useLocaleContext()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const lock = useRef(false)
   const negative = reviewCollapsed(review.score)
-  const collapsed = negative && !expanded
+  const collapsed = !(expanded ?? !negative)
   async function vote(value: number) {
     if (lock.current || review.voted || !signedIn) return
     lock.current = true; setBusy(true); setError("")
     try {
       const next = await reviewRequest<Partial<Review>>(`/store/reviews/${encodeURIComponent(review.id)}/vote`, { value })
-      if ((next.score ?? 0) < 0) setExpanded(false)
       onVoted(next)
     } catch (err) { setError(reviewErrorKey(err)) }
     finally { lock.current = false; setBusy(false) }
@@ -122,7 +121,9 @@ function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; sig
     </div>
     <div className="min-w-0 flex-1 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="font-medium break-words">{review.name}</span><Stars rating={review.rating} emptyLabel={t("reviews.noRatings")} /><time className="text-xs text-[var(--store-text-muted)]" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB")}</time></div>
-      {collapsed ? <div className="mt-2 text-xs text-[var(--store-text-muted)]"><p>{t("reviews.hiddenNegative", { n: review.score })}</p><button type="button" className="mt-1 min-h-8 underline" aria-expanded={false} onClick={() => setExpanded(true)}>{t("reviews.expandOne")}</button></div> : <><p className="review-reveal mt-2 whitespace-pre-wrap break-words leading-relaxed">{review.body}</p>{negative && <button type="button" className="mt-1 text-xs underline" aria-expanded={true} onClick={() => setExpanded(false)}>{t("reviews.collapseOne")}</button>}</>}
+      {collapsed && negative && <p className="mt-2 text-xs text-[var(--store-text-muted)]">{t("reviews.hiddenNegative", { n: review.score })}</p>}
+      <p id={`review-body-${review.id}`} hidden={collapsed} className="review-reveal mt-2 whitespace-pre-wrap break-words leading-relaxed">{review.body}</p>
+      <button type="button" className="mt-1 min-h-8 text-xs underline" aria-expanded={!collapsed} aria-controls={`review-body-${review.id}`} onClick={() => setExpanded(collapsed)}>{t(collapsed ? "reviews.expandOne" : "reviews.collapseOne")}</button>
       <div className="mt-2 flex items-center gap-3 text-xs text-[var(--store-text-muted)]"><span className="inline-flex items-center gap-1" aria-label={`${t("reviews.helpful")}: ${review.up}`}><Thumb /> {review.up}</span><span className="inline-flex items-center gap-1" aria-label={`${t("reviews.unhelpful")}: ${review.down}`}><Thumb down /> {review.down}</span>{review.voted && <span>{t("reviews.voted")}</span>}</div>
       {error && <p role="alert" className="mt-1 text-xs text-red-700">{t(error)}</p>}
     </div>

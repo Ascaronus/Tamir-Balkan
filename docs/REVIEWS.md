@@ -1,10 +1,10 @@
 # Product reviews and CAPTCHA
 
-Reviews are available in English and Serbian at the bottom of product pages, collapsed by default. The catalog fetches a single batch of rating summaries for all visible products. No reviews displays empty stars and “No ratings”. The number and fractional star fill use the same mean rounded to one decimal.
+Reviews are available in English and Serbian at the bottom of product pages, expanded by default. Users can collapse the whole section without resetting individual review choices. The catalog fetches a single batch of rating summaries for all visible products. No reviews displays empty stars and “No ratings”. The number and fractional star fill use the same mean rounded to one decimal.
 
 A customer must sign in, have a first name in their profile, choose a rating and write 1–250 Unicode code points. CAPTCHA opens only after pressing Send. The API takes the public name from the saved profile, never from an email or client-supplied display name. One review per `(customer_id, product_id)` is enforced in PostgreSQL, including hidden and deleted reviews. Review ratings are immutable. No attachments, avatars or replies are supported.
 
-Only signed-in customers can vote, including on their own review. Each `(customer_id, review_id)` permits exactly one immutable +1 or −1. A transaction locks the review row; repeat or simultaneous requests return the existing result. Scores below zero collapse the text; they do not remove the review or its product rating. Published reviews with any helpfulness score count towards the product average. Hidden/deleted reviews do not.
+Only signed-in customers can vote, including on their own review. Each `(customer_id, review_id)` permits exactly one immutable +1 or −1. A transaction locks the review row; repeat or simultaneous requests return the existing result. Each review can be expanded or collapsed manually. By default, scores below zero collapse the text and scores of zero or above show it. Manual choices take priority until leaving the page; they do not remove the review or its product rating. Published reviews with any helpfulness score count towards the product average. Hidden/deleted reviews do not.
 
 ## Moderator
 
