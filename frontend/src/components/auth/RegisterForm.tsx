@@ -1,6 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import { useCaptcha } from "@/components/security/Captcha"
+import { reviewErrorKey } from "@/lib/reviews/client"
 import { useRouter } from "next/navigation"
 import { useMemo, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -8,6 +10,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider"
 
 export function RegisterForm({ countryCode }: { countryCode: string }) {
   const submitLock = useRef(false)
+  const { requestCaptcha, captcha } = useCaptcha("register")
+  const [submitting, setSubmitting] = useState(false)
   const t = useTranslations()
   const router = useRouter()
   const { signup, isMutating } = useAuth()
@@ -43,8 +47,11 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           if (submitLock.current) return
           submitLock.current = true
           setError(null)
+          setSubmitting(true)
           try {
+            const captcha_token = await requestCaptcha()
             await signup({
+              captcha_token,
               email: email.trim(),
               password,
               first_name: firstName.trim(),
@@ -57,9 +64,13 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             })
             router.push(`/${countryCode}/account`)
           } catch (e: unknown) {
-            setError(e instanceof Error && e.message === "REGISTRATION_ADDRESS_FAILED" ? t("auth.register.addressFailed") : e instanceof Error && e.message === "REGISTRATION_PROFILE_FAILED" ? t("auth.register.profileFailed") : e instanceof Error ? e.message : t("auth.register.failed"))
+            if (e instanceof Error && e.message.includes("CAPTCHA")) {
+              const key = reviewErrorKey(e)
+              setError(key ? t(key) : null)
+            } else setError(e instanceof Error && e.message === "REGISTRATION_ADDRESS_FAILED" ? t("auth.register.addressFailed") : e instanceof Error && e.message === "REGISTRATION_PROFILE_FAILED" ? t("auth.register.profileFailed") : e instanceof Error ? e.message : t("auth.register.failed"))
           } finally {
             submitLock.current = false
+            setSubmitting(false)
           }
         }}
       >
@@ -183,10 +194,10 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
 
         <button
           type="submit"
-          disabled={isMutating}
+          disabled={isMutating || submitting}
           className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {isMutating ? t("auth.register.creating") : t("auth.register.submit")}
+          {isMutating || submitting ? t("auth.register.creating") : t("auth.register.submit")}
         </button>
 
         <div className="text-sm text-[var(--store-text-muted)]">
@@ -199,6 +210,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           </Link>
         </div>
       </form>
+      {captcha}
     </div>
   )
 }

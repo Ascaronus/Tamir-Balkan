@@ -1,3 +1,5 @@
+import { reviewSummaries } from "@/lib/reviews/server"
+import { ProductReviews } from "@/components/reviews/ProductReviews"
 import type { Metadata } from "next"
 import { cache } from "react"
 import { localizedText } from "@/lib/i18n/content"
@@ -45,12 +47,15 @@ export default async function ProductPage({ params, searchParams }: {
   const product = await getProduct(handle, locale)
   if (!product) notFound()
   const url = siteUrl("/rs/products/" + encodeURIComponent(handle))
+  const summaries = await reviewSummaries([product.id])
+  const reviewSummary = summaries ? summaries[product.id] || { count: 0, rating: 0 } : null
   const structuredData = {
     "@context": "https://schema.org", "@type": "Product",
     name: localizedText(product, "title", product.title, locale),
     description: localizedText(product, "description", product.description || product.title, locale),
     image: getImagesForVariant(product).map(image => image.url),
     url,
+    ...(reviewSummary?.count ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Math.round(reviewSummary.rating * 10) / 10, reviewCount: reviewSummary.count, bestRating: 5, worstRating: 1 } } : {}),
     offers: (product.variants || []).flatMap(variant => {
       const price = variant.calculated_price
       if (!price || typeof price.calculated_amount !== "number" || !price.currency_code || !Number.isFinite(price.calculated_amount) || price.calculated_amount < 0) return []
@@ -64,6 +69,6 @@ export default async function ProductPage({ params, searchParams }: {
   return <StoreShell countryCode="rs">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />
     <nav className="border-b bg-[var(--store-bg-muted)] px-6 py-5 text-sm"><Link href="/rs/catalog">{t("product.catalog")}</Link></nav>
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><ProductDetails key={product.id} product={product} initialVariantId={(await searchParams).v_id} /></div>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><ProductDetails key={product.id} product={product} initialVariantId={(await searchParams).v_id} /><ProductReviews key={product.id} productId={product.id} initial={reviewSummary} /></div>
   </StoreShell>
 }

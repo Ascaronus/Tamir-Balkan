@@ -33,6 +33,7 @@ type AuthContextValue = {
     notes?: string
     country_code: string
     city?: string
+    captcha_token: string
     postal_code: string
   }) => Promise<void>
   logout: () => Promise<void>
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     notes?: string
     country_code: string
     city?: string
+    captcha_token: string
     postal_code: string
   }) => {
     setIsMutating(true)

@@ -42,6 +42,7 @@ export async function login(params: { email: string; password: string }) {
 }
 
 export async function signup(params: {
+  captcha_token: string
   email: string
   password: string
   first_name: string
@@ -58,7 +59,7 @@ export async function signup(params: {
     return value
   }
   return completeRegistration<HttpTypes.StoreCustomer>({
-    register: async () => requireToken(await sdk.auth.register("customer", "emailpass", credentials)),
+    register: async () => requireToken(await sdk.auth.register("customer", "emailpass", { ...credentials, captcha_token: params.captcha_token })),
     login: async () => requireToken(await sdk.auth.login("customer", "emailpass", credentials)),
     findCustomer: customerForToken,
     saveToken: setAuthToken,
