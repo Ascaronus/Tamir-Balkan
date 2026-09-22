@@ -136,6 +136,11 @@ const result = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/script
   cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
 })
 if (result.status !== 0) process.exit(result.status || 1)
+// Registration now depends on email. Verify SMTP before activating the release.
+const smtp = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/check-email.ts'], {
+  cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
+})
+if (smtp.status !== 0) process.exit(smtp.status || 1)
 JS
 # Keep the source checkout aligned with the release; no reset/force or credentials changes.
 git merge --ff-only "$target"

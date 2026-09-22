@@ -114,6 +114,30 @@
       "signInLink": "Prijavite se",
       "addressFailed": "Nalog je kreiran, ali adresa nije sačuvana. Pošaljite obrazac ponovo sa istom e-adresom i lozinkom.",
       "profileFailed": "Profil još nije spreman. Pošaljite obrazac ponovo sa istom e-adresom i lozinkom."
+    },
+    "code": {
+      "title": "Potvrdite email adresu",
+      "sentTo": "Poslali smo kod na",
+      "spamTitle": "Nema poruke? Proverite fasciklu Spam!",
+      "spamHint": "Potražite poruku od TAMIR-a (tamirbalkan@gmail.com). Ako je u fascikli Spam, označite je kao „Nije neželjena pošta”.",
+      "rules": "Unesite šestocifreni kod. Važi 10 minuta. Imate 5 pokušaja. Novi kod poništava prethodni.",
+      "label": "Kod za potvrdu email adrese",
+      "confirm": "Potvrdi i prijavi se",
+      "checking": "Provera…",
+      "send": "Pošalji kod za potvrdu",
+      "sending": "Slanje koda…",
+      "resend": "Pošalji novi kod",
+      "resendWait": "Ponovno slanje za {n} sekundi",
+      "edit": "Izmeni podatke za registraciju",
+      "invalid": "Pogrešan kod. Pokušajte ponovo.",
+      "expired": "Kod je istekao ili je zamenjen. Zatražite novi kod.",
+      "attempts": "Iskoristili ste svih 5 pokušaja. Zatražite novi kod.",
+      "cooldown": "Sačekajte 60 sekundi između slanja poruka.",
+      "sendFailed": "Slanje poruke nije uspelo. Pokušajte kasnije.",
+      "exists": "Nalog sa ovom email adresom već postoji. Prijavite se.",
+      "tooMany": "Previše zahteva. Pokušajte kasnije.",
+      "invalidProfile": "Proverite podatke. Lozinka mora imati najmanje 8 znakova.",
+      "failed": "Registracija nije završena. Pokušajte ponovo. Ako ste već potvrdili kod, pokušajte da se prijavite."
     }
   },
   "account": {

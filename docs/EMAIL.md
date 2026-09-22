@@ -1,6 +1,6 @@
 # Registration email
 
-The `customer.created` subscriber sends a plain-text Serbian/English welcome email only for customers with `has_account=true`. Guest checkout customer records do not receive it. This is a registration notification, not verification of email ownership. Existing accounts are not emailed retroactively.
+Registration first sends a six-digit verification code synchronously; see [REGISTRATION.md](REGISTRATION.md). The account is created only after the correct code. The `customer.created` subscriber then sends a plain-text Serbian/English welcome email only for customers with `has_account=true`. Guest checkout customer records do not receive it. This is a registration notification, not verification of email ownership. Existing accounts are not emailed retroactively.
 
 Set these values in the backend environment (`/root/tamir_balkan/backend/.env` on the VPS):
 

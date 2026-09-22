@@ -114,6 +114,30 @@
       "signInLink": "Sign in",
       "addressFailed": "Your account was created, but the address could not be saved. Submit again with the same email and password to finish.",
       "profileFailed": "Your profile is not ready. Submit again with the same email and password."
+    },
+    "code": {
+      "title": "Confirm your email",
+      "sentTo": "We sent a code to",
+      "spamTitle": "No email? Check your Spam folder!",
+      "spamHint": "Look for a message from TAMIR (tamirbalkan@gmail.com). If it is in Spam, mark it as “Not spam”.",
+      "rules": "Enter the six-digit code. It expires in 10 minutes. You have 5 attempts. A new code replaces the previous one.",
+      "label": "Email verification code",
+      "confirm": "Confirm and sign in",
+      "checking": "Checking…",
+      "send": "Send verification code",
+      "sending": "Sending code…",
+      "resend": "Send a new code",
+      "resendWait": "Send again in {n} seconds",
+      "edit": "Change registration details",
+      "invalid": "Incorrect code. Please try again.",
+      "expired": "This code has expired or been replaced. Request a new code.",
+      "attempts": "You have used all 5 attempts. Request a new code.",
+      "cooldown": "Please wait 60 seconds between emails.",
+      "sendFailed": "We could not send the email. Please try again later.",
+      "exists": "An account already exists for this email. Please sign in.",
+      "tooMany": "Too many requests. Please try again later.",
+      "invalidProfile": "Check your details. The password must contain at least 8 characters.",
+      "failed": "Could not complete registration. Try again. If you already confirmed your code, try signing in."
     }
   },
   "account": {

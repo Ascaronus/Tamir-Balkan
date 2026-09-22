@@ -19,5 +19,7 @@ for (const [label, value] of [['backend TURNSTILE_SECRET_KEY', backend.TURNSTILE
   if (!value || !value.trim() || /^[123]x00000000000000000000/.test(value)) issues.push(`${label}: set a real production key`)
 }
 if ((backend.REVIEW_RATE_SECRET || backend.JWT_SECRET || '').length < 32) issues.push('backend REVIEW_RATE_SECRET: set a random secret of at least 32 characters')
+if (!backend.SMTP_USER || !backend.SMTP_PASSWORD) issues.push('backend SMTP_USER / SMTP_PASSWORD: required for email verification')
+if (!['587', '465'].includes(backend.SMTP_PORT || '587')) issues.push('backend SMTP_PORT: use 587 or 465')
 if (issues.length) { console.error('Review/CAPTCHA configuration missing. Deployment stopped before activation:\n' + issues.join('\n')); process.exit(1) }
 console.log('Review/CAPTCHA configuration present (provider connectivity and domain registration require a live check).')

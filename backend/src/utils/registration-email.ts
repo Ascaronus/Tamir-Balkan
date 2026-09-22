@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import { ReviewError } from "./review-validation"
 
 export function mailConfig(env: NodeJS.ProcessEnv = process.env) {
   const user = env.SMTP_USER?.trim()
@@ -51,4 +52,20 @@ export async function sendRegistrationEmail(customer: { id: string; email: strin
   } finally {
     transport.close()
   }
+}
+
+export async function sendRegistrationCode(email: string, code: string) {
+  const config = mailConfig()
+  const transport = nodemailer.createTransport(config)
+  try {
+    const result = await transport.sendMail({
+      from: { name: "TAMIR", address: config.auth.user }, to: { address: email, name: "" },
+      subject: "TAMIR — Kod za registraciju / Registration code",
+      text: `Vaš kod za registraciju: ${code}\n\nKod važi 10 minuta. Ne delite ga ni sa kim. Ako niste zatražili registraciju, zanemarite ovu poruku.\n\nYour registration code: ${code}\n\nThis code expires in 10 minutes. Do not share it. If you did not request registration, ignore this message.\n\nTAMIR`,
+      disableFileAccess: true, disableUrlAccess: true,
+    })
+    if (!result.accepted.length) throw new Error("Not accepted")
+  } catch {
+    throw new ReviewError(503, "CODE_SEND_FAILED")
+  } finally { transport.close() }
 }
