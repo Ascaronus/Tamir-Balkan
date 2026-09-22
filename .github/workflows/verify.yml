@@ -55,7 +55,7 @@ jobs:
         working-directory: frontend
       - run: npm ci --no-audit --no-fund
         working-directory: backend
-      - run: node --test tests/reviews.integration.cjs
+      - run: node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs
         working-directory: backend
       - run: npm run build
         working-directory: backend

@@ -1,11 +1,13 @@
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
 import { verifyCaptcha } from "../utils/captcha"
 import { rateLimit, reviewFailure } from "../utils/review-http"
+import { releaseDeletedCustomerIdentity } from "../utils/deleted-customer-registration"
 
 async function registrationCaptcha(req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) {
   try {
     await rateLimit(req, "register", 30)
     await verifyCaptcha((req.body as Record<string, unknown>)?.captcha_token, "register")
+    await releaseDeletedCustomerIdentity(req)
     delete (req.body as Record<string, unknown>).captcha_token
     next()
   } catch (error) { reviewFailure(error, res) }
