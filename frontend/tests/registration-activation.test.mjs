@@ -5,7 +5,7 @@ function setup(existing=null,authenticated=true) {
  const calls=[]
  const service={register:async()=>{calls.push('register');return {success:true,authIdentity:{id:'auth_new'}}},authenticate:async()=>({success:authenticated,authIdentity:{app_metadata:{customer_id:existing?.id}}})}
  const db=()=>({whereRaw(){return this},where(){return this},whereNull(){return this},first:async()=>existing})
- const module=load('backend/src/utils/activate-registration.ts',{
+ const registration=load('backend/src/utils/activate-registration.ts',{
   '@medusajs/framework/utils':{Modules:{AUTH:'auth'}},
   '@medusajs/medusa/core-flows':{createCustomerAccountWorkflow:()=>({run:async input=>{calls.push(input);return {result:{id:'new_customer'}}}})},
   './deleted-customer-registration':{releaseDeletedCustomerIdentity:async()=>calls.push('release-deleted')},
@@ -14,7 +14,7 @@ function setup(existing=null,authenticated=true) {
  })
  const req={params:{},body:{},scope:{resolve:()=>service}}
  const profile={password:'test-password',first_name:'Igor',last_name:'Test',phone:'+381123',postal_code:'21000',city:'Novi Sad',notes:''}
- return {...module,calls,run:(previous=null)=>module.activateRegistration(req,'test@example.test','challenge',profile,previous)}
+ return {...registration,calls,run:(previous=null)=>registration.activateRegistration(req,'test@example.test','challenge',profile,previous)}
 }
 test('verified registration creates a new account with address and verification record',async()=>{
  const s=setup();assert.equal(await s.run(),'new_customer')
