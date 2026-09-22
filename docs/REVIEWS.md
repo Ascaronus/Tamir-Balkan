@@ -8,7 +8,7 @@ Only signed-in customers can vote, including on their own review. Each `(custome
 
 ## Moderator
 
-Sign into the existing Medusa administration as **vicommsk@gmail.com**, then open **Reviews / Recenzije** (`/app/reviews`). Authorization checks the authenticated **admin user** on the server. A storefront customer account with that email is not a moderator. Other admin users cannot read author emails through these endpoints or moderate reviews.
+Sign into the existing Medusa administration as **admin@tamir.local**, then open **Reviews / Recenzije** (`/app/reviews`). Authorization checks the authenticated **admin user** on the server. A storefront customer account with that email is not a moderator. Other admin users cannot read author emails through these endpoints or moderate reviews.
 
 The page shows product, author name/email, date, stars, up/down counts and status. It permits hiding, restoring, removing from publication and correcting text/name. Star ratings and reaction totals cannot be changed. Removal is a recoverable soft deletion, preserving the one-review constraint and audit history. Each change records the admin ID, previous content and new values. Concurrent moderation uses a monotonically increasing `version` to reject stale changes.
 

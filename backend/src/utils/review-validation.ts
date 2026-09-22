@@ -25,5 +25,5 @@ export function publicReview(row: Record<string, unknown>, voted = false) {
     score: Number(row.score || 0), up: Number(row.up || 0), down: Number(row.down || 0), created_at: row.created_at, voted }
 }
 export function isReviewModerator(user: { email?: string | null } | null | undefined) {
-  return user?.email?.trim().toLowerCase() === "vicommsk@gmail.com"
+  return user?.email?.trim().toLowerCase() === "admin@tamir.local"
 }

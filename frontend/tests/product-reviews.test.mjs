@@ -30,8 +30,8 @@ test('public projection strips email, customer ID and all private fields', () =>
  assert.ok(!JSON.stringify(item).includes('private'))
 })
 test('only the final designated admin email passes the moderator predicate', () => {
- assert.equal(validation.isReviewModerator({email:'Vicommsk@gmail.com'}),true)
- assert.equal(validation.isReviewModerator({email:'admin@tamir.local'}),false)
+ assert.equal(validation.isReviewModerator({email:'Admin@tamir.local'}),true)
+ assert.equal(validation.isReviewModerator({email:'vicommsk@gmail.com'}),false)
  assert.equal(validation.isReviewModerator(null),false)
 })
 test('only one of positive or negative reaction is a valid request value', () => {

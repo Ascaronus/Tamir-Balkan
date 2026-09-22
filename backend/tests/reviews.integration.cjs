@@ -35,7 +35,7 @@ function req({customer='c1',body={},query={},params={},admin}={}) {
  return {body,query,params,headers:{},ip:'127.0.0.1',socket:{remoteAddress:'127.0.0.1'},auth_context:admin?{actor_id:admin,actor_type:'user'}:customer?{actor_id:customer,actor_type:'customer'}:{},scope:{resolve(key){
   if(key===K.PG_CONNECTION)return db
   if(key===M.CUSTOMER)return {retrieveCustomer:async id=>profiles[id]}
-  if(key===M.USER)return {retrieveUser:async id=>({id,email:id==='owner'?'vicommsk@gmail.com':'other@example.test'})}
+  if(key===M.USER)return {retrieveUser:async id=>({id,email:id==='owner'?'admin@tamir.local':'vicommsk@gmail.com'})}
   if(key===K.QUERY)return {graph:async({filters})=>({data:filters.id==='prod_1'?[{id:'prod_1',status:'published'}]:[]})}
   throw Error('Unexpected dependency '+key)
  }}}

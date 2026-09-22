@@ -7,7 +7,7 @@ async function request<T>(path: string, body?: Record<string, unknown>): Promise
   const res = await fetch(path, { credentials: "include", method: body ? "POST" : "GET", cache: "no-store",
     headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) })
   if (!res.ok) {
-    if (res.status === 403 || res.status === 401) throw Error("Only vicommsk@gmail.com can moderate reviews. / Samo vicommsk@gmail.com može moderirati recenzije.")
+    if (res.status === 403 || res.status === 401) throw Error("Only admin@tamir.local can moderate reviews. / Samo admin@tamir.local može moderirati recenzije.")
     if (res.status === 409) throw Error("This review changed. Refresh and try again. / Recenzija je izmenjena. Osvežite prikaz.")
     throw Error("Unable to load or save reviews. / Učitavanje ili čuvanje nije uspelo.")
   }
