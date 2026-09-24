@@ -8,7 +8,7 @@ import { siteUrl } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: privacyPolicy[locale].title, alternates: { canonical: siteUrl("/privacy") }, robots: { index: false, follow: true } }
+  return { title: privacyPolicy[locale].title, alternates: { canonical: siteUrl("/privacy") }, robots: { index: true, follow: true } }
 }
 
 export default async function PrivacyPage() {

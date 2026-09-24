@@ -5,7 +5,7 @@ import { siteUrl } from "@/lib/seo"
 export const dynamic = "force-dynamic"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries: MetadataRoute.Sitemap = [{ url: siteUrl("/") }, { url: siteUrl("/cookies") }]
+  const entries: MetadataRoute.Sitemap = ["/", "/cookies", "/privacy", "/terms"].map(path => ({ url: siteUrl(path) }))
   const seen = new Set<string>()
   for (let offset = 0; ; offset += 100) {
     const { products, count } = await listProductsByCountry({ countryCode: "rs", limit: 100, offset })

@@ -6,7 +6,7 @@ import { siteUrl } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: terms[locale].title, alternates: { canonical: siteUrl("/terms") }, robots: { index: false, follow: true } }
+  return { title: terms[locale].title, alternates: { canonical: siteUrl("/terms") }, robots: { index: true, follow: true } }
 }
 
 export default async function TermsPage() {
