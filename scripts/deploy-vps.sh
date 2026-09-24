@@ -141,6 +141,11 @@ const smtp = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/
   cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
 })
 if (smtp.status !== 0) process.exit(smtp.status || 1)
+// Widen measurement columns only after all build and SMTP checks have passed.
+const decimals = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/setup-decimal-attributes.ts'], {
+  cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
+})
+if (decimals.status !== 0) process.exit(decimals.status || 1)
 JS
 # Keep the source checkout aligned with the release; no reset/force or credentials changes.
 git merge --ff-only "$target"
@@ -148,4 +153,3 @@ trap - ERR
 bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
 trap - ERR
 echo "Deployment complete. Release: $release_dir Backup: $backup_dir"
-

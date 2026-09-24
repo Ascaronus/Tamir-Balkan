@@ -1,5 +1,6 @@
 import path from "node:path"
 import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
+import { decimalAdminConfig } from "./src/utils/admin-decimal-vite"
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
@@ -7,6 +8,7 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfillment-provider")
 
 module.exports = defineConfig({
+  admin: { vite: () => decimalAdminConfig(__dirname) },
   modules: [
     {
       resolve: "@medusajs/medusa/file",
