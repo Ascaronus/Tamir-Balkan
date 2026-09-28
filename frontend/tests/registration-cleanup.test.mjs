@@ -3,7 +3,11 @@ import assert from 'node:assert/strict'
 import {load} from '../test-support/component-harness.mjs'
 
 test('legacy identity registration and direct customer creation cannot bypass OTP',()=>{
- const routes=load('backend/src/api/middlewares.ts',{'@medusajs/framework/http':{defineMiddlewares:x=>x,authenticate:()=>()=>{}}}).default.routes
+ const routes=load('backend/src/api/middlewares.ts',{
+  '@medusajs/framework/http':{defineMiddlewares:x=>x,authenticate:()=>()=>{}},
+  // Catalog middleware is unrelated to the registration guards under test.
+  '../utils/catalog-http':{catalogMiddlewares:[]},
+ }).default.routes
  for(const matcher of ['/auth/customer/:provider/register','/store/customers']) {
   let status,body,next=false
   routes.find(r=>r.matcher===matcher&&r.methods.includes('POST')).middlewares[0]({}, {status(s){status=s;return this},json(b){body=b}},()=>{next=true})
