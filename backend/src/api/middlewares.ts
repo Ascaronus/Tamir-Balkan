@@ -1,10 +1,12 @@
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
+import { catalogMiddlewares } from "../utils/catalog-http"
 // New customer accounts must be created by the OTP verification route.
 // Blocking both legacy endpoints prevents bypass with an old unregistered JWT.
 function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, _next: MedusaNextFunction) {
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/store/catalog/products", methods: ["GET"], middlewares: catalogMiddlewares },
   { matcher: "/auth/customer/:provider/register", methods: ["POST"], middlewares: [verifiedRegistrationRequired] },
   { matcher: "/store/customers", methods: ["POST"], middlewares: [verifiedRegistrationRequired] },
   { matcher: "/store/reviews", methods: ["POST"], middlewares: [authenticate("customer", ["bearer", "session"])] },
