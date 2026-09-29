@@ -128,7 +128,9 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable || (remaining !== undefined && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="button-primary mt-4 w-full disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
       <div className="mt-3 min-h-6 text-sm" aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "error" && <span role="alert" className="text-red-700">{t("product.addFailed")}</span>}</div>
       {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
-      <Link href="/terms" className="product-details-link mt-6">{t("design.delivery")} / {t("design.returns")} →</Link>
+      <p className="mt-6 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
+      <p className="mt-1 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.defectReturnTerms")}</p>
+      <Link href="/terms" className="product-details-link mt-3">{t("design.delivery")} / {t("design.returns")} →</Link>
       <Link href="/rs/catalog" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>
     </div>
   </div>

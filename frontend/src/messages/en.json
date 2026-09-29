@@ -275,7 +275,9 @@
     "adding": "Adding…",
     "added": "Added to cart — view cart",
     "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again.",
-    "brand": "Brand"
+    "brand": "Brand",
+    "deliveryTerms": "Delivery throughout Serbia: RSD 300, within 7 days.",
+    "defectReturnTerms": "For manufacturing defects, TAMIR covers return shipping. This does not limit statutory consumer rights."
   },
   "lang": {
     "sr": "Serbian",

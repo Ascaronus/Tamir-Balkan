@@ -5,11 +5,12 @@ import { localizedText } from "@/lib/i18n/content"
 import { getImagesForVariant } from "@/lib/product-image"
 import { stockLimit, variantAmount } from "@/lib/store/commerce"
 
-/** A retailer's name is not necessarily the product's brand. */
+/** Merchant confirmed TAMIR as the catalogue brand; explicit product values can override it. */
 export function productBrand(metadata: HttpTypes.StoreProduct["metadata"]): string | undefined {
   for (const value of [metadata?.brand, metadata?.rozetka_vendor]) {
     if (typeof value === "string" && value.trim() && value.trim().length <= 100) return value.trim()
   }
+  return "TAMIR"
 }
 
 /** Keep leading zeroes and reject internal SKUs and invalid check digits. */
@@ -31,6 +32,16 @@ export function productJsonLd(product: HttpTypes.StoreProduct, locale: Locale, u
     if (!price || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !price.currency_code || !/^[a-z]{3}$/i.test(price.currency_code)) return []
     return [{ "@type": "Offer", price: amount, priceCurrency: price.currency_code.toUpperCase(),
       url: url + "?v_id=" + encodeURIComponent(variant.id), sku: variant.sku || undefined,
+      ...(price.currency_code.toUpperCase() === "RSD" ? { shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "RS" },
+        shippingRate: { "@type": "MonetaryAmount", value: 300, currency: "RSD" },
+        deliveryTime: { "@type": "ShippingDeliveryTime",
+          // No separate handling-time promise has been supplied. Transit cannot
+          // exceed the merchant's confirmed seven-day total delivery window.
+          transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 7, unitCode: "DAY" },
+        },
+      } } : {}),
       availability: "https://schema.org/" + (stockLimit(variant) === 0 ? "OutOfStock" : variant.allow_backorder ? "BackOrder" : "InStock") }]
   })
   const aggregateRating = reviews && Number.isSafeInteger(reviews.count) && reviews.count > 0 && Number.isFinite(reviews.rating) && reviews.rating >= 1 && reviews.rating <= 5

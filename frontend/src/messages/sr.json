@@ -275,7 +275,9 @@
     "adding": "Dodavanje…",
     "added": "Dodato u korpu — otvori korpu",
     "addFailed": "Nije moguće dodati ovu količinu. Stanje se možda promenilo. Osvežite stranicu i pokušajte ponovo.",
-    "brand": "Brend"
+    "brand": "Brend",
+    "deliveryTerms": "Dostava širom Srbije: 300 RSD, u roku do 7 dana.",
+    "defectReturnTerms": "U slučaju fabričkog nedostatka, TAMIR snosi troškove povratne dostave. Ovo ne ograničava zakonska prava potrošača."
   },
   "lang": {
     "sr": "Srpski",

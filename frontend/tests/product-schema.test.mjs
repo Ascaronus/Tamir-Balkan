@@ -28,8 +28,9 @@ test('real offers use catalog amount and availability without invented ratings o
   assert.equal(data.offers[0].availability, 'https://schema.org/InStock')
   assert.equal(data.offers[0].url, url + '?v_id=v1')
   assert.equal(data.description, 'Wool suit')
-  for (const field of ['review', 'aggregateRating', 'brand', 'gtin13']) assert.equal(field in data, false)
-  for (const field of ['shippingDetails', 'hasMerchantReturnPolicy']) assert.equal(field in data.offers[0], false)
+  for (const field of ['review', 'aggregateRating', 'gtin13']) assert.equal(field in data, false)
+  assert.equal('hasMerchantReturnPolicy' in data.offers[0], false)
+  assert.equal(data.brand.name, 'TAMIR')
 })
 test('published reviews and aggregate are projected without private account fields', () => {
   const data = productJsonLd(product(null), 'en', url, reviews())
@@ -51,8 +52,8 @@ test('invalid ratings, dates and email-like author names are excluded', () => {
   assert.equal('review' in data, false)
   assert.equal('aggregateRating' in data, false)
 })
-test('brand comes from an explicit value or feed vendor, never the store name', () => {
-  assert.equal(productBrand({}), undefined)
+test('confirmed TAMIR brand fills missing data while explicit brands remain supported', () => {
+  assert.equal(productBrand({}), 'TAMIR')
   assert.equal(productBrand({ brand: '  Actual brand ', rozetka_vendor: 'Vendor' }), 'Actual brand')
   assert.equal(productBrand({ rozetka_vendor: 'Vendor' }), 'Vendor')
   const p = product(); p.metadata.brand = 'Actual brand'
@@ -71,4 +72,16 @@ test('schema matches tax-inclusive prices and preserves legitimate zero prices',
     const data = productJsonLd(product({ calculated_amount: 1500, calculated_amount_with_tax: amount, currency_code: 'rsd' }), 'en', url, null)
     assert.equal(JSON.parse(JSON.stringify(data)).offers[0].price, amount)
   }
+})
+
+test('confirmed Serbia shipping is emitted only for RSD offers', () => {
+  const shipping = productJsonLd(product(), 'en', url, null).offers[0].shippingDetails
+  assert.equal(shipping.shippingDestination.addressCountry, 'RS')
+  assert.equal(shipping.shippingRate.value, 300)
+  assert.equal(shipping.shippingRate.currency, 'RSD')
+  assert.equal(shipping.deliveryTime.transitTime.maxValue, 7)
+  assert.equal(shipping.deliveryTime.transitTime.unitCode, 'DAY')
+  assert.equal('handlingTime' in shipping.deliveryTime, false)
+  const other = productJsonLd(product({ calculated_amount: 15, currency_code: 'eur' }), 'en', url, null)
+  assert.equal('shippingDetails' in other.offers[0], false)
 })
