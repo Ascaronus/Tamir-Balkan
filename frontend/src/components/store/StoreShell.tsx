@@ -1,62 +1,27 @@
 "use client"
-
-import { useState } from "react"
+import { useRef } from "react"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { ShopHeader } from "./ShopHeader"
-import { ShopSidebar } from "./ShopSidebar"
 import { StoreFooter } from "./StoreFooter"
+import { CategoryNavigation, CategoryProvider } from "./CategoryNavigation"
+import { DesignIcon } from "./DesignIcon"
 import { CartProvider } from "@/components/cart/CartProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
 
-type Country = "rs"
-
-export function StoreShell({
-  children,
-  countryCode,
-}: {
-  children: React.ReactNode
-  countryCode?: Country
-}) {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+export function StoreShell({ children, countryCode }: { children: React.ReactNode; countryCode?: "rs" }) {
+  const menu = useRef<HTMLDialogElement>(null)
   const t = useTranslations()
-  const cc = countryCode ?? "rs"
-
-  return (
-    <AuthProvider>
-      <CartProvider countryCode={cc}>
-        <div className="flex min-h-screen bg-[var(--store-bg)]">
-      {mobileNavOpen ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-black/45 md:hidden"
-          aria-label={t("shell.closeMenu")}
-          onClick={() => setMobileNavOpen(false)}
-        />
-      ) : null}
-
-      <aside
-        id="store-sidebar"
-        className={`fixed left-0 top-0 z-50 flex h-full w-[280px] flex-col border-r border-white/10 bg-[#0a0a0a] text-neutral-100 transition-transform duration-200 ease-out md:static md:z-0 md:h-auto md:min-h-screen md:flex-shrink-0 md:translate-x-0 ${
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
-        <ShopSidebar
-          countryCode={cc}
-          onNavigate={() => setMobileNavOpen(false)}
-        />
-      </aside>
-
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col md:pl-0">
-        <ShopHeader
-          countryCode={cc}
-          menuOpen={mobileNavOpen}
-          onOpenCatalog={() => setMobileNavOpen(open => !open)}
-        />
-        <div className="flex-1">{children}</div>
-        <StoreFooter />
-      </div>
-        </div>
-      </CartProvider>
-    </AuthProvider>
-  )
+  return <AuthProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider>
+    <div className="store-shell">
+      <ShopHeader countryCode={countryCode} onOpenCatalog={() => menu.current?.showModal()} />
+      <dialog ref={menu} id="store-sidebar" className="navigation-drawer" aria-label={t("header.catalog")} onClick={e => { if (e.target === e.currentTarget) menu.current?.close() }}>
+        <div className="flex items-center justify-between pb-6"><LanguageSwitcher /><button className="icon-button" type="button" aria-label={t("common.close")} onClick={() => menu.current?.close()}><DesignIcon name="close" /></button></div>
+        <form action="/rs/catalog" className="mb-6 flex gap-2" onSubmit={() => menu.current?.close()}><input name="q" maxLength={200} aria-label={t("catalog.search")} placeholder={t("catalog.searchPlaceholder")} className="min-w-0 flex-1 rounded border p-3" /><button className="icon-button" aria-label={t("catalog.search")}><DesignIcon name="search" /></button></form>
+        <CategoryNavigation onNavigate={() => menu.current?.close()} />
+      </dialog>
+      <main id="main-content" className="store-main">{children}</main>
+      <StoreFooter />
+    </div>
+  </CategoryProvider></CartProvider></AuthProvider>
 }

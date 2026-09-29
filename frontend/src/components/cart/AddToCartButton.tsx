@@ -18,7 +18,7 @@ export function AddToCartButton({
       type="button"
       disabled={disabled || isMutating}
       onClick={() => void addItem(variantId, 1).catch(() => undefined)}
-      className={`inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-8 text-sm font-semibold text-white transition ${
+      className={`inline-flex min-h-12 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-8 text-sm font-semibold text-white transition ${
         disabled || isMutating ? "opacity-60" : "hover:opacity-90"
       }`}
     >

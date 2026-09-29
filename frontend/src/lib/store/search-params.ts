@@ -1,4 +1,4 @@
-export type CatalogQuery = { category_id?: string | string[]; page?: string | string[]; q?: string | string[] }
+export type CatalogQuery = { category_id?: string | string[]; page?: string | string[]; q?: string | string[]; size?: string | string[]; color?: string | string[]; min_price?: string | string[]; max_price?: string | string[]; sort?: string | string[] }
 export function queryText(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value)?.trim() || ""
 }

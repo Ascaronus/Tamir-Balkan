@@ -32,3 +32,10 @@ export function matchingVariant(variants: HttpTypes.StoreProductVariant[], curre
     (current?.options ?? []).every(selected => selected.option_id === optionId ||
       v.options?.some(o => o.option_id === selected.option_id && o.value === selected.value)))
 }
+
+/** Match the tax-inclusive catalog price when the Store API returned tax context. */
+export function variantAmount(price: HttpTypes.StoreProductVariant["calculated_price"]): number | null | undefined {
+  if (!price) return undefined
+  const withTax = (price as typeof price & { calculated_amount_with_tax?: number | null }).calculated_amount_with_tax
+  return withTax ?? price.calculated_amount
+}

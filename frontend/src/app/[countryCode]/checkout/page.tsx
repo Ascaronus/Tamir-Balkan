@@ -13,7 +13,7 @@ export default async function CheckoutPage(props: {
 
   return (
     <StoreShell countryCode={cc as "rs"}>
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="page-content">
         <CheckoutPageClient countryCode={cc} />
       </div>
     </StoreShell>

@@ -55,7 +55,7 @@ export function OrderHistoryDetails({ order }: { order: HttpTypes.StoreOrder }) 
         type="button"
         aria-expanded={open}
         aria-controls={`details-${order.id}`}
-        className="mt-3 rounded-full border border-[var(--store-border)] px-5 py-2 text-sm font-semibold"
+        className="mt-3 rounded border border-[var(--store-border)] px-5 py-2 text-sm font-semibold"
         onClick={() => {
           setOpen(!open)
           if (!open && !detail && !loading) void load()
@@ -64,7 +64,7 @@ export function OrderHistoryDetails({ order }: { order: HttpTypes.StoreOrder }) 
         {t(open ? "account.hideDetails" : "account.viewDetails")}
       </button>
       {open && (
-        <div id={`details-${order.id}`} className="mt-4 rounded-xl bg-[var(--store-bg-muted)] p-4">
+        <div id={`details-${order.id}`} className="mt-4 rounded bg-[var(--store-bg-muted)] p-4">
           {loading && <p role="status">{t("account.loading")}</p>}
           {failed && <div role="alert"><p>{t("account.loadOrdersFailed")}</p><button type="button" onClick={() => void load()} disabled={loading} className="mt-2 underline">{t("common.retry")}</button></div>}
           {detail && <>

@@ -37,9 +37,9 @@ test('payment method request can be retried after failure',async()=>{
   react:h.react,'next/navigation':{useRouter:()=>({push(){}})},
   '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:false,refresh:()=>{}})},
   '@/components/cart/CartProvider':{useCart:()=>({cart:{id:'cart',region_id:'region',items:[{id:'i',quantity:1}]},isReady:true,isMutating:false})},
-  '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/format-money':{},'@/lib/cart/cart-client':{},
+  '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/cart/cart-client':{},
   '@/components/i18n/LocaleProvider':{useTranslations:()=>t},
-  '@/lib/checkout/checkout-client':{listPaymentProviders:async()=>{if(++requests===1)throw Error('offline');return [{id:'pp_system_default'}]},setCartAddresses:async()=>{},listShippingOptions:async()=>[{id:'shipping'}]}
+  '@/lib/checkout/checkout-client':{listPaymentProviders:async()=>{if(++requests===1)throw Error('offline');return [{id:'pp_system_default'}]},setCartAddresses:async()=>{},listShippingOptions:async()=>[{id:'shipping'}],setShippingMethod:async()=>({cart:{id:'cart',total:100,shipping_total:10}})}
  })
  const render=()=>h.render(()=>c.CheckoutPageClient({countryCode:'rs'}))
  render();await h.flush();let tree=render()
@@ -60,9 +60,9 @@ test('variant URL changes remount selection with the requested variant',()=>{
  const h=hooks();let id='m'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'next/link':{},
- '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{},'@/lib/store/commerce':{},'@/lib/i18n/content':{}
+ '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'sr',t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/store/catalog':{},'@/lib/auth/auth-storage':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
  })
  const props={product:{id:'p'},initialVariantId:'m'}
- const first=details.ProductDetails(props);id='l';const next=details.ProductDetails(props)
+ const first=h.render(()=>details.ProductDetails(props)).props.children[0];id='l';const next=h.render(()=>details.ProductDetails(props)).props.children[0]
  assert.notEqual(first.key,next.key);assert.equal(next.props.initialVariantId,'l')
 })

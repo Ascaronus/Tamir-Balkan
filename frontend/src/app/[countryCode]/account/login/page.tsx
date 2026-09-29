@@ -13,7 +13,7 @@ export default async function LoginPage(props: {
 
   return (
     <StoreShell countryCode={cc as "rs"}>
-      <div className="mx-auto max-w-md px-4 py-10 sm:px-6">
+      <div className="auth-content">
         <LoginForm countryCode={cc} />
       </div>
     </StoreShell>

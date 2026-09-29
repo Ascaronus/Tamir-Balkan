@@ -1,6 +1,10 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { colorSwatch, isColorOption } from "@/lib/store/catalog"
+import { useAuth } from "@/components/auth/AuthProvider"
+import { getAuthToken } from "@/lib/auth/auth-storage"
+import { listProductsByCountry } from "@/lib/store/products"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import type { HttpTypes } from "@medusajs/types"
@@ -9,16 +13,37 @@ import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { ProductImage } from "@/components/store/ProductImage"
 import { getImagesForVariant } from "@/lib/product-image"
 import { formatMoney } from "@/lib/format-money"
-import { canPurchase, stockLimit, matchingVariant } from "@/lib/store/commerce"
+import { canPurchase, stockLimit, matchingVariant, variantAmount } from "@/lib/store/commerce"
 import { localizedText, optionLabel } from "@/lib/i18n/content"
 
-export function ProductDetails(props: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
+export function ProductDetails(props: { product: HttpTypes.StoreProduct; initialVariantId?: string; ratingSummary?: React.ReactNode }) {
   const searchParams = useSearchParams()
+  const { customer, isReady: authReady } = useAuth()
+  const { locale, t } = useLocaleContext()
+  const [priced, setPriced] = useState<{ customerId: string; product: HttpTypes.StoreProduct } | null>(null)
+  const [priceError, setPriceError] = useState(false)
+  const [retryPrice, setRetryPrice] = useState(0)
+  useEffect(() => {
+    if (!authReady || !customer) return
+    const abort = new AbortController()
+    Promise.resolve().then(async () => {
+      if (abort.signal.aborted) return
+      setPriceError(false)
+      const { products } = await listProductsByCountry({ countryCode: "rs", handle: props.product.handle, limit: 1, locale, token: getAuthToken(), signal: abort.signal })
+      if (!abort.signal.aborted) {
+        if (!products[0]) throw new Error("PRODUCT_UNAVAILABLE")
+        setPriced({ customerId: customer.id, product: products[0] })
+      }
+    }).catch(() => { if (!abort.signal.aborted) setPriceError(true) })
+    return () => abort.abort()
+  }, [authReady, customer, props.product.handle, locale, retryPrice])
+  const product = customer && priced?.customerId === customer.id ? priced.product : props.product
+  const pricingReady = authReady && (!customer || priced?.customerId === customer.id)
   const selectedId = searchParams.get("v_id") ?? props.initialVariantId
-  return <ProductSelection key={props.product.id + ":" + (selectedId ?? "default")} product={props.product} initialVariantId={selectedId} />
+  return <><ProductSelection key={product.id + ":" + (selectedId ?? "default")} product={product} initialVariantId={selectedId} ratingSummary={props.ratingSummary} pricingReady={pricingReady} />{priceError && customer && <p role="alert" className="mt-4 text-sm text-red-700">{t("common.loadFailed")} <button type="button" className="underline" onClick={() => setRetryPrice(n => n + 1)}>{t("common.retry")}</button></p>}</>
 }
 
-function ProductSelection({ product, initialVariantId }: { product: HttpTypes.StoreProduct; initialVariantId?: string }) {
+function ProductSelection({ product, initialVariantId, ratingSummary, pricingReady }: { product: HttpTypes.StoreProduct; initialVariantId?: string; ratingSummary?: React.ReactNode; pricingReady: boolean }) {
   const { t, locale } = useLocaleContext()
   const { cart, addItem, isReady, isMutating } = useCart()
   const variants = product.variants ?? []
@@ -53,29 +78,31 @@ function ProductSelection({ product, initialVariantId }: { product: HttpTypes.St
     window.history.replaceState(null, "", url)
   }
   function moveImage(delta: number) { setImageIndex((activeIndex + delta + images.length) % images.length) }
-  return <div className="grid gap-10 lg:grid-cols-2 lg:gap-12">
+  return <div className="product-layout">
     <div className="min-w-0">
       <button type="button" disabled={!hero} onClick={() => dialog.current?.showModal()} aria-label={t("product.zoom")}
         onPointerMove={event => { if (event.pointerType === "mouse") { const r = event.currentTarget.getBoundingClientRect(); setOrigin(`${(event.clientX - r.left) / r.width * 100}% ${(event.clientY - r.top) / r.height * 100}%`) } }}
-        className="group relative block aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-2xl border border-[var(--store-border)] bg-[var(--store-bg-muted)]">
+        className="group relative block product-hero w-full cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
         <div className="h-full w-full transition-transform duration-200 [@media(hover:hover)]:group-hover:scale-[1.8]" style={{ transformOrigin: origin }}><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
       </button>
       {images.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-2" aria-label={t("product.photos")}>
-        {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className={`h-24 w-20 shrink-0 overflow-hidden rounded-lg border-2 ${index === activeIndex ? "border-[var(--store-text)]" : "border-transparent"}`}><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
+        {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className={`h-24 w-20 shrink-0 overflow-hidden rounded border-2 ${index === activeIndex ? "border-[var(--store-accent)]" : "border-transparent"}`}><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
       </div>}
-      <dialog ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded-2xl bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
-        <div className="flex h-full flex-col"><div className="flex items-center justify-between gap-4"><span>{activeIndex + 1} / {images.length}</span><button type="button" onClick={() => dialog.current?.close()} className="rounded-full border px-4 py-2">{t("common.close")}</button></div>
+      <dialog ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
+        <div className="flex h-full flex-col"><div className="flex items-center justify-between gap-4"><span>{activeIndex + 1} / {images.length}</span><button type="button" onClick={() => dialog.current?.close()} className="rounded border px-4 py-2">{t("common.close")}</button></div>
           <div className="min-h-0 flex-1"><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
-          {images.length > 1 && <div className="flex justify-between"><button type="button" onClick={() => moveImage(-1)} className="rounded-full border px-4 py-2">← {t("common.previous")}</button><button type="button" onClick={() => moveImage(1)} className="rounded-full border px-4 py-2">{t("common.next")} →</button></div>}
+          {images.length > 1 && <div className="flex justify-between"><button type="button" onClick={() => moveImage(-1)} className="rounded border px-4 py-2">← {t("common.previous")}</button><button type="button" onClick={() => moveImage(1)} className="rounded border px-4 py-2">{t("common.next")} →</button></div>}
         </div>
       </dialog>
     </div>
-    <div>
+    <div className="product-summary">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+      <div className="mt-4">{ratingSummary}</div>
       {variant?.sku && <p className="mt-2 text-xs text-[var(--store-text-muted)]">SKU: {variant.sku}</p>}
-      <p className="mt-6 text-2xl font-semibold">{variant?.calculated_price ? formatMoney(variant.calculated_price.calculated_amount, variant.calculated_price.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB") : t("product.priceOnRequest")}</p>
-      {(product.options ?? []).map(option => <fieldset key={option.id} className="mt-6"><legend className="text-sm font-semibold">{optionLabel(option.title, locale)}</legend><div className="mt-2 flex flex-wrap gap-2">
+      <p className="product-price mt-6 font-semibold">{variant?.calculated_price ? formatMoney(variantAmount(variant.calculated_price), variant.calculated_price.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB") : t("product.priceOnRequest")}</p>
+      {(product.options ?? []).map(option => <fieldset key={option.id} className="mt-6"><legend className="text-sm font-semibold">{optionLabel(option.title, locale)}{isColorOption(option.title) && selectedOptions[option.id] ? `: ${selectedOptions[option.id]}` : ""}</legend><div className="mt-2 flex flex-wrap gap-2">
         {[...new Set((option.values ?? []).map(value => value.value))].map(value => {
+          const swatch = isColorOption(option.title) ? colorSwatch(value) : undefined
           const selected = selectedOptions[option.id] === value
           const target = matchingVariant(variants, variant, option.id, value)
           const exists = variants.some(v => v.options?.some(o => o.option_id === option.id && o.value === value))
@@ -89,16 +116,17 @@ function ProductSelection({ product, initialVariantId }: { product: HttpTypes.St
             if (matched) url.searchParams.set("v_id", matched.id)
             else return
             window.history.replaceState(null, "", url)
-          }} className={`min-w-12 rounded-full border px-4 py-2 text-sm disabled:opacity-30 ${selected ? "border-[var(--store-text)] bg-[var(--store-text)] text-white" : "border-[var(--store-border)]"}`}>{value === "One size" ? t("product.oneSize") : value}</button>
+          }} title={value} aria-label={value} className={swatch ? "color-choice" : "size-chip disabled:opacity-30"}>{swatch ? <span className="color-dot" style={{ backgroundColor: swatch }} /> : value === "One size" ? t("product.oneSize") : value}</button>
         })}
       </div></fieldset>)}
-      {!product.options?.length && variants.length > 1 && <label className="mt-6 grid gap-2">{t("product.variant")}<select value={variant?.id} onChange={e => selectVariant(e.target.value)} className="rounded-lg border p-3">{variants.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select></label>}
+      {!product.options?.length && variants.length > 1 && <label className="mt-6 grid gap-2">{t("product.variant")}<select value={variant?.id} onChange={e => selectVariant(e.target.value)} className="rounded border p-3">{variants.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select></label>}
       <p className="mt-6 text-sm" aria-live="polite">{limit === null ? variant?.allow_backorder ? t("product.backorder") : t("product.available") : limit > 0 ? t("product.inStock", { n: limit }) : t("product.outOfStock")}</p>
       {inCart > 0 && <p className="mt-1 text-sm text-[var(--store-text-muted)]">{t("product.alreadyInCart", { n: inCart })}</p>}
-      <label className="mt-6 flex items-center gap-3 text-sm">{t("product.quantity")}<input type="number" min={1} max={remaining} step={1} value={quantity} disabled={!purchasable || isMutating} onChange={e => setQuantity(Math.max(1, Math.min(remaining ?? Number.MAX_SAFE_INTEGER, Math.floor(Number(e.target.value) || 1))))} className="h-11 w-24 rounded-lg border px-3" /></label>
-      <button type="button" disabled={!isReady || isMutating || !purchasable || (remaining !== undefined && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
+      <div className="mt-6 flex items-center justify-between gap-3 text-sm"><label htmlFor="product-quantity">{t("product.quantity")}</label><div className="flex items-center"><button type="button" className="size-chip disabled:opacity-30" disabled={!purchasable || isMutating || quantity <= 1} aria-label={t("cartPage.decreaseQty")} onClick={() => setQuantity(n => Math.max(1, n - 1))}>−</button><input id="product-quantity" type="number" min={1} max={remaining} step={1} value={quantity} disabled={!purchasable || isMutating} onChange={e => setQuantity(Math.max(1, Math.min(remaining ?? Number.MAX_SAFE_INTEGER, Math.floor(Number(e.target.value) || 1))))} className="h-11 w-14 border-y border-[var(--store-border)] text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" /><button type="button" className="size-chip disabled:opacity-30" disabled={!purchasable || isMutating || (remaining !== undefined && quantity >= remaining)} aria-label={t("cartPage.increaseQty")} onClick={() => setQuantity(n => n + 1)}>+</button></div></div>
+      <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable || (remaining !== undefined && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="button-primary mt-4 w-full disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
       <div className="mt-3 min-h-6 text-sm" aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "error" && <span role="alert" className="text-red-700">{t("product.addFailed")}</span>}</div>
-      {description && <div className="mt-6 whitespace-pre-line text-sm leading-relaxed text-[var(--store-text-muted)]">{description}</div>}
+      {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
+      <Link href="/terms" className="product-details-link mt-6">{t("design.delivery")} / {t("design.returns")} →</Link>
       <Link href="/rs/catalog" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>
     </div>
   </div>

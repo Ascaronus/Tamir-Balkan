@@ -70,7 +70,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
   if (!customer) return null
 
   return (
-    <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+    <div className="rounded border border-[var(--store-border)] bg-white p-6">
       <h2 className="text-lg font-semibold text-[var(--store-text)]">
         {t("account.profileSection")}
       </h2>
@@ -152,7 +152,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             <input
               value={email}
               readOnly
-              className="h-11 cursor-not-allowed rounded-xl border border-[var(--store-border)] bg-neutral-50 px-3 text-sm"
+              className="h-12 cursor-not-allowed rounded border border-[var(--store-border)] bg-neutral-50 px-3 text-sm"
             />
           </label>
 
@@ -165,7 +165,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
-                className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+                className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
             </label>
             <label className="grid gap-1">
@@ -176,7 +176,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
-                className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+                className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
             </label>
           </div>
@@ -189,7 +189,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
 
@@ -206,7 +206,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               onChange={(e) =>
                 setCountry("rs")
               }
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             >
               <option value="rs">{t("countries.rs")}</option>
             </select>
@@ -220,7 +220,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               <input
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value)}
-                className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+                className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
             </label>
             <label className="grid gap-1">
@@ -230,7 +230,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+                className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
             </label>
           </div>
@@ -242,7 +242,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             <input
               value={address1}
               onChange={(e) => setAddress1(e.target.value)}
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
 
@@ -253,17 +253,17 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-20 rounded-xl border border-[var(--store-border)] px-3 py-2 text-sm"
+              className="min-h-20 rounded border border-[var(--store-border)] px-3 py-2 text-sm"
             />
           </label>
 
           {error ? (
-            <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           ) : null}
           {ok ? (
-            <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <div className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               {t("account.profileSaved")}
             </div>
           ) : null}
@@ -271,7 +271,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex h-12 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white disabled:opacity-60"
           >
             {saving ? t("account.savingProfile") : t("account.saveProfile")}
           </button>

@@ -63,11 +63,11 @@ function CaptchaDialog({ action, onComplete }: { action: string; onComplete: (to
     }).catch(() => { if (!disposed) setError(true) })
     return () => { disposed = true; if (widget !== undefined) api?.remove(widget) }
   }, [action, locale, attempt, onComplete])
-  return <dialog ref={dialog} aria-labelledby={title} onCancel={e => { e.preventDefault(); onComplete() }} className="m-auto w-[min(92vw,380px)] rounded-2xl border border-[var(--store-border)] bg-white p-5 text-[var(--store-text)] shadow-xl backdrop:bg-black/30">
+  return <dialog ref={dialog} aria-labelledby={title} onCancel={e => { e.preventDefault(); onComplete() }} className="m-auto w-[min(92vw,380px)] rounded border border-[var(--store-border)] bg-white p-5 text-[var(--store-text)] shadow-xl backdrop:bg-black/30">
     <h2 id={title} className="font-semibold">{t("reviews.captchaTitle")}</h2>
     <p className="my-3 text-sm text-[var(--store-text-muted)]">{t("reviews.captchaHint")}</p>
     <div ref={container} className="min-h-16" />
     {error && <div role="alert" className="mt-3 text-sm"><p>{t("reviews.captchaFailed")}</p><button type="button" className="mt-2 underline" onClick={() => { setError(false); setAttempt(a => a + 1) }}>{t("reviews.retry")}</button></div>}
-    <button type="button" onClick={() => onComplete()} className="mt-4 rounded-full border px-4 py-2 text-sm">{t("reviews.cancel")}</button>
+    <button type="button" onClick={() => onComplete()} className="mt-4 rounded border px-4 py-2 text-sm">{t("reviews.cancel")}</button>
   </dialog>
 }

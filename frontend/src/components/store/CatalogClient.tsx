@@ -1,0 +1,64 @@
+"use client"
+import { useEffect, useState, useTransition } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/AuthProvider"
+import { useLocaleContext } from "@/components/i18n/LocaleProvider"
+import { Stars, ReviewIcon } from "@/components/reviews/Stars"
+import { getAuthToken } from "@/lib/auth/auth-storage"
+import { catalogParams, catalogSorts, colorSwatch, fetchCatalog, isColorOption, type CatalogResult, type CatalogSelection } from "@/lib/store/catalog"
+import { formatMoney } from "@/lib/format-money"
+import { localizedText } from "@/lib/i18n/content"
+import { getStoreProductImageUrl } from "@/lib/product-image"
+import { reviewSummaries } from "@/lib/reviews/server"
+import type { Summary } from "@/lib/reviews/client"
+import { CatalogFilters } from "./CatalogFilters"
+import { ProductImage } from "./ProductImage"
+
+export function CatalogClient({ initial, selection, regionId, title, summaries: initialSummaries }: { initial: CatalogResult | null; selection: CatalogSelection; regionId: string; title: string; summaries: Record<string, Summary> | null }) {
+  const { t, locale } = useLocaleContext()
+  const { customer, isReady } = useAuth()
+  const router = useRouter()
+  const [data, setData] = useState(initial)
+  const [summaries, setSummaries] = useState(initialSummaries)
+  const [error, setError] = useState(!initial)
+  const [loading, setLoading] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const [pending, startTransition] = useTransition()
+  useEffect(() => {
+    if (!isReady || (!customer && initial && !retry)) return
+    const abort = new AbortController()
+    Promise.resolve().then(() => {
+      if (abort.signal.aborted) return
+      setLoading(true); setError(false)
+      return fetchCatalog(selection, regionId, locale, { token: getAuthToken(), signal: abort.signal })
+    }).then(async next => {
+      if (!next || abort.signal.aborted) return
+      const ratings = await reviewSummaries(next.products.map(p => p.id))
+      if (!abort.signal.aborted) { setData(next); setSummaries(ratings) }
+    }).catch(() => { if (!abort.signal.aborted) setError(true) }).finally(() => { if (!abort.signal.aborted) setLoading(false) })
+    return () => abort.abort()
+  }, [customer, isReady, initial, selection, regionId, locale, retry])
+  const emptyFilters = { sizes: [], colors: [], price: { min: null, max: null, currency_code: "rsd" } }
+  const pages = Math.max(1, Math.ceil((data?.count ?? 0) / 24))
+  const count = data?.count ?? 0
+  return <section id="catalog-products" className="catalog-layout" aria-busy={loading || pending}>
+    <CatalogFilters filters={data?.filters ?? emptyFilters} selection={selection} />
+    <div className="catalog-heading"><div><h1>{title}</h1><p className="mt-4 text-xs text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p></div></div>
+    <label className="catalog-sort"><span className="sr-only">{t("design.sort")}</span><select value={selection.sort} onChange={e => startTransition(() => router.push(`/rs/catalog?${catalogParams({ ...selection, sort: e.target.value as CatalogSelection["sort"], page: 1 })}`, { scroll: false }))}>{catalogSorts.map(sort => <option key={sort} value={sort}>{t(`design.sorts.${sort}`)}</option>)}</select></label>
+    <div className="catalog-results">
+      {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs/catalog" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{data.products.map(product => {
+        const title = localizedText(product, "title", product.title, locale)
+        const variant = product.catalog.preferred_variant_id
+        const href = `/rs/products/${encodeURIComponent(product.handle)}${variant ? `?v_id=${encodeURIComponent(variant)}` : ""}`
+        const colors = [...new Set(product.options?.filter(o => isColorOption(o.title)).flatMap(o => o.values?.map(v => v.value) ?? []))]
+        return <li key={product.id} className="product-card"><Link className="product-card-image" href={href}><ProductImage src={getStoreProductImageUrl(product)} alt={title} className="h-full w-full object-contain" /></Link><Link href={href} className="product-card-title">{title}</Link>
+          <Link className="product-card-rating" href={`${href}#reviews`} aria-label={t("reviews.show")}><ReviewIcon />{summaries ? <><Stars rating={summaries[product.id]?.rating ?? 0} count={summaries[product.id]?.count ?? 0} emptyLabel={t("reviews.noRatings")} /><span>· {summaries[product.id]?.count ?? 0}</span></> : t("reviews.title")}</Link>
+          {colors.length > 0 && <div className="product-card-colors">{colors.slice(0, 6).map(color => colorSwatch(color) ? <span key={color} title={color} aria-label={color} className="color-mini" style={{ backgroundColor: colorSwatch(color) }} /> : <span key={color} className="text-xs text-[var(--store-text-muted)]">{color}</span>)}</div>}
+          <p className="product-card-price">{product.catalog.price === null ? t("catalog.priceOnRequest") : formatMoney(product.catalog.price, product.catalog.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB")}</p>
+        </li>
+      })}</ul>}
+      {!error && pages > 1 && <nav className="catalog-pagination" aria-label={t("catalog.page", { n: selection.page, total: pages })}>{selection.page > 1 && <Link className="button-secondary" href={`/rs/catalog?${catalogParams({ ...selection, page: Math.min(selection.page - 1, pages) })}`}>{t("common.previous")}</Link>}<span>{t("catalog.page", { n: selection.page, total: pages })}</span>{selection.page < pages && <Link className="button-secondary" href={`/rs/catalog?${catalogParams({ ...selection, page: selection.page + 1 })}`}>{t("common.next")}</Link>}</nav>}
+    </div>
+  </section>
+}

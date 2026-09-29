@@ -14,6 +14,8 @@ export async function listProductsByCountry(params: {
   offset?: number
   handle?: string
   /** Фильтр по категории (как в админке: Product → Categories). */
+  token?: string | null
+  signal?: AbortSignal
   categoryId?: string
 }): Promise<{ products: HttpTypes.StoreProduct[]; count: number }> {
   const { countryCode, limit = 24, offset = 0, handle, categoryId, locale, q } = params
@@ -26,6 +28,7 @@ export async function listProductsByCountry(params: {
     offset,
     order: "created_at",
     region_id: region.id,
+    country_code: countryCode,
     fields: PRODUCT_FIELDS,
   }
 
@@ -39,7 +42,8 @@ export async function listProductsByCountry(params: {
   }>(`/store/products`, {
     method: "GET",
     query,
-    headers: locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : undefined,
+    headers: { ...(locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : {}), ...(params.token ? { authorization: `Bearer ${params.token}` } : {}) },
+    signal: params.signal,
     // Важно: иначе изменения из админки могут не появляться на витрине.
     cache: "no-store",
   })

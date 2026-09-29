@@ -15,7 +15,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+    <div className="auth-panel">
       <h1 className="text-xl font-semibold text-[var(--store-text)]">
         {t("auth.login.title")}
       </h1>
@@ -45,7 +45,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
@@ -58,12 +58,12 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
             onChange={(e) => setPassword(e.target.value)}
             type="password"
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
         {error ? (
-          <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         ) : null}
@@ -71,7 +71,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
         <button
           type="submit"
           disabled={isMutating}
-          className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
+          className="mt-2 inline-flex h-12 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
           {isMutating ? t("auth.login.signingIn") : t("auth.login.signIn")}
         </button>

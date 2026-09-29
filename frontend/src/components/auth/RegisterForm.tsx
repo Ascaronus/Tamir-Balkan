@@ -62,10 +62,10 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
     setRetryAt(Date.now() + next.retry_after * 1000)
   }
   if (challenge) return (
-    <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+    <div className="auth-panel">
       <h1 className="text-xl font-semibold">{t("auth.code.title")}</h1>
       <p className="mt-2 text-sm">{t("auth.code.sentTo")} <strong className="break-all">{email.trim().toLowerCase()}</strong></p>
-      <aside role="note" className="mt-4 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+      <aside role="note" className="spam-notice mt-6 border-2 border-transparent">
         <p className="font-bold">{t("auth.code.spamTitle")}</p>
         <p className="mt-1 text-sm">{t("auth.code.spamHint")}</p>
       </aside>
@@ -84,22 +84,24 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
         finally { submitLock.current = false; setSubmitting(false) }
       }}>
         <label className="grid gap-2 text-sm font-medium">{t("auth.code.label")}
-          <input autoFocus autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required
+          <div className="otp-control"><input autoFocus autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required
             value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-            className="h-14 w-full rounded-xl border border-[var(--store-border)] px-4 text-center text-2xl tracking-[0.3em]" />
+            aria-label={t("auth.code.label")} />
+          <span className="otp-cells" aria-hidden="true">{Array.from({ length: 6 }, (_, i) => <span key={i}>{code[i] || ""}</span>)}</span></div>
         </label>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button type="submit" disabled={submitting || isMutating || code.length !== 6}
-          className="min-h-11 rounded-full bg-[var(--store-text)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          className="min-h-12 rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">
           {t(submitting ? "auth.code.checking" : "auth.code.confirm")}
         </button>
-        <button type="button" disabled={submitting || isMutating || seconds > 0} className="min-h-11 text-sm underline disabled:opacity-50" onClick={async () => {
+        <button type="button" disabled={submitting || isMutating || seconds > 0} className="min-h-12 text-sm underline disabled:opacity-50" onClick={async () => {
           if (submitLock.current) return
           submitLock.current = true; setSubmitting(true); setError(null)
           try { await sendCode() } catch (error) { showError(error) }
           finally { submitLock.current = false; setSubmitting(false) }
         }}>{seconds > 0 ? t("auth.code.resendWait", { n: seconds }) : t("auth.code.resend")}</button>
         <button type="button" disabled={submitting || isMutating} className="min-h-10 text-sm underline" onClick={() => { setChallenge(null); setCode(""); setError(null) }}>{t("auth.code.edit")}</button>
+        <p className="text-xs text-[var(--store-text-muted)]">{t("design.codeResendHint")}</p>
         <Link className="text-center text-sm underline" href={`/${countryCode}/account/login`}>{t("auth.register.signInLink")}</Link>
       </form>
       {captcha}
@@ -107,7 +109,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
   )
 
   return (
-    <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+    <div className="auth-panel">
       <h1 className="text-xl font-semibold text-[var(--store-text)]">
         {t("auth.register.title")}
       </h1>
@@ -142,7 +144,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               required
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
           <label className="grid gap-1">
@@ -153,7 +155,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               required
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
         </div>
@@ -166,7 +168,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             value={country}
             onChange={(e) => setCountry(e.target.value)}
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           >
             <option value="RS">{t("countries.rs")}</option>
           </select>
@@ -180,7 +182,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
           <label className="grid gap-1">
@@ -191,7 +193,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
               required
-              className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+              className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
           </label>
         </div>
@@ -205,7 +207,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
@@ -217,7 +219,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
@@ -228,7 +230,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="min-h-24 rounded-xl border border-[var(--store-border)] px-3 py-2 text-sm"
+            className="min-h-24 rounded border border-[var(--store-border)] px-3 py-2 text-sm"
           />
         </label>
 
@@ -244,12 +246,12 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
             maxLength={256}
             autoComplete="new-password"
             required
-            className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm"
+            className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
         {error ? (
-          <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         ) : null}
@@ -257,7 +259,7 @@ export function RegisterForm({ countryCode }: { countryCode: string }) {
         <button
           type="submit"
           disabled={isMutating || submitting}
-          className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
+          className="mt-2 inline-flex h-12 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
           {isMutating || submitting ? t("auth.code.sending") : t("auth.code.send")}
         </button>

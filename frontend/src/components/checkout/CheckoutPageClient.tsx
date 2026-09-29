@@ -1,5 +1,6 @@
 "use client"
 
+import type { HttpTypes } from "@medusajs/types"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -58,6 +59,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     { id: string; name?: string; amount?: number; price_type?: string }[]
   >([])
   const [selectedShipping, setSelectedShipping] = useState<string>("")
+  const [quotedCart, setQuotedCart] = useState<HttpTypes.StoreCart | null>(null)
 
   const [paymentAttempt, setPaymentAttempt] = useState(0)
   const [paymentLoading, setPaymentLoading] = useState(false)
@@ -127,7 +129,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
   if (!isReady) {
     return (
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
+      <div className="rounded border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
         {t("checkout.loading")}
       </div>
     )
@@ -135,7 +137,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
 
   if (!cart?.items?.length) {
     return (
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+      <div className="rounded border border-[var(--store-border)] bg-white p-6">
         <h1 className="text-xl font-semibold text-[var(--store-text)]">
           {t("checkout.title")}
         </h1>
@@ -149,12 +151,12 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const canCod = Boolean(providers.system)
 
   return (
-    <div className="grid gap-6">
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
-        <h1 className="text-xl font-semibold text-[var(--store-text)]">
+    <div className="checkout-layout">
+      <div className="checkout-heading">
+        <h1 className="text-3xl font-semibold text-[var(--store-text)]">
           {t("checkout.title")}
         </h1>
-        <p className="mt-1 text-sm text-[var(--store-text-muted)]">
+        <p className="mt-4 text-sm text-[var(--store-text-muted)]">
           {customer
             ? t("checkout.loggedInHint")
             : t("checkout.guestHint")}
@@ -162,7 +164,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
       </div>
 
       <form
-        className="rounded-2xl border border-[var(--store-border)] bg-white p-6"
+        id="checkout-form"
+        className="checkout-form"
         onSubmit={async (e) => {
           e.preventDefault()
           if (submitLock.current) return
@@ -194,6 +197,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
                 setPreparedAddress("")
                 throw new Error(t("checkout.noShipping"))
               }
+              const { cart: quoted } = await setShippingMethod({ cartId: cart.id, optionId: options[0].id })
+              setQuotedCart(quoted)
               setPreparedAddress(addressKey)
               return
             }
@@ -215,7 +220,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         }}
       >
         {customer ? (
-          <div className="mb-6 rounded-xl border border-[var(--store-border)] bg-[var(--store-bg)] p-4">
+          <div className="mb-6 rounded border border-[var(--store-border)] bg-[var(--store-bg)] p-4">
             <p className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.addressSourceLabel")}
             </p>
@@ -261,13 +266,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.firstName")}
             </span>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.lastName")}
             </span>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
@@ -276,13 +281,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.email")}
             </span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.phone")}
             </span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
@@ -295,7 +300,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.country")}
             </span>
-            <select value={country} onChange={(e) => setCountry(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm">
+            <select value={country} onChange={(e) => setCountry(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm">
               <option value="rs">{t("countries.rs")}</option>
             </select>
           </label>
@@ -303,7 +308,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.postalCode")}
             </span>
-            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
@@ -312,13 +317,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.city")}
             </span>
-            <input value={city} onChange={(e) => setCity(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={city} onChange={(e) => setCity(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.address")}
             </span>
-            <input value={address1} onChange={(e) => setAddress1(e.target.value)} required className="h-11 rounded-xl border border-[var(--store-border)] px-3 text-sm" />
+            <input value={address1} onChange={(e) => setAddress1(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
           </label>
         </div>
 
@@ -326,7 +331,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           <span className="text-sm font-medium text-[var(--store-text)]">
             {t("checkout.notes")}
           </span>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24 rounded-xl border border-[var(--store-border)] px-3 py-2 text-sm" />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24 rounded border border-[var(--store-border)] px-3 py-2 text-sm" />
         </label>
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
@@ -335,13 +340,22 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <div className="mt-4 grid gap-2">
           {deliveryPrepared && shippingOptions.length ? (
             shippingOptions.map((o) => (
-              <label key={o.id} className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
+              <label key={o.id} className="flex items-center gap-3 rounded border border-[var(--store-border)] px-3 py-3">
                 <input
                   type="radio"
                   name="shipping"
                   value={o.id}
                   checked={selectedShipping === o.id}
-                  onChange={() => setSelectedShipping(o.id)}
+                  disabled={loading || isMutating}
+                  onChange={async () => {
+                    if (submitLock.current) return
+                    submitLock.current = true; setLoading(true); setError(null)
+                    try {
+                      const { cart: quoted } = await setShippingMethod({ cartId: cart.id, optionId: o.id })
+                      setQuotedCart(quoted); setSelectedShipping(o.id)
+                    } catch { setError(t("checkout.failed")) }
+                    finally { submitLock.current = false; setLoading(false) }
+                  }}
                 />
                 <span className="text-sm text-[var(--store-text)]">
                   {o.name || o.id}{typeof o.amount === "number" ? ` — ${formatMoney(o.amount, cart.currency_code)}` : ""}
@@ -359,8 +373,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           {t("checkout.payment")}
         </h2>
         <div className="mt-4 grid gap-2">
-          {(paymentError || !paymentProviders.length) && <button type="button" disabled={paymentLoading || loading} onClick={() => setPaymentAttempt(n => n + 1)} className="rounded-xl border px-4 py-2">{t("checkout.retryPayment")}</button>}
-          <label className="flex items-center gap-3 rounded-xl border border-[var(--store-border)] px-3 py-3">
+          {(paymentError || !paymentProviders.length) && <button type="button" disabled={paymentLoading || loading} onClick={() => setPaymentAttempt(n => n + 1)} className="rounded border px-4 py-2">{t("checkout.retryPayment")}</button>}
+          <label className="flex items-center gap-3 rounded border border-[var(--store-border)] px-3 py-3">
             <input
               type="radio"
               name="payment"
@@ -381,23 +395,31 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </div>
 
         {error ? (
-          <div className="mt-6 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mt-6 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         ) : null}
 
+      </form>
+      <aside className="order-summary">
+        <h2>{t("design.summary")}</h2>
+        <ul className="my-6 space-y-3 border-b border-[var(--store-border)] pb-6 text-sm">{cart.items.map(item => <li key={item.id} className="flex justify-between gap-4"><span>{item.product_title || item.title} × {item.quantity}</span><span className="shrink-0">{formatMoney(item.total ?? item.unit_price * item.quantity, cart.currency_code)}</span></li>)}</ul>
+        <div className="flex justify-between gap-4 text-sm"><span>{t("design.productsSubtotal")}</span><strong>{formatMoney(cart.item_total ?? cart.item_subtotal ?? cart.subtotal ?? 0, cart.currency_code)}</strong></div>
+        {deliveryPrepared && quotedCart && <><div className="mt-4 flex justify-between gap-4 text-sm"><span>{t("checkout.shipping")}</span><span>{formatMoney(quotedCart.shipping_total, cart.currency_code)}</span></div><div className="mt-6 flex justify-between gap-4 border-t border-[var(--store-border)] pt-6 text-lg font-semibold"><span>{t("design.total")}</span><span>{formatMoney(quotedCart.total, cart.currency_code)}</span></div></>}
+        <p className="mt-4 text-xs text-[var(--store-text-muted)]">{deliveryPrepared ? t("checkout.shipping") + ": " + (shippingOptions.find(option => option.id === selectedShipping)?.name || t("checkout.shippingRequired")) : t("design.shippingLater")}</p>
         <p className="mt-6 text-sm">
           <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">{t("legal.checkout")}</a>
         </p>
 
         <button
           type="submit"
-          disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping))}
-          className="mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white disabled:opacity-60"
+          form="checkout-form"
+          disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping || !quotedCart))}
+          className="mt-8 inline-flex h-12 w-full items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white disabled:opacity-60"
         >
           {loading ? t(deliveryPrepared ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}
         </button>
-      </form>
+      </aside>
     </div>
   )
 }

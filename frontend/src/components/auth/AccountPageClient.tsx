@@ -11,7 +11,7 @@ import { sdk } from "@/lib/medusa"
 import { getAuthToken } from "@/lib/auth/auth-storage"
 import { useCart } from "@/components/cart/CartProvider"
 import { AccountProfileForm } from "@/components/auth/AccountProfileForm"
-import { useTranslations } from "@/components/i18n/LocaleProvider"
+import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 
 function authHeaders() {
   const token = getAuthToken()
@@ -19,7 +19,8 @@ function authHeaders() {
 }
 
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
-  const t = useTranslations()
+  const { t, locale } = useLocaleContext()
+  const [panel, setPanel] = useState<"orders" | "profile">("orders")
   const router = useRouter()
   const { addItem, refresh: refreshCart, isMutating } = useCart()
   const { customer, isReady, logout } = useAuth()
@@ -68,7 +69,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
 
   if (!isReady) {
     return (
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
+      <div className="rounded border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
         {t("account.loading")}
       </div>
     )
@@ -76,7 +77,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
 
   if (!customer) {
     return (
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+      <div className="rounded border border-[var(--store-border)] bg-white p-6">
         <h1 className="text-xl font-semibold text-[var(--store-text)]">
           {t("account.title")}
         </h1>
@@ -86,13 +87,13 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href={`/${countryCode}/account/login`}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-[var(--store-text)] px-6 text-sm font-semibold text-white"
+            className="inline-flex h-12 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white"
           >
             {t("account.login")}
           </Link>
           <Link
             href={`/${countryCode}/account/register`}
-            className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--store-border)] px-6 text-sm font-semibold text-[var(--store-text)]"
+            className="inline-flex h-12 items-center justify-center rounded border border-[var(--store-border)] px-6 text-sm font-semibold text-[var(--store-text)]"
           >
             {t("account.createAccount")}
           </Link>
@@ -102,8 +103,8 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
   }
 
   return (
-    <div className="grid gap-6">
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
+    <div className="account-layout">
+      <div className="account-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-[var(--store-text)]">
@@ -119,17 +120,19 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
               await logout()
               router.push(`/${countryCode}/catalog`)
             }}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-[var(--store-border)] px-5 text-sm font-semibold text-[var(--store-text)]"
+            className="inline-flex h-10 items-center justify-center rounded border border-[var(--store-border)] px-5 text-sm font-semibold text-[var(--store-text)]"
           >
             {t("account.logout")}
           </button>
         </div>
       </div>
 
-      <AccountProfileForm key={customer.id} countryCode={countryCode} />
+      <nav className="account-nav" aria-label={t("account.title")}><button type="button" aria-pressed={panel === "orders"} className={panel === "orders" ? "button-primary" : "button-quiet"} onClick={() => setPanel("orders")}>{t("account.orders")}</button><button type="button" aria-pressed={panel === "profile"} className={panel === "profile" ? "button-primary" : "button-quiet"} onClick={() => setPanel("profile")}>{t("account.profileSection")}</button><Link className="button-quiet" href="/rs/catalog">{t("product.backToCatalog")}</Link></nav>
+      <div className="account-body"><div hidden={panel !== "profile"} id="account-profile"><AccountProfileForm key={customer.id} countryCode={countryCode} /></div>
+      {panel === "orders" && <div className="rounded bg-[var(--store-bg-muted)] p-6"><h2 className="text-2xl font-semibold">{t("account.profileSection")}</h2><p className="mt-4 break-words">{customer.first_name} {customer.last_name} · {customer.email}</p><p className="mt-4 text-xs text-[var(--store-text-muted)]">{t("design.reviewPrivacy", { name: customer.first_name || "" })}</p></div>}
 
-      <div className="rounded-2xl border border-[var(--store-border)] bg-white p-6">
-        <h2 className="text-lg font-semibold text-[var(--store-text)]">
+      <div hidden={panel !== "orders"} id="account-orders" className="mt-8">
+        <h2 className="text-2xl font-semibold text-[var(--store-text)]">
           {t("account.orders")}
         </h2>
         {repeatError && <p role="alert" className="mt-3 text-red-700">{repeatError}</p>}
@@ -155,7 +158,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                       })}
                     </div>
                     <div className="mt-1 text-sm text-[var(--store-text-muted)]">
-                      {o.created_at ? new Date(o.created_at).toLocaleString() : ""}
+                      {o.created_at ? new Date(o.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB") : ""}
                     </div>
                   </div>
                   <button
@@ -198,7 +201,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                         setRepeating(false)
                       }
                     }}
-                    className="inline-flex h-10 items-center justify-center rounded-full bg-[var(--store-text)] px-5 text-sm font-semibold text-white"
+                    className="inline-flex h-10 items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-5 text-sm font-semibold text-white"
                   >
                     {t("account.repeatOrder")}
                   </button>
@@ -212,6 +215,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
             {t("account.noOrders")}
           </div>
         )}
+      </div>
       </div>
     </div>
   )

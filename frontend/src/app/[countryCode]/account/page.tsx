@@ -13,7 +13,7 @@ export default async function AccountPage(props: {
 
   return (
     <StoreShell countryCode={cc as "rs"}>
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="page-content">
         <AccountPageClient countryCode={cc} />
       </div>
     </StoreShell>

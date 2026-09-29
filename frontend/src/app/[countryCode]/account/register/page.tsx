@@ -13,7 +13,7 @@ export default async function RegisterPage(props: {
 
   return (
     <StoreShell countryCode={cc as "rs"}>
-      <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
+      <div className="auth-content">
         <RegisterForm countryCode={cc} />
       </div>
     </StoreShell>

@@ -3,6 +3,6 @@ export function formatMoney(amount: number | null | undefined, currencyCode: str
   if (amount == null || !Number.isFinite(amount)) return "—"
   if (!currencyCode) return String(amount)
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode.toUpperCase() }).format(amount)
+    return new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode.toUpperCase(), ...(currencyCode.toLowerCase() === "rsd" ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {}) }).format(amount)
   } catch { return `${amount} ${currencyCode}` }
 }

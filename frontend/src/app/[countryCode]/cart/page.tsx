@@ -16,7 +16,7 @@ export default async function CartPage(props: {
 
   return (
     <StoreShell countryCode={cc as "rs"}>
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <div className="page-content">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--store-text)]">
           {t("header.cart")}
         </h1>

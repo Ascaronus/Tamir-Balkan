@@ -1,180 +1,31 @@
-import { reviewSummaries } from "@/lib/reviews/server"
-import { Stars, ReviewIcon } from "@/components/reviews/Stars"
+import Image from "next/image"
 import Link from "next/link"
+import { notFound } from "next/navigation"
+import { reviewSummaries } from "@/lib/reviews/server"
 import { normalizeCatalogQuery, type CatalogQuery } from "@/lib/store/search-params"
-import { ProductImage } from "@/components/store/ProductImage"
-import { localizedText } from "@/lib/i18n/content"
-import { canPurchase } from "@/lib/store/commerce"
-import { listProductsByCountry } from "@/lib/store/products"
+import { catalogSelection, catalogParams, fetchCatalog } from "@/lib/store/catalog"
+import { getRegionByCountry } from "@/lib/store/regions"
 import { getStoreProductCategoryById } from "@/lib/store/categories"
 import { StoreShell } from "@/components/store/StoreShell"
-import { formatMoney } from "@/lib/format-money"
-import { getStoreProductImageUrl } from "@/lib/product-image"
+import { CatalogClient } from "@/components/store/CatalogClient"
 import { getTranslations } from "@/lib/i18n/server"
 
-export default async function CatalogPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ countryCode: string }>
-  searchParams: Promise<CatalogQuery>
+export default async function CatalogPage({ params, searchParams }: {
+  params: Promise<{ countryCode: string }>; searchParams: Promise<CatalogQuery>
 }) {
+  if ((await params).countryCode.toLowerCase() !== "rs") notFound()
   const { t, locale } = await getTranslations()
-  const { countryCode } = await params
-  const { category_id: categoryIdParam, page: pageParam, q } = normalizeCatalogQuery(await searchParams)
-  const page = Math.max(1, Math.min(100000, Number.parseInt(pageParam ?? "1", 10) || 1))
-  const cc = countryCode.toLowerCase()
-
-  if (cc !== "rs") {
-    return (
-      <StoreShell>
-        <div className="px-4 py-10">
-          <Link
-            href="/"
-            className="text-sm text-[var(--store-text-muted)] underline-offset-4 hover:underline"
-          >
-            {t("catalog.backHome")}
-          </Link>
-          <h1 className="mt-4 text-xl font-semibold text-[var(--store-text)]">
-            {t("catalog.unsupportedTitle")}
-          </h1>
-        </div>
-      </StoreShell>
-    )
-  }
-
-  const region = cc === "rs" ? cc : undefined
-  const categoryId = categoryIdParam?.trim() || undefined
-
-  const activeCategory = categoryId
-    ? await getStoreProductCategoryById(categoryId, locale)
-    : null
-
-  const { products, count } = await listProductsByCountry({
-    countryCode: cc,
-    limit: 24,
-    offset: (page - 1) * 24,
-    locale,
-    q: q?.trim() || undefined,
-    categoryId,
-  })
-
-  const summaries = await reviewSummaries(products.map(p => p.id))
-  const catalogHref = `/${cc}/catalog`
-  const emptyHint = categoryId
-    ? activeCategory
-      ? t("catalog.emptyCategory", { name: activeCategory.name })
-      : t("catalog.emptyCategoryMissing")
-    : t("catalog.emptyDefault")
-
-  const regionLabel =
-    t("catalog.regionRs")
-
-  const pages = Math.max(1, Math.ceil(count / 24))
-  const pageHref = (n: number) => {
-    const query = new URLSearchParams({ page: String(n) })
-    if (categoryId) query.set("category_id", categoryId)
-    if (q) query.set("q", q)
-    return `/rs/catalog?${query}`
-  }
-
-  return (
-    <StoreShell countryCode={region}>
-      <div className="border-b border-[var(--store-border)] bg-[var(--store-bg-muted)] px-4 py-8 sm:px-6">
-        <nav className="text-sm text-[var(--store-text-muted)]">
-          <Link href="/" className="hover:text-[var(--store-text)]">
-            {t("catalog.home")}
-          </Link>
-          <span className="mx-2">/</span>
-          <Link href={catalogHref} className="hover:text-[var(--store-text)]">
-            {t("catalog.catalog")}
-          </Link>
-          {activeCategory ? (
-            <>
-              <span className="mx-2">/</span>
-              <span className="text-[var(--store-text)]">
-                {activeCategory.name}
-              </span>
-            </>
-          ) : null}
-        </nav>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--store-text)] sm:text-3xl">
-          {activeCategory ? activeCategory.name : t("catalog.catalog")}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--store-text-muted)]">
-          {regionLabel} · {t("catalog.count", { n: count })}
-        </p>
-      </div>
-
-      <form action="/rs/catalog" className="mx-4 mt-5 flex max-w-xl gap-2 sm:mx-6">
-        {categoryId && <input type="hidden" name="category_id" value={categoryId} />}
-        <input key={q ?? ""} name="q" defaultValue={q} aria-label={t("catalog.search")} placeholder={t("catalog.searchPlaceholder")} className="h-11 min-w-0 flex-1 rounded-xl border bg-white px-3 text-sm" />
-        <button className="rounded-xl bg-[var(--store-text)] px-4 text-sm font-semibold text-white">{t("catalog.search")}</button>
-      </form>
-      <div className="px-4 py-8 sm:px-6">
-        {products.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--store-border)] bg-white p-10 text-center text-[var(--store-text-muted)]">
-            {emptyHint}
-          </div>
-        ) : (
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((p) => {
-              const primaryVariant = p.variants?.find(canPurchase) ?? p.variants?.[0]
-              const calculated = primaryVariant?.calculated_price
-              const title = localizedText(p, "title", p.title, locale)
-              const imgUrl = getStoreProductImageUrl(p)
-
-              return (
-                <li key={p.id} className="overflow-hidden rounded-2xl border border-[var(--store-border)] bg-white shadow-sm transition hover:border-[var(--store-accent)] hover:shadow-md">
-                  <Link
-                    href={`/rs/products/${encodeURIComponent(p.handle)}`}
-                    className="group block cursor-pointer"
-                  >
-                    <div className="relative aspect-[3/4] overflow-hidden bg-[var(--store-bg-muted)]">
-                      {imgUrl ? (
-                        <ProductImage src={imgUrl} alt={title} className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-[var(--store-text-muted)]">
-                          {t("catalog.noPhoto")}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-[var(--store-text)]">
-                        {title}
-                      </p>
-                      {calculated ? (
-                        <p className="mt-2 text-sm font-semibold text-[var(--store-text)]">
-                          {formatMoney(
-                            calculated.calculated_amount,
-                            calculated.currency_code,
-                            locale === "sr" ? "sr-Latn-RS" : "en-GB"
-                          )}
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-sm text-[var(--store-text-muted)]">
-                          {t("catalog.priceOnRequest")}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                  <Link href={`/rs/products/${encodeURIComponent(p.handle)}#reviews`} className="flex flex-wrap items-center gap-1.5 px-4 pb-4 text-xs text-[var(--store-text-muted)] hover:text-[var(--store-text)]" aria-label={t("reviews.show")}>
-                    <ReviewIcon />
-                    {summaries ? <><Stars rating={summaries[p.id]?.rating ?? 0} count={summaries[p.id]?.count ?? 0} emptyLabel={t("reviews.noRatings")} /><span>· {t("reviews.count", { n: summaries[p.id]?.count ?? 0 })}</span></> : <span>{t("reviews.title")}</span>}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-      {pages > 1 && <nav className="mb-8 flex items-center justify-center gap-4 text-sm" aria-label={t("catalog.page", { n: page, total: pages })}>
-        {page > 1 && <Link href={pageHref(Math.min(page - 1, pages))} className="rounded-full border px-4 py-2">← {t("common.previous")}</Link>}
-        <span>{t("catalog.page", { n: page, total: pages })}</span>
-        {page < pages && <Link href={pageHref(page + 1)} className="rounded-full border px-4 py-2">{t("common.next")} →</Link>}
-      </nav>}
-    </StoreShell>
-  )
+  const selection = catalogSelection(await searchParams)
+  const [region, category] = await Promise.all([
+    getRegionByCountry("rs").catch(() => null),
+    selection.category_id ? getStoreProductCategoryById(selection.category_id, locale).catch(() => null) : null,
+  ])
+  const initial = region ? await fetchCatalog(selection, region.id, locale).catch(() => null) : null
+  const summaries = initial ? await reviewSummaries(initial.products.map(p => p.id)) : null
+  return <StoreShell countryCode="rs"><div className="store-container catalog-page">
+    {!selection.category_id && !selection.q && <section className="collection-banner" aria-label={t("design.heroTitle")}><div className="collection-copy"><h2>{t("design.heroTitle")}</h2><p>{t("design.heroSubtitle")}</p><Link href="#catalog-products" className="button-secondary">{t("design.heroAction")}</Link></div><div className="collection-image"><Image src="/design/collection.jpg" alt={t("design.heroAlt")} fill sizes="(max-width: 767px) 90vw, 50vw" preload /></div></section>}
+    <CatalogClient key={catalogParams(selection).toString() + locale} initial={initial} selection={selection} regionId={region?.id ?? ""} summaries={summaries} title={category?.name || t("sidebar.allProducts")} />
+  </div></StoreShell>
 }
 
 import type { Metadata } from "next"

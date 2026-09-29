@@ -45,8 +45,9 @@ export function ProductReviews({ productId, initial }: { productId: string; init
     if (isReady) void load()
     return () => { generation.current++ }
   }, [isReady, customer?.id, load])
-  return <section id="reviews" className="mt-10 scroll-mt-6 border-t border-[var(--store-border)] pt-5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
+  return <section id="reviews" className="reviews-layout mt-12 scroll-mt-6 border-t border-[var(--store-border)] pt-8">
+    <div className="reviews-intro"><h2 className="text-2xl font-semibold">{t("design.reviewIntro")}</h2><p className="mt-3 text-sm leading-6 text-[var(--store-text-muted)]">{t("design.reviewHint")}</p></div>
+    <div className="reviews-main"><div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <ReviewIcon />
         {summary ? <><Stars rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} /><span className="text-xs text-[var(--store-text-muted)]">· {t("reviews.count", { n: summary.count })}</span></> : <span className="text-sm">{t("reviews.title")}</span>}
@@ -58,10 +59,10 @@ export function ProductReviews({ productId, initial }: { productId: string; init
       {notice && <p role="status" className="my-3 text-sm">{t(notice)}</p>}
       {loading && <p role="status" className="py-3 text-sm">{t("reviews.loading")}</p>}
       {data?.reviews.length === 0 && !loading && <p className="py-3 text-sm text-[var(--store-text-muted)]">{t("reviews.empty")}</p>}
-      <div className="divide-y divide-[var(--store-border)]">
+      <div className="space-y-4">
         {data?.reviews.map(review => <ReviewItem key={review.id + ":" + (customer?.id || "guest")} review={review} signedIn={Boolean(customer)} locale={locale} onVoted={updated => setData(old => old ? { ...old, reviews: old.reviews.map(r => r.id === review.id ? { ...r, ...updated } : r) } : old)} />)}
       </div>
-      {data && data.reviews.length < data.count && <button type="button" disabled={loading} className="my-3 rounded-full border px-4 py-2 text-sm disabled:opacity-50" onClick={() => void load(data.reviews.length)}>{t("reviews.more")}</button>}
+      {data && data.reviews.length < data.count && <button type="button" disabled={loading} className="my-3 rounded border px-4 py-2 text-sm disabled:opacity-50" onClick={() => void load(data.reviews.length)}>{t("reviews.more")}</button>}
       {isReady && !customer ? <p className="mt-4 text-sm"><Link href="/rs/account/login" className="underline">{t("reviews.signIn")}</Link> {t("reviews.signInHint")}</p> : customer && data?.has_review ? <p className="mt-4 text-sm text-[var(--store-text-muted)]">{t("reviews.alreadyReviewed")}</p> : customer && data && <form className="mt-5 max-w-xl border-t border-[var(--store-border)] pt-5" onSubmit={async e => {
         e.preventDefault()
         if (submitLock.current) return
@@ -86,12 +87,13 @@ export function ProductReviews({ productId, initial }: { productId: string; init
               <input type="radio" name="review-rating" value={value} required checked={rating === value} onChange={() => setRating(value)} className="accent-stone-700" /><span aria-hidden="true">★</span> {value}
             </label>)}
           </div>
-          <label className="mt-3 block text-sm">{t("reviews.text")}<textarea required value={body} onChange={e => setBody([...e.target.value].slice(0, 250).join(""))} rows={3} className="mt-1 block w-full resize-y rounded-xl border border-[var(--store-border)] p-3 text-sm" /></label>
+          <label className="mt-3 block text-sm">{t("reviews.text")}<textarea required value={body} onChange={e => setBody([...e.target.value].slice(0, 250).join(""))} rows={3} className="mt-1 block w-full resize-y rounded border border-[var(--store-border)] p-3 text-sm" /></label>
           <div className="mt-1 text-right text-xs text-[var(--store-text-muted)]" aria-live="polite">{[...body].length}/250</div>
-          <button type="submit" className="mt-2 min-h-10 rounded-full bg-[var(--store-text)] px-5 text-sm font-medium text-white disabled:opacity-50">{t(busy ? "reviews.sending" : "reviews.submit")}</button>
+          <button type="submit" className="mt-2 min-h-10 rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-5 text-sm font-medium text-white disabled:opacity-50">{t(busy ? "reviews.sending" : "reviews.submit")}</button>
         </fieldset>
       </form>}
       <button type="button" className="mt-4 text-xs underline" onClick={() => { setOpen(false); document.getElementById("reviews")?.scrollIntoView({ block: "start" }) }}>{t("reviews.collapse")}</button>
+    </div>
     </div>
     {captcha}
   </section>
@@ -113,7 +115,7 @@ function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; sig
     } catch (err) { setError(reviewErrorKey(err)) }
     finally { lock.current = false; setBusy(false) }
   }
-  return <article className="flex gap-3 py-4 sm:gap-4">
+  return <article className="flex gap-3 rounded border border-[var(--store-border)] p-4 sm:gap-4">
     <div className="flex w-9 shrink-0 flex-col items-center gap-1 text-xs text-[var(--store-text-muted)]" aria-label={t("reviews.helpfulness")}>
       <button type="button" disabled={!signedIn || review.voted || busy} title={t(!signedIn ? "reviews.loginRequired" : review.voted ? "reviews.voted" : "reviews.helpful")} aria-label={t("reviews.helpful")} className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-[var(--store-border)] disabled:opacity-40" onClick={() => void vote(1)}><Thumb /></button>
       <span className="font-medium tabular-nums" aria-live="polite">{review.score > 0 ? "+" : ""}{review.score}</span>

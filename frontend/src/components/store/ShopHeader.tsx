@@ -1,96 +1,26 @@
 "use client"
-
 import Image from "next/image"
 import Link from "next/link"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { CartLink } from "@/components/cart/CartLink"
 import { useAuth } from "@/components/auth/AuthProvider"
+import { CategoryNavigation } from "./CategoryNavigation"
+import { DesignIcon } from "./DesignIcon"
 
-type Country = "rs"
-
-export function ShopHeader({
-  countryCode,
-  onOpenCatalog,
-  menuOpen = false,
-}: {
-  countryCode?: Country
-  onOpenCatalog: () => void
-  menuOpen?: boolean
-}) {
+export function ShopHeader({ onOpenCatalog }: { countryCode?: "rs"; onOpenCatalog: () => void; menuOpen?: boolean }) {
   const t = useTranslations()
-  const cartHref = countryCode ? `/${countryCode}/cart` : "/"
   const { isLoggedIn } = useAuth()
-  const accountHref = countryCode ? `/${countryCode}/account` : "/"
-  const loginHref = countryCode ? `/${countryCode}/account/login` : "/"
-
-  return (
-    <header className="sticky top-0 z-30 border-b border-[var(--store-border)] bg-[var(--store-bg)]">
-      <div className="mx-auto max-w-[1600px] px-3 pt-2 sm:px-5">
-        <div className="flex flex-wrap items-center justify-end gap-2 gap-y-1 text-[0.72rem] uppercase tracking-[0.08em] text-[var(--store-text)]">
-          <span className="mr-auto hidden sm:inline text-[var(--store-text-muted)] normal-case tracking-normal">
-            {t("header.deliverySerbia")}
-          </span>
-          <LanguageSwitcher />
-          <Link
-            href="/rs/catalog"
-            className={
-              countryCode === "rs"
-                ? "font-semibold text-[var(--store-text)]"
-                : "text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
-            }
-          >
-            RS
-          </Link>
-          <span className="text-[var(--store-border)]">|</span>
-          <Link
-            href={isLoggedIn ? accountHref : loginHref}
-            className="text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
-          >
-            {isLoggedIn ? t("header.account") : t("header.login")}
-          </Link>
-          <Link
-            href={cartHref}
-            className="ml-2 flex items-center gap-1.5 text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
-            aria-label={t("header.cartAria")}
-          >
-            <CartLink href={cartHref} />
-            <span className="hidden sm:inline">{t("header.cart")}</span>
-          </Link>
-        </div>
-
-        <div className="relative flex min-h-[3.5rem] items-center justify-center py-2">
-          <button
-            type="button"
-            onClick={onOpenCatalog}
-            className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center gap-2 rounded-md px-1 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[var(--store-text)] hover:bg-black/[0.04] md:hidden"
-            aria-expanded={menuOpen}
-            aria-controls="store-sidebar"
-          >
-            <span className="flex flex-col gap-1" aria-hidden>
-              <span className="block h-0.5 w-5 bg-current" />
-              <span className="block h-0.5 w-5 bg-current" />
-              <span className="block h-0.5 w-5 bg-current" />
-            </span>
-            <span className="hidden sm:inline">{t("header.catalog")}</span>
-          </button>
-
-          <Link
-            href="/"
-            className="flex flex-col items-center justify-center"
-            aria-label={t("header.homeAria")}
-          >
-            <Image
-              src="/log.png"
-              alt="Tamir Balkan"
-              width={200}
-              height={64}
-              className="h-12 w-auto max-w-[min(100vw-8rem,200px)] object-contain"
-              priority
-            />
-          </Link>
-        </div>
+  return <header className="shop-header">
+    <div className="shop-header-row store-container">
+      <div className="header-tools">
+        <button type="button" onClick={onOpenCatalog} className="icon-button mobile-menu" aria-label={t("header.catalog")} aria-haspopup="dialog" aria-controls="store-sidebar"><DesignIcon name="menu" /></button>
+        <div className="desktop-language"><LanguageSwitcher /></div>
+        <form action="/rs/catalog" role="search" className="header-search"><button aria-label={t("catalog.search")}><DesignIcon name="search" /></button><input name="q" maxLength={200} placeholder={t("catalog.searchPlaceholder")} aria-label={t("catalog.search")} /></form>
       </div>
-    </header>
-  )
+      <Link href="/" className="brand-link" aria-label={t("header.homeAria")}><Image src="/tamir-logo.png" alt="TAMIR — Collection for men" width={2048} height={1613} sizes="(max-width: 767px) 76px, 108px" className="brand-logo" preload /></Link>
+      <div className="header-actions"><Link className="header-action" href={isLoggedIn ? "/rs/account" : "/rs/account/login"} aria-label={t("header.account")}><DesignIcon name="user" /><span className="header-action-label">{t("header.account")}</span></Link><Link href="/rs/cart" className="header-action" aria-label={t("header.cartAria")}><CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span></Link></div>
+    </div>
+    <div className="header-categories"><CategoryNavigation horizontal /></div>
+  </header>
 }

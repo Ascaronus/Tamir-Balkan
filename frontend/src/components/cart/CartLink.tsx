@@ -1,3 +1,4 @@
+import { DesignIcon } from "@/components/store/DesignIcon"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { useCart } from "./CartProvider"
 
@@ -13,30 +14,7 @@ export function CartLink({ href }: { href: string }) {
         </span>
       ) : null}
       <span className="sr-only">{t("header.cart")}</span>
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        className="shrink-0"
-        aria-hidden
-      >
-        <path
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M6 6h15l-1.5 9h-12z"
-        />
-        <path
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          d="M6 6L5 3H2"
-        />
-        <circle cx="9" cy="20" r="1.5" fill="currentColor" />
-        <circle cx="18" cy="20" r="1.5" fill="currentColor" />
-      </svg>
+      <DesignIcon name="bag" />
     </span>
   )
 }

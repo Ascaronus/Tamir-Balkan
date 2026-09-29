@@ -1,10 +1,11 @@
+import { Stars, ReviewIcon } from "@/components/reviews/Stars"
 import { reviewSummaries } from "@/lib/reviews/server"
 import { ProductReviews } from "@/components/reviews/ProductReviews"
 import type { Metadata } from "next"
 import { cache } from "react"
 import { localizedText } from "@/lib/i18n/content"
 import { getImagesForVariant } from "@/lib/product-image"
-import { stockLimit } from "@/lib/store/commerce"
+import { stockLimit, variantAmount } from "@/lib/store/commerce"
 import { siteUrl, serializeJsonLd } from "@/lib/seo"
 import type { Locale } from "@/lib/i18n/config"
 import Link from "next/link"
@@ -58,8 +59,9 @@ export default async function ProductPage({ params, searchParams }: {
     ...(reviewSummary?.count ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Math.round(reviewSummary.rating * 10) / 10, reviewCount: reviewSummary.count, bestRating: 5, worstRating: 1 } } : {}),
     offers: (product.variants || []).flatMap(variant => {
       const price = variant.calculated_price
-      if (!price || typeof price.calculated_amount !== "number" || !price.currency_code || !Number.isFinite(price.calculated_amount) || price.calculated_amount < 0) return []
-      return [{ "@type": "Offer", price: price.calculated_amount,
+      const amount = variantAmount(price)
+      if (!price || typeof amount !== "number" || !price.currency_code || !Number.isFinite(amount) || amount < 0) return []
+      return [{ "@type": "Offer", price: amount,
         priceCurrency: price.currency_code.toUpperCase(),
         url: url + "?v_id=" + encodeURIComponent(variant.id),
         sku: variant.sku || undefined,
@@ -68,7 +70,7 @@ export default async function ProductPage({ params, searchParams }: {
   }
   return <StoreShell countryCode="rs">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />
-    <nav className="border-b bg-[var(--store-bg-muted)] px-6 py-5 text-sm"><Link href="/rs/catalog">{t("product.catalog")}</Link></nav>
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6"><ProductDetails key={product.id} product={product} initialVariantId={(await searchParams).v_id} /><ProductReviews key={product.id} productId={product.id} initial={reviewSummary} /></div>
+    <nav className="store-container pt-8 text-xs text-[var(--store-text-muted)]"><Link href="/rs/catalog">{t("product.catalog")}</Link></nav>
+    <div className="page-content"><ProductDetails key={product.id} product={product} ratingSummary={<Link href="#reviews" className="inline-flex flex-wrap items-center gap-2 text-xs"><ReviewIcon />{reviewSummary ? <><Stars rating={reviewSummary.rating} count={reviewSummary.count} emptyLabel={t("reviews.noRatings")} /><span>· {t("reviews.count", { n: reviewSummary.count })}</span></> : t("reviews.title")}</Link>} initialVariantId={(await searchParams).v_id} /><ProductReviews key={product.id} productId={product.id} initial={reviewSummary} /></div>
   </StoreShell>
 }

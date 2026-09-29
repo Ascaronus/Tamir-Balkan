@@ -36,7 +36,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="flex items-center gap-0.5 rounded-md border border-[var(--store-border)] bg-white/80 px-1 py-0.5"
+      className="flex items-center gap-0.5"
       role="group"
       aria-label={t("lang.label")}
     >
@@ -48,9 +48,9 @@ export function LanguageSwitcher() {
           disabled={busy || pending}
           aria-pressed={locale === code}
           onClick={() => setLocale(code)}
-          className={`rounded px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide transition ${
+          className={`min-h-11 px-1.5 text-xs uppercase transition ${
             locale === code
-              ? "bg-[var(--store-text)] text-white"
+              ? "font-semibold text-[var(--store-accent)]"
               : "text-[var(--store-text-muted)] hover:text-[var(--store-text)]"
           }`}
           title={t(`lang.${code}`)}
