@@ -20,7 +20,7 @@ function loadTurnstile(): Promise<Turnstile> {
   })
   return loading
 }
-export function useCaptcha(action: "review" | "register") {
+export function useCaptcha(action: "review" | "register" | "password_reset") {
   const [open, setOpen] = useState(false)
   const pending = useRef<{ resolve: (token: string) => void; reject: (error: Error) => void } | null>(null)
   const settle = useCallback((token?: string) => {

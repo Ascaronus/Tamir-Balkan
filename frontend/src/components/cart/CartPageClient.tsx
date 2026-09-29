@@ -1,5 +1,6 @@
 "use client"
 import Link from "next/link"
+import { useAuth } from "@/components/auth/AuthProvider"
 import { useCart } from "./CartProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { formatMoney } from "@/lib/format-money"
@@ -7,6 +8,7 @@ import { ProductImage } from "@/components/store/ProductImage"
 import { normalizeImageUrl } from "@/lib/product-image"
 export function CartPageClient() {
   const { t, locale } = useLocaleContext()
+  const { customer } = useAuth()
   const { cart, isReady, isMutating, error, refresh, updateItemQuantity, removeItem } = useCart()
   const money = (value: number) => formatMoney(value, cart?.currency_code ?? "rsd", locale === "sr" ? "sr-Latn-RS" : "en-GB")
   if (!isReady) return <p className="py-6">{t("cartPage.loading")}</p>
@@ -23,7 +25,7 @@ export function CartPageClient() {
           </div>
         </li>)}
       </ul><Link href="/rs/catalog" className="button-secondary mt-6">{t("product.backToCatalog")}</Link></div>
-      <aside className="order-summary"><h2>{t("design.summary")}</h2><div className="my-6 flex flex-wrap justify-between gap-3 border-b border-[var(--store-border)] pb-6 text-sm"><span>{t("design.productsSubtotal")}</span><strong className="tabular-nums">{money(cart?.item_total ?? cart?.item_subtotal ?? cart?.subtotal ?? 0)}</strong></div><p className="mb-6 text-xs text-[var(--store-text-muted)]">{t("design.shippingLater")}</p><Link href="/rs/checkout" aria-disabled={isMutating} onClick={event => { if (isMutating) event.preventDefault() }} className={`button-primary w-full ${isMutating ? "opacity-50" : ""}`}>{t("cartPage.checkout")}</Link><p className="mt-4 text-xs text-[var(--store-text-muted)]">{t("cartPage.guestCheckoutHint")}</p></aside>
+      <aside className="order-summary"><h2>{t("design.summary")}</h2><div className="my-6 flex flex-wrap justify-between gap-3 border-b border-[var(--store-border)] pb-6 text-sm"><span>{t("design.productsSubtotal")}</span><strong className="tabular-nums">{money(cart?.item_total ?? cart?.item_subtotal ?? cart?.subtotal ?? 0)}</strong></div><p className="mb-6 text-xs text-[var(--store-text-muted)]">{t("design.shippingLater")}</p><Link href="/rs/checkout" aria-disabled={isMutating} onClick={event => { if (isMutating) event.preventDefault() }} className={`button-primary w-full ${isMutating ? "opacity-50" : ""}`}>{t(customer ? "cartPage.checkout" : "checkout.continueGuest")}</Link><p className="mt-4 text-xs text-[var(--store-text-muted)]">{t("cartPage.guestCheckoutHint")}</p></aside>
     </div>}
   </div>
 }

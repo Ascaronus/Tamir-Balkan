@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { addToCart, getOrCreateCart, removeLineItem, updateLineItem, type Cart } from "@/lib/cart/cart-client"
+import { useAuth } from "@/components/auth/AuthProvider"
 import { stableItems } from "@/lib/store/commerce"
 
 type CartContextValue = {
@@ -18,6 +19,7 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | null>(null)
 
 export function CartProvider({ countryCode, children }: { countryCode: string; children: React.ReactNode }) {
+  const { isReady: authReady } = useAuth()
   const [cart, setCart] = useState<Cart | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [pending, setPending] = useState(0)
@@ -48,6 +50,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
 
   const refresh = useCallback(() => run(() => getOrCreateCart(countryCode)), [countryCode, run])
   useEffect(() => {
+    if (!authReady) return
     let mounted = true
     const initialize = () => {
       generation.current += 1
@@ -57,7 +60,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     initialize()
     window.addEventListener("tb-cart-reset", initialize)
     return () => { mounted = false; generation.current += 1; window.removeEventListener("tb-cart-reset", initialize) }
-  }, [refresh])
+  }, [refresh, authReady])
 
   const value = useMemo<CartContextValue>(() => ({
     cart, isReady, isMutating: pending > 0, error,

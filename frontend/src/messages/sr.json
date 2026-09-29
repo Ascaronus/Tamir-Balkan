@@ -73,7 +73,10 @@
     "preparingDelivery": "Provera dostave…",
     "cartChanged": "Korpa je promenjena. Ponovo potvrdite adresu dostave.",
     "retryShipping": "Ponovo izračunaj dostavu",
-    "retryPayment": "Ponovo učitaj načine plaćanja"
+    "retryPayment": "Ponovo učitaj načine plaćanja",
+    "guestChoice": "Način kupovine",
+    "continueGuest": "Kupite bez registracije",
+    "loginInstead": "Prijavite se i koristite sačuvane podatke"
   },
   "order": {
     "confirmed": "Porudžbina je primljena",
@@ -138,6 +141,22 @@
       "tooMany": "Previše zahteva. Pokušajte kasnije.",
       "invalidProfile": "Proverite podatke. Lozinka mora imati najmanje 8 znakova.",
       "failed": "Registracija nije završena. Pokušajte ponovo. Ako ste već potvrdili kod, pokušajte da se prijavite."
+    },
+    "reset": {
+      "forgot": "Zaboravili ste lozinku?",
+      "title": "Promena lozinke",
+      "hint": "Unesite email. Poslaćemo kod za promenu lozinke.",
+      "sent": "Ako za ovaj email postoji aktivan nalog, kod je poslat.",
+      "newPassword": "Nova lozinka",
+      "confirmPassword": "Potvrdite novu lozinku",
+      "passwordHint": "Koristite od 8 do 256 znakova.",
+      "mismatch": "Lozinke se ne podudaraju.",
+      "save": "Sačuvaj novu lozinku",
+      "working": "Sačekajte…",
+      "successTitle": "Lozinka je promenjena",
+      "successHint": "Sada se možete prijaviti novom lozinkom.",
+      "used": "Ovaj kod je već iskorišćen. Pokušajte da se prijavite ili zatražite novi kod.",
+      "failed": "Promena lozinke nije uspela. Pokušajte ponovo."
     }
   },
   "account": {

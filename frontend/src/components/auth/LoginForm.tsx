@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
-export function LoginForm({ countryCode }: { countryCode: string }) {
+export function LoginForm({ countryCode, next = "account" }: { countryCode: string; next?: "account" | "checkout" }) {
   const t = useTranslations()
   const router = useRouter()
   const { login, isMutating } = useAuth()
@@ -30,7 +30,7 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
           setError(null)
           try {
             await login(email.trim(), password)
-            router.push(`/${countryCode}/account`)
+            router.push(`/${countryCode}/${next}`)
           } catch (e: unknown) {
             setError(e instanceof Error && e.message === "CUSTOMER_PROFILE_MISSING" ? t("auth.login.profileMissing") : e instanceof Error ? e.message : t("auth.login.failed"))
           }
@@ -61,6 +61,8 @@ export function LoginForm({ countryCode }: { countryCode: string }) {
             className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
+
+        <Link className="text-sm font-medium text-[var(--store-accent)] underline" href={`/${countryCode}/account/forgot-password`}>{t("auth.reset.forgot")}</Link>
 
         {error ? (
           <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">

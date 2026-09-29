@@ -55,13 +55,19 @@ export async function sendRegistrationEmail(customer: { id: string; email: strin
 }
 
 export async function sendRegistrationCode(email: string, code: string) {
+  return sendAccountCode(email, code, false)
+}
+export async function sendPasswordResetCode(email: string, code: string) {
+  return sendAccountCode(email, code, true)
+}
+async function sendAccountCode(email: string, code: string, reset: boolean) {
   const config = mailConfig()
   const transport = nodemailer.createTransport(config)
   try {
     const result = await transport.sendMail({
       from: { name: "TAMIR", address: config.auth.user }, to: { address: email, name: "" },
-      subject: "TAMIR — Kod za registraciju / Registration code",
-      text: `Vaš kod za registraciju: ${code}\n\nKod važi 10 minuta. Ne delite ga ni sa kim. Ako niste zatražili registraciju, zanemarite ovu poruku.\n\nYour registration code: ${code}\n\nThis code expires in 10 minutes. Do not share it. If you did not request registration, ignore this message.\n\nTAMIR`,
+      subject: reset ? "TAMIR — Promena lozinke / Password reset" : "TAMIR — Kod za registraciju / Registration code",
+      text: reset ? `Kod za promenu lozinke: ${code}\n\nKod važi 10 minuta. Ne delite ga ni sa kim. Ako niste zatražili promenu lozinke, zanemarite ovu poruku; lozinka ostaje nepromenjena.\n\nYour password reset code: ${code}\n\nThis code expires in 10 minutes. Do not share it. If you did not request a password reset, ignore this message; your password remains unchanged.\n\nTAMIR` : `Vaš kod za registraciju: ${code}\n\nKod važi 10 minuta. Ne delite ga ni sa kim. Ako niste zatražili registraciju, zanemarite ovu poruku.\n\nYour registration code: ${code}\n\nThis code expires in 10 minutes. Do not share it. If you did not request registration, ignore this message.\n\nTAMIR`,
       disableFileAccess: true, disableUrlAccess: true,
     })
     if (!result.accepted.length) throw new Error("Not accepted")

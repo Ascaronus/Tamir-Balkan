@@ -73,7 +73,10 @@
     "preparingDelivery": "Checking delivery…",
     "cartChanged": "The cart has changed. Confirm the delivery address again.",
     "retryShipping": "Recalculate delivery",
-    "retryPayment": "Retry payment methods"
+    "retryPayment": "Retry payment methods",
+    "guestChoice": "Checkout options",
+    "continueGuest": "Buy without registration",
+    "loginInstead": "Sign in to use saved details"
   },
   "order": {
     "confirmed": "Order confirmed",
@@ -138,6 +141,22 @@
       "tooMany": "Too many requests. Please try again later.",
       "invalidProfile": "Check your details. The password must contain at least 8 characters.",
       "failed": "Could not complete registration. Try again. If you already confirmed your code, try signing in."
+    },
+    "reset": {
+      "forgot": "Forgot your password?",
+      "title": "Reset your password",
+      "hint": "Enter your email. We will send a code to reset your password.",
+      "sent": "If an active account exists for this email, a code has been sent.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordHint": "Use 8–256 characters.",
+      "mismatch": "The passwords do not match.",
+      "save": "Save new password",
+      "working": "Please wait…",
+      "successTitle": "Password changed",
+      "successHint": "You can now sign in using your new password.",
+      "used": "This code has already been used. Try signing in or request a new code.",
+      "failed": "Unable to reset your password. Please try again."
     }
   },
   "account": {

@@ -22,6 +22,7 @@ export function clearAuthToken() {
   if (typeof window === "undefined") return
   try {
     window.localStorage.removeItem(AUTH_TOKEN_KEY)
+    window.localStorage.removeItem("medusa_auth_token")
   } catch {
     // ignore
   }
