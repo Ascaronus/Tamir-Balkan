@@ -1,6 +1,6 @@
 import { ReviewError } from "./review-validation"
 
-export async function verifyCaptcha(token: unknown, action: "register" | "review", fetcher = fetch) {
+export async function verifyCaptcha(token: unknown, action: "register" | "review" | "password_reset", fetcher = fetch) {
   const secret = process.env.TURNSTILE_SECRET_KEY
   const hosts = (process.env.TURNSTILE_HOSTNAMES || "tamir.rs,www.tamir.rs").split(",").map(x => x.trim()).filter(Boolean)
   if (!secret || !hosts.length) throw new ReviewError(503, "CAPTCHA_UNAVAILABLE")

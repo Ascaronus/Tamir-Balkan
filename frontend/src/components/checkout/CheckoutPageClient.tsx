@@ -2,6 +2,7 @@
 
 import type { HttpTypes } from "@medusajs/types"
 import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useCart } from "@/components/cart/CartProvider"
@@ -127,7 +128,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     }
   }, [isReady, cart?.region_id, t, paymentAttempt])
 
-  if (!isReady) {
+  if (!isReady || !authReady) {
     return (
       <div className="rounded border border-[var(--store-border)] bg-white p-6 text-sm text-[var(--store-text-muted)]">
         {t("checkout.loading")}
@@ -161,6 +162,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             ? t("checkout.loggedInHint")
             : t("checkout.guestHint")}
         </p>
+        {!customer && <div className="mt-5 flex flex-wrap items-center gap-3" aria-label={t("checkout.guestChoice")}>
+          <button type="button" className="button-primary" onClick={() => {
+            const input = document.querySelector<HTMLInputElement>("#checkout-form input")
+            input?.focus(); input?.scrollIntoView({ behavior: "smooth", block: "center" })
+          }}>{t("checkout.continueGuest")}</button>
+          <Link className="button-secondary" href={`/${countryCode}/account/login?next=checkout`}>{t("checkout.loginInstead")}</Link>
+        </div>}
       </div>
 
       <form
@@ -395,7 +403,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </div>
 
         {error ? (
-          <div className="mt-6 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div role="alert" className="mt-6 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         ) : null}

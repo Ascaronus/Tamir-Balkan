@@ -34,8 +34,8 @@ test('missing customer profile fails login explicitly',async()=>{
 test('payment method request can be retried after failure',async()=>{
  const h=hooks();let requests=0
  const c=load('frontend/src/components/checkout/CheckoutPageClient.tsx',{
-  react:h.react,'next/navigation':{useRouter:()=>({push(){}})},
-  '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:false,refresh:()=>{}})},
+  react:h.react,'next/link':'Link','next/navigation':{useRouter:()=>({push(){}})},
+  '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true,refresh:async()=>{}})},
   '@/components/cart/CartProvider':{useCart:()=>({cart:{id:'cart',region_id:'region',items:[{id:'i',quantity:1}]},isReady:true,isMutating:false})},
   '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/cart/cart-client':{},
   '@/components/i18n/LocaleProvider':{useTranslations:()=>t},

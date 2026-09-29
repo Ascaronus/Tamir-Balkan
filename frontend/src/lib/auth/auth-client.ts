@@ -25,12 +25,20 @@ async function customerForToken(token: string): Promise<HttpTypes.StoreCustomer 
 
 export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null> {
   const token = getAuthToken()
-  return token ? customerForToken(token) : null
+  if (!token) return null
+  const customer = await customerForToken(token)
+  // Expired tokens and deleted customers must not block anonymous cart requests.
+  // Never discard a newer login or a token after a transient network error.
+  if (!customer && getAuthToken() === token) {
+    clearAuthToken()
+    await sdk.client.clearToken()
+  }
+  return customer
 }
 
 export async function login(params: { email: string; password: string }) {
   const token = await sdk.auth.login("customer", "emailpass", {
-    email: params.email,
+    email: params.email.trim().toLowerCase(),
     password: params.password,
   })
   if (typeof token !== "string") {

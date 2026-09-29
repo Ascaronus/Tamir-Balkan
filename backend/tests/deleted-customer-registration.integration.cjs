@@ -35,11 +35,9 @@ test('deleted customer can re-register; repeated and concurrent cleanup are harm
  assert.deepEqual(await f.read(),{})
 })
 for(const [name,options] of Object.entries({
- 'live linked customer':{metadata:{customer_id:'cus_live'}},
  'live customer with same email':{active:true},
  'admin identity':{metadata:{customer_id:null,user_id:'user_admin'}},
  'custom actor metadata':{metadata:{customer_id:null,vendor_id:'vendor_1'}},
- 'unconfirmed deleted status':{deleted:false},
  'identity linked to another provider':{otherProvider:true},
 })) test(`does not release ${name}`,async()=>{
  const f=await fixture(options),before=await f.read()
@@ -59,4 +57,31 @@ test('other provider and missing password do not mutate identity',async()=>{
  f.req.params.auth_provider='emailpass';delete f.req.body.password
  await releaseDeletedCustomerIdentity(f.req)
  assert.deepEqual(await f.read(),{customer_id:null})
+})
+
+for (const kind of ['null orphan', 'missing customer', 'deleted customer', 'upper-case email']) test(`verified owner reclaims ${kind}`, async()=>{
+ const f=await fixture({deleted:kind==='deleted customer'})
+ if(kind!=='null orphan') await db('auth_identity').where({id:f.id}).update({app_metadata:{customer_id:kind==='deleted customer'?'deleted_'+seq:'missing_customer'}})
+ if(kind==='upper-case email') await db('provider_identity').where({auth_identity_id:f.id}).update({entity_id:f.req.body.email.toUpperCase()})
+ await releaseDeletedCustomerIdentity(f.req)
+ assert.deepEqual(await f.read(),{})
+ assert.equal((await db('provider_identity').where({auth_identity_id:f.id}).first()).entity_id,f.req.body.email)
+})
+test('a live linked customer with a different email is never detached',async()=>{
+ const f=await fixture({metadata:{customer_id:'live_other_email'}})
+ await db('customer').insert({id:'live_other_email',email:'other@example.test',has_account:true})
+ await releaseDeletedCustomerIdentity(f.req)
+ assert.deepEqual(await f.read(),{customer_id:'live_other_email'})
+})
+
+test('Medusa emailpass rejects stale identity before cleanup and accepts registration after it',async()=>{
+ const {EmailPassAuthService}=require('@medusajs/auth-emailpass/dist/services/emailpass')
+ const auth=new EmailPassAuthService({logger:console},{hashConfig:{logN:10,r:8,p:1}})
+ const f=await fixture({metadata:{customer_id:'deleted_link'},deleted:false})
+ let storedHash
+ const service={retrieve:async()=>({id:f.id,app_metadata:await f.read(),provider_identities:[{provider:'emailpass',provider_metadata:{}}]}),update:async(email,data)=>{assert.equal(email,f.req.body.email);storedHash=data.provider_metadata.password;return service.retrieve()}}
+ assert.equal((await auth.register({body:f.req.body},service)).success,false)
+ await releaseDeletedCustomerIdentity(f.req)
+ assert.equal((await auth.register({body:f.req.body},service)).success,true)
+ assert.equal(typeof storedHash,'string');assert.notEqual(storedHash,f.req.body.password)
 })
