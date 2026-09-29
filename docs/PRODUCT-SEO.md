@@ -34,13 +34,16 @@ These changes describe the published tariff; checkout still obtains its real
 shipping charge from the Medusa shipping option configured by the administrator.
 Keep that option at 300 RSD to match the published policy.
 
-The merchant covers return shipping for manufacturing defects. This is shown
-on product pages without imposing a 14-day limit on statutory defect remedies.
-`hasMerchantReturnPolicy` remains pending: the stated "14 days only for defects"
-condition does not describe the general Serbian right to withdraw from an online
-purchase. Confirm who pays return shipping for a non-defective item before
-publishing a general return policy and markup. The existing test-project terms
-also need a separate commercial-policy update with actual seller information.
+The merchant confirmed an additional return policy for manufacturing defects:
+returns within three calendar months of receiving the goods, with return shipping
+paid by TAMIR. Product pages show this in Serbian and English, explicitly without
+excluding or shortening statutory consumer rights. Three months must not be
+converted into a general 90-day return window in Google's markup.
+`hasMerchantReturnPolicy` remains pending: defect returns are separate from the
+general right to withdraw from an online purchase. Confirm who pays return
+shipping for a non-defective item before publishing a general return policy and
+markup. The existing test-project terms also need a separate commercial-policy
+update with actual seller information.
 Optional review warnings can remain on products with no published reviews.
 
 After deployment, inspect affected URLs in Google's Rich Results Test and Search
