@@ -73,3 +73,15 @@ test('a live linked customer with a different email is never detached',async()=>
  await releaseDeletedCustomerIdentity(f.req)
  assert.deepEqual(await f.read(),{customer_id:'live_other_email'})
 })
+
+test('Medusa emailpass rejects stale identity before cleanup and accepts registration after it',async()=>{
+ const {EmailPassAuthService}=require('@medusajs/auth-emailpass/dist/services/emailpass')
+ const auth=new EmailPassAuthService({logger:console},{hashConfig:{logN:10,r:8,p:1}})
+ const f=await fixture({metadata:{customer_id:'deleted_link'},deleted:false})
+ let storedHash
+ const service={retrieve:async()=>({id:f.id,app_metadata:await f.read(),provider_identities:[{provider:'emailpass',provider_metadata:{}}]}),update:async(email,data)=>{assert.equal(email,f.req.body.email);storedHash=data.provider_metadata.password;return service.retrieve()}}
+ assert.equal((await auth.register({body:f.req.body},service)).success,false)
+ await releaseDeletedCustomerIdentity(f.req)
+ assert.equal((await auth.register({body:f.req.body},service)).success,true)
+ assert.equal(typeof storedHash,'string');assert.notEqual(storedHash,f.req.body.password)
+})

@@ -42,3 +42,12 @@ initialization. Transient backend errors do not clear a valid saved session.
 Browser scenarios use an isolated API fixture and simulated CAPTCHA. They do not
 send real emails or create production accounts/orders. PostgreSQL integration tests
 cover identity reclamation and real Medusa password hashing/authentication.
+
+## Responsive browser checks
+
+63 page/viewport combinations were checked in Chromium: catalog, product, cart,
+checkout, registration, login and password recovery at 1920×1080, 2560×1440,
+320×568, 360×780, 375×667, 390×844, 412×915, 430×932 and 768×1024.
+Mobile contexts emulate touch and device pixel density. These are browser
+emulations, not tests on physical phones or Safari/WebKit. No horizontal overflow,
+broken images or page runtime errors were observed in this matrix.

@@ -156,7 +156,9 @@
       "successTitle": "Password changed",
       "successHint": "You can now sign in using your new password.",
       "used": "This code has already been used. Try signing in or request a new code.",
-      "failed": "Unable to reset your password. Please try again."
+      "failed": "Unable to reset your password. Please try again.",
+      "changeEmail": "Change email",
+      "codeLabel": "Password reset code"
     }
   },
   "account": {

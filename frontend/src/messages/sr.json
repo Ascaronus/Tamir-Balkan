@@ -156,7 +156,9 @@
       "successTitle": "Lozinka je promenjena",
       "successHint": "Sada se možete prijaviti novom lozinkom.",
       "used": "Ovaj kod je već iskorišćen. Pokušajte da se prijavite ili zatražite novi kod.",
-      "failed": "Promena lozinke nije uspela. Pokušajte ponovo."
+      "failed": "Promena lozinke nije uspela. Pokušajte ponovo.",
+      "changeEmail": "Promeni email",
+      "codeLabel": "Kod za promenu lozinke"
     }
   },
   "account": {

@@ -65,7 +65,7 @@ export function PasswordResetForm({ countryCode }: { countryCode: string }) {
       })
     }}>
       {!challenge ? <label className="grid gap-2 text-sm">{t("auth.login.email")}<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded border px-3" /></label> : <>
-        <label className="grid gap-2 text-sm">{t("auth.code.label")}<input autoFocus autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" required maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} className="h-12 rounded border px-3 text-center text-xl tracking-[.3em]" /></label>
+        <label className="grid gap-2 text-sm">{t("auth.reset.codeLabel")}<input autoFocus autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" required maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} className="h-12 rounded border px-3 text-center text-xl tracking-[.3em]" /></label>
         <label className="grid gap-2 text-sm">{t("auth.reset.newPassword")}<input type="password" autoComplete="new-password" required minLength={8} maxLength={256} value={password} onChange={e => setPassword(e.target.value)} className="h-12 rounded border px-3" /></label>
         <label className="grid gap-2 text-sm">{t("auth.reset.confirmPassword")}<input type="password" autoComplete="new-password" required minLength={8} maxLength={256} value={confirmation} onChange={e => setConfirmation(e.target.value)} className="h-12 rounded border px-3" /></label>
         <p className="text-xs text-[var(--store-text-muted)]">{t("auth.reset.passwordHint")}</p>
@@ -73,7 +73,7 @@ export function PasswordResetForm({ countryCode }: { countryCode: string }) {
       {error && <p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button type="submit" disabled={busy || Boolean(challenge && code.length !== 6)} className="button-primary w-full disabled:opacity-50">{t(busy ? "auth.reset.working" : challenge ? "auth.reset.save" : "auth.code.send")}</button>
       {challenge && <><button type="button" disabled={busy || seconds > 0} className="min-h-12 text-sm underline disabled:opacity-50" onClick={() => void run(send)}>{seconds ? t("auth.code.resendWait", { n: seconds }) : t("auth.code.resend")}</button>
-        <button type="button" disabled={busy} className="min-h-10 text-sm underline" onClick={() => { setChallenge(null); setCode(""); setError("") }}>{t("auth.code.edit")}</button></>}
+        <button type="button" disabled={busy} className="min-h-10 text-sm underline" onClick={() => { setChallenge(null); setCode(""); setError("") }}>{t("auth.reset.changeEmail")}</button></>}
       <Link className="py-2 text-center text-sm underline" href={`/${countryCode}/account/login`}>{t("auth.register.signInLink")}</Link>
     </form>{captcha}</div>
 }
