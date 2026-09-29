@@ -8,11 +8,11 @@ import { listReviews, reviewRequest, reviewErrorKey, type Review, type ReviewLis
 import { reviewCollapsed } from "@/lib/reviews/rating"
 import { Stars, ReviewIcon, Thumb } from "./Stars"
 
-export function ProductReviews({ productId, initial }: { productId: string; initial: Summary | null }) {
+export function ProductReviews({ productId, initial, initialReviews = null }: { productId: string; initial: Summary | null; initialReviews?: ReviewList | null }) {
   const { t, locale } = useLocaleContext()
   const { customer, isReady } = useAuth()
   const [open, setOpen] = useState(true)
-  const [data, setData] = useState<ReviewList | null>(null)
+  const [data, setData] = useState<ReviewList | null>(initialReviews)
   const [summary, setSummary] = useState(initial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -122,7 +122,7 @@ function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; sig
       <button type="button" disabled={!signedIn || review.voted || busy} title={t(!signedIn ? "reviews.loginRequired" : review.voted ? "reviews.voted" : "reviews.unhelpful")} aria-label={t("reviews.unhelpful")} className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-[var(--store-border)] disabled:opacity-40" onClick={() => void vote(-1)}><Thumb down /></button>
     </div>
     <div className="min-w-0 flex-1 text-sm">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="font-medium break-words">{review.name}</span><Stars rating={review.rating} emptyLabel={t("reviews.noRatings")} /><time className="text-xs text-[var(--store-text-muted)]" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB")}</time></div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="font-medium break-words">{review.name}</span><Stars rating={review.rating} emptyLabel={t("reviews.noRatings")} /><time className="text-xs text-[var(--store-text-muted)]" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB", { timeZone: "Europe/Belgrade", year: "numeric", month: "2-digit", day: "2-digit" })}</time></div>
       {collapsed && negative && <p className="mt-2 text-xs text-[var(--store-text-muted)]">{t("reviews.hiddenNegative", { n: review.score })}</p>}
       <p id={`review-body-${review.id}`} hidden={collapsed} className="review-reveal mt-2 whitespace-pre-wrap break-words leading-relaxed">{review.body}</p>
       <button type="button" className="mt-1 min-h-8 text-xs underline" aria-expanded={!collapsed} aria-controls={`review-body-${review.id}`} onClick={() => setExpanded(collapsed)}>{t(collapsed ? "reviews.expandOne" : "reviews.collapseOne")}</button>

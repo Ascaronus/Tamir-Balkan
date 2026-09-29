@@ -1,5 +1,6 @@
 "use client"
 
+import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { getAuthToken } from "@/lib/auth/auth-storage"
@@ -98,6 +99,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
     <div className="product-summary">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
       <div className="mt-4">{ratingSummary}</div>
+      {productBrand(product.metadata) && <p className="mt-2 break-words text-sm text-[var(--store-text-muted)]">{t("product.brand")}: {productBrand(product.metadata)}</p>}
       {variant?.sku && <p className="mt-2 text-xs text-[var(--store-text-muted)]">SKU: {variant.sku}</p>}
       <p className="product-price mt-6 font-semibold">{variant?.calculated_price ? formatMoney(variantAmount(variant.calculated_price), variant.calculated_price.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB") : t("product.priceOnRequest")}</p>
       {(product.options ?? []).map(option => <fieldset key={option.id} className="mt-6"><legend className="text-sm font-semibold">{optionLabel(option.title, locale)}{isColorOption(option.title) && selectedOptions[option.id] ? `: ${selectedOptions[option.id]}` : ""}</legend><div className="mt-2 flex flex-wrap gap-2">

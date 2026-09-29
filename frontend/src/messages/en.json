@@ -274,7 +274,8 @@
     "alreadyInCart": "Already in cart: {n}",
     "adding": "Adding…",
     "added": "Added to cart — view cart",
-    "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again."
+    "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again.",
+    "brand": "Brand"
   },
   "lang": {
     "sr": "Serbian",

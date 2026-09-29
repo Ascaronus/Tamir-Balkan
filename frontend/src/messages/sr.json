@@ -274,7 +274,8 @@
     "alreadyInCart": "Već u korpi: {n}",
     "adding": "Dodavanje…",
     "added": "Dodato u korpu — otvori korpu",
-    "addFailed": "Nije moguće dodati ovu količinu. Stanje se možda promenilo. Osvežite stranicu i pokušajte ponovo."
+    "addFailed": "Nije moguće dodati ovu količinu. Stanje se možda promenilo. Osvežite stranicu i pokušajte ponovo.",
+    "brand": "Brend"
   },
   "lang": {
     "sr": "Srpski",
