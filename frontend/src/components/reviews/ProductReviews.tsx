@@ -116,15 +116,15 @@ function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; sig
     finally { lock.current = false; setBusy(false) }
   }
   return <article className="flex gap-3 rounded border border-[var(--store-border)] p-4 sm:gap-4">
-    <div className="flex w-9 shrink-0 flex-col items-center gap-1 text-xs text-[var(--store-text-muted)]" aria-label={t("reviews.helpfulness")}>
+    <div className="review-actions flex w-11 shrink-0 flex-col items-center gap-1 text-xs text-[var(--store-text-muted)]" aria-label={t("reviews.helpfulness")}>
       <button type="button" disabled={!signedIn || review.voted || busy} title={t(!signedIn ? "reviews.loginRequired" : review.voted ? "reviews.voted" : "reviews.helpful")} aria-label={t("reviews.helpful")} className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-[var(--store-border)] disabled:opacity-40" onClick={() => void vote(1)}><Thumb /></button>
       <span className="font-medium tabular-nums" aria-live="polite">{review.score > 0 ? "+" : ""}{review.score}</span>
       <button type="button" disabled={!signedIn || review.voted || busy} title={t(!signedIn ? "reviews.loginRequired" : review.voted ? "reviews.voted" : "reviews.unhelpful")} aria-label={t("reviews.unhelpful")} className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-[var(--store-border)] disabled:opacity-40" onClick={() => void vote(-1)}><Thumb down /></button>
     </div>
-    <div className="min-w-0 flex-1 text-sm">
+    <div className="review-copy min-w-0 flex-1 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="font-medium break-words">{review.name}</span><Stars rating={review.rating} emptyLabel={t("reviews.noRatings")} /><time className="text-xs text-[var(--store-text-muted)]" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB", { timeZone: "Europe/Belgrade", year: "numeric", month: "2-digit", day: "2-digit" })}</time></div>
       {collapsed && negative && <p className="mt-2 text-xs text-[var(--store-text-muted)]">{t("reviews.hiddenNegative", { n: review.score })}</p>}
-      <p id={`review-body-${review.id}`} hidden={collapsed} className="review-reveal mt-2 whitespace-pre-wrap break-words leading-relaxed">{review.body}</p>
+      <p id={`review-body-${review.id}`} hidden={collapsed} className="review-body review-reveal mt-2 whitespace-pre-wrap break-words leading-relaxed">{review.body}</p>
       <button type="button" className="mt-1 min-h-8 text-xs underline" aria-expanded={!collapsed} aria-controls={`review-body-${review.id}`} onClick={() => setExpanded(collapsed)}>{t(collapsed ? "reviews.expandOne" : "reviews.collapseOne")}</button>
       <div className="mt-2 flex items-center gap-3 text-xs text-[var(--store-text-muted)]"><span className="inline-flex items-center gap-1" aria-label={`${t("reviews.helpful")}: ${review.up}`}><Thumb /> {review.up}</span><span className="inline-flex items-center gap-1" aria-label={`${t("reviews.unhelpful")}: ${review.down}`}><Thumb down /> {review.down}</span>{review.voted && <span>{t("reviews.voted")}</span>}</div>
       {error && <p role="alert" className="mt-1 text-xs text-red-700">{t(error)}</p>}

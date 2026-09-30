@@ -21,10 +21,11 @@ export function catalogParams(selection: CatalogSelection) {
   if (selection.page > 1) params.set("page", String(selection.page))
   return params
 }
-export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { token?: string | null; signal?: AbortSignal }): Promise<CatalogResult> {
+export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { token?: string | null; signal?: AbortSignal; limit?: number }): Promise<CatalogResult> {
+  const limit = Math.max(1, Math.min(24, Math.floor(options?.limit ?? 24)))
   const query = catalogParams(selection)
   query.delete("page")
-  query.set("region_id", regionId); query.set("country_code", "rs"); query.set("limit", "24"); query.set("offset", String((selection.page - 1) * 24))
+  query.set("region_id", regionId); query.set("country_code", "rs"); query.set("limit", String(limit)); query.set("offset", String((selection.page - 1) * limit))
   // Repeated size/color parameters deliberately preserve decimal sizes such as 42,5.
   return sdk.client.fetch<CatalogResult>(`/store/catalog/products?${query}`, { method: "GET", cache: "no-store", signal: options?.signal, headers: { "x-medusa-locale": medusaStoreLocale(locale), ...(options?.token ? { authorization: `Bearer ${options.token}` } : {}) } })
 }

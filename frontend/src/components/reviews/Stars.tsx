@@ -1,9 +1,10 @@
 import { displayRating, starFill } from "@/lib/reviews/rating"
 
-export function Stars({ rating, count, emptyLabel }: { rating: number; count?: number; emptyLabel: string }) {
+export function Stars({ rating, count, emptyLabel, compact = false }: { rating: number; count?: number; emptyLabel: string; compact?: boolean }) {
   const value = count === 0 ? 0 : displayRating(rating)
-  return <span className="inline-flex flex-wrap items-center gap-1.5 text-xs text-[var(--store-text-muted)]">
-    <span aria-hidden="true" className="inline-flex gap-0.5">
+  return <span className={`rating${compact ? " rating-compact" : ""}`}>
+    {compact && <span aria-hidden="true" className="rating-compact-icon" style={{ opacity: value ? 1 : 0.3 }}><Star className="h-4 w-4" /></span>}
+    <span aria-hidden="true" className="rating-stars inline-flex gap-0.5">
       {[0, 1, 2, 3, 4].map(index => <span key={index} className="relative inline-block h-3.5 w-3.5">
         <Star className="absolute inset-0 h-full w-full text-stone-200" />
         <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${starFill(value, index)}%` }}>

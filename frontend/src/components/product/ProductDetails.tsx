@@ -80,14 +80,14 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
   }
   function moveImage(delta: number) { setImageIndex((activeIndex + delta + images.length) % images.length) }
   return <div className="product-layout">
-    <div className="min-w-0">
+    <div className={`product-gallery${images.length > 1 ? "" : " product-gallery-single"}`}>
       <button type="button" disabled={!hero} onClick={() => dialog.current?.showModal()} aria-label={t("product.zoom")}
         onPointerMove={event => { if (event.pointerType === "mouse") { const r = event.currentTarget.getBoundingClientRect(); setOrigin(`${(event.clientX - r.left) / r.width * 100}% ${(event.clientY - r.top) / r.height * 100}%`) } }}
         className="group relative block product-hero w-full cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
-        <div className="h-full w-full transition-transform duration-200 [@media(hover:hover)]:group-hover:scale-[1.8]" style={{ transformOrigin: origin }}><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
+        <div className="h-full w-full transition-transform duration-200 [@media(hover:hover)]:group-hover:scale-[1.8]" style={{ transformOrigin: origin }}><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-cover" /></div>
       </button>
-      {images.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-2" aria-label={t("product.photos")}>
-        {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className={`h-24 w-20 shrink-0 overflow-hidden rounded border-2 ${index === activeIndex ? "border-[var(--store-accent)]" : "border-transparent"}`}><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
+      {images.length > 1 && <div className="product-thumbnails" aria-label={t("product.photos")}>
+        {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className="product-thumbnail"><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
       </div>}
       <dialog ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
         <div className="flex h-full flex-col"><div className="flex items-center justify-between gap-4"><span>{activeIndex + 1} / {images.length}</span><button type="button" onClick={() => dialog.current?.close()} className="rounded border px-4 py-2">{t("common.close")}</button></div>
@@ -128,9 +128,9 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable || (remaining !== undefined && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="button-primary mt-4 w-full disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
       <div className="mt-3 min-h-6 text-sm" aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "error" && <span role="alert" className="text-red-700">{t("product.addFailed")}</span>}</div>
       {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
-      <p className="mt-6 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
+      <details className="product-policy"><summary>{t("design.delivery")} / {t("design.returns")}</summary><p className="text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
       <p className="mt-1 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.defectReturnTerms")}</p>
-      <Link href="/terms" className="product-details-link mt-3">{t("design.delivery")} / {t("design.returns")} →</Link>
+      <Link href="/terms" className="product-details-link mt-3">{t("design.delivery")} / {t("design.returns")} →</Link></details>
       <Link href="/rs/catalog" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>
     </div>
   </div>

@@ -13,6 +13,7 @@ import { notFound } from "next/navigation"
 import { listProductsByCountry } from "@/lib/store/products"
 import { StoreShell } from "@/components/store/StoreShell"
 import { getTranslations } from "@/lib/i18n/server"
+import { RelatedProducts } from "@/components/product/RelatedProducts"
 import { ProductDetails } from "@/components/product/ProductDetails"
 
 const getProduct = cache(async (handle: string, locale: Locale) => {
@@ -54,6 +55,6 @@ export default async function ProductPage({ params, searchParams }: {
   return <StoreShell countryCode="rs">
     {structuredData && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }} />}
     <nav className="store-container pt-8 text-xs text-[var(--store-text-muted)]"><Link href="/rs/catalog">{t("product.catalog")}</Link></nav>
-    <div className="page-content"><ProductDetails key={product.id} product={product} ratingSummary={<Link href="#reviews" className="inline-flex flex-wrap items-center gap-2 text-xs"><ReviewIcon />{reviewSummary ? <><Stars rating={reviewSummary.rating} count={reviewSummary.count} emptyLabel={t("reviews.noRatings")} /><span>· {t("reviews.count", { n: reviewSummary.count })}</span></> : t("reviews.title")}</Link>} initialVariantId={(await searchParams).v_id} /><ProductReviews key={product.id} productId={product.id} initial={reviewSummary} initialReviews={reviews} /></div>
+    <div className="page-content product-page"><ProductDetails key={product.id} product={product} ratingSummary={<Link href="#reviews" className="inline-flex flex-wrap items-center gap-2 text-xs"><ReviewIcon />{reviewSummary ? <><Stars rating={reviewSummary.rating} count={reviewSummary.count} emptyLabel={t("reviews.noRatings")} /><span>· {t("reviews.count", { n: reviewSummary.count })}</span></> : t("reviews.title")}</Link>} initialVariantId={(await searchParams).v_id} /><ProductReviews key={product.id} productId={product.id} initial={reviewSummary} initialReviews={reviews} /><RelatedProducts productId={product.id} /></div>
   </StoreShell>
 }

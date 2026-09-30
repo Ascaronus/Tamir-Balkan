@@ -4,16 +4,12 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
-import { Stars, ReviewIcon } from "@/components/reviews/Stars"
 import { getAuthToken } from "@/lib/auth/auth-storage"
-import { catalogParams, catalogSorts, colorSwatch, fetchCatalog, isColorOption, type CatalogResult, type CatalogSelection } from "@/lib/store/catalog"
-import { formatMoney } from "@/lib/format-money"
-import { localizedText } from "@/lib/i18n/content"
-import { getStoreProductImageUrl } from "@/lib/product-image"
+import { catalogParams, catalogSorts, fetchCatalog, type CatalogResult, type CatalogSelection } from "@/lib/store/catalog"
 import { reviewSummaries } from "@/lib/reviews/server"
 import type { Summary } from "@/lib/reviews/client"
+import { ProductCard } from "./ProductCard"
 import { CatalogFilters } from "./CatalogFilters"
-import { ProductImage } from "./ProductImage"
 
 export function CatalogClient({ initial, selection, regionId, title, summaries: initialSummaries }: { initial: CatalogResult | null; selection: CatalogSelection; regionId: string; title: string; summaries: Record<string, Summary> | null }) {
   const { t, locale } = useLocaleContext()
@@ -47,17 +43,7 @@ export function CatalogClient({ initial, selection, regionId, title, summaries: 
     <div className="catalog-heading"><div><h1>{title}</h1><p className="mt-4 text-xs text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p></div></div>
     <label className="catalog-sort"><span className="sr-only">{t("design.sort")}</span><select value={selection.sort} onChange={e => startTransition(() => router.push(`/rs/catalog?${catalogParams({ ...selection, sort: e.target.value as CatalogSelection["sort"], page: 1 })}`, { scroll: false }))}>{catalogSorts.map(sort => <option key={sort} value={sort}>{t(`design.sorts.${sort}`)}</option>)}</select></label>
     <div className="catalog-results">
-      {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs/catalog" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{data.products.map(product => {
-        const title = localizedText(product, "title", product.title, locale)
-        const variant = product.catalog.preferred_variant_id
-        const href = `/rs/products/${encodeURIComponent(product.handle)}${variant ? `?v_id=${encodeURIComponent(variant)}` : ""}`
-        const colors = [...new Set(product.options?.filter(o => isColorOption(o.title)).flatMap(o => o.values?.map(v => v.value) ?? []))]
-        return <li key={product.id} className="product-card"><Link className="product-card-image" href={href}><ProductImage src={getStoreProductImageUrl(product)} alt={title} className="h-full w-full object-contain" /></Link><Link href={href} className="product-card-title">{title}</Link>
-          <Link className="product-card-rating" href={`${href}#reviews`} aria-label={t("reviews.show")}><ReviewIcon />{summaries ? <><Stars rating={summaries[product.id]?.rating ?? 0} count={summaries[product.id]?.count ?? 0} emptyLabel={t("reviews.noRatings")} /><span>· {summaries[product.id]?.count ?? 0}</span></> : t("reviews.title")}</Link>
-          {colors.length > 0 && <div className="product-card-colors">{colors.slice(0, 6).map(color => colorSwatch(color) ? <span key={color} title={color} aria-label={color} className="color-mini" style={{ backgroundColor: colorSwatch(color) }} /> : <span key={color} className="text-xs text-[var(--store-text-muted)]">{color}</span>)}</div>}
-          <p className="product-card-price">{product.catalog.price === null ? t("catalog.priceOnRequest") : formatMoney(product.catalog.price, product.catalog.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB")}</p>
-        </li>
-      })}</ul>}
+      {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs/catalog" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{data.products.map(product => <ProductCard key={product.id} product={product} summary={summaries ? summaries[product.id] ?? { rating: 0, count: 0 } : null} />)}</ul>}
       {!error && pages > 1 && <nav className="catalog-pagination" aria-label={t("catalog.page", { n: selection.page, total: pages })}>{selection.page > 1 && <Link className="button-secondary" href={`/rs/catalog?${catalogParams({ ...selection, page: Math.min(selection.page - 1, pages) })}`}>{t("common.previous")}</Link>}<span>{t("catalog.page", { n: selection.page, total: pages })}</span>{selection.page < pages && <Link className="button-secondary" href={`/rs/catalog?${catalogParams({ ...selection, page: selection.page + 1 })}`}>{t("common.next")}</Link>}</nav>}
     </div>
   </section>

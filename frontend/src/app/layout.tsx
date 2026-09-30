@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
 import { CookieConsent } from "@/components/privacy/CookieConsent"
-import { Inter } from "next/font/google"
+import { Manrope } from "next/font/google"
 import { LocaleProvider } from "@/components/i18n/LocaleProvider"
 import { getLocale } from "@/lib/i18n/server"
 import { getMessages } from "@/lib/i18n/messages"
 import "./globals.css"
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "cyrillic"],
+const manrope = Manrope({
+  variable: "--font-manrope",
+  subsets: ["latin", "latin-ext", "cyrillic"],
 })
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,7 +32,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${inter.variable} h-full antialiased`}
+      className={`${manrope.variable} h-full antialiased`}
     >
 
       <body className="min-h-full font-sans">
