@@ -118,7 +118,7 @@ body {
 .product-card-title { font-size: 18px; line-height: 28px; min-height: 56px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .product-card-rating { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; color: var(--store-text-muted); font-size: 14px; min-height: 20px; }
 .product-card-colors { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.color-mini { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12); }
+.color-mini { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .28), 0 0 0 2px var(--store-bg); }
 .product-card-price { font-size: 24px; font-weight: 600; line-height: 32px; overflow-wrap: anywhere; margin-top: auto; }
 .catalog-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; font-size: 14px; margin-top: 32px; }
 .empty-state { padding: 48px 24px; background: var(--store-bg-muted); text-align: center; }
