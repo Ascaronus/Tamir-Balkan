@@ -117,7 +117,12 @@ body {
 @media (hover: hover) { .product-card-image:hover img { transform: scale(1.04); } }
 .product-card-title { font-size: 18px; line-height: 28px; min-height: 56px; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .product-card-rating { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; color: var(--store-text-muted); font-size: 14px; min-height: 20px; }
-.product-card-colors { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.product-card-colors { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.product-card-color-link { display: inline-flex; align-items: center; justify-content: center; position: relative; min-width: 44px; min-height: 44px; border-radius: 4px; padding: 4px; font-size: 13px; }
+.product-card-color-link:not(.unavailable):hover { background: var(--store-bg-muted); }
+.product-card-color-link:focus-visible { outline: 2px solid var(--store-accent); outline-offset: 1px; }
+.product-card-color-link:not(.unavailable):hover .color-mini { outline: 1.5px solid var(--store-accent); outline-offset: 3px; }
+.product-card-color-link.unavailable { opacity: .45; }
 .color-mini { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .28), 0 0 0 2px var(--store-bg); }
 .product-card-price { font-size: 24px; font-weight: 600; line-height: 32px; overflow-wrap: anywhere; margin-top: auto; }
 .catalog-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; font-size: 14px; margin-top: 32px; }
