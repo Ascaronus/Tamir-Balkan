@@ -31,6 +31,18 @@ export async function fetchCatalog(selection: CatalogSelection, regionId: string
 }
 export function colorSwatch(value: string): string | undefined {
   const colors: Record<string, string> = { black: "#0a0a0a", crna: "#0a0a0a", черный: "#0a0a0a", white: "#ffffff", bela: "#ffffff", белый: "#ffffff", navy: "#1b2b44", tamnoplava: "#1b2b44", blue: "#335d8a", plava: "#335d8a", gray: "#777777", grey: "#777777", siva: "#777777", beige: "#bba88a", bež: "#bba88a", bez: "#bba88a", brown: "#72513d", braon: "#72513d", green: "#546748", zelena: "#546748", red: "#9c3333", crvena: "#9c3333" }
-  return colors[value.trim().toLowerCase()]
+  const normalized = value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[ _-]/g, "")
+  const aliases: Record<string, string> = {
+    crno: "black", crni: "black", црна: "black", црни: "black", черныи: "black", чорний: "black",
+    belo: "white", beli: "white", bijela: "white", бела: "white", бели: "white", белыи: "white",
+    darkblue: "navy", navyblue: "navy", teget: "navy", tamnoplavi: "navy", тамноплава: "navy",
+    plavo: "blue", plavi: "blue", плава: "blue", синии: "blue",
+    greay: "gray", sivo: "gray", sivi: "gray", сива: "gray", серыи: "gray",
+    bez: "beige", беж: "beige", bezh: "beige", браон: "brown", braon: "brown",
+    zeleno: "green", zeleni: "green", зелена: "green", crveno: "red", crveni: "red", црвена: "red",
+  }
+  const extra: Record<string, string> = { lightgray: "#b8b8b8", svetlosiva: "#b8b8b8", darkgray: "#474747", tamnosiva: "#474747", lightblue: "#9cbed8", svetloplava: "#9cbed8", pink: "#d797af", roze: "#d797af", burgundy: "#6d263c", bordo: "#6d263c", yellow: "#dbc56a", zuta: "#dbc56a", orange: "#d28a47", narandzasta: "#d28a47", purple: "#765578", ljubicasta: "#765578", olive: "#77764e", maslinasta: "#77764e", khaki: "#999577", cream: "#efe7d2", krem: "#efe7d2" }
+  if (/^#[0-9a-f]{6}$/i.test(value.trim())) return value.trim()
+  return colors[aliases[normalized] || normalized] || extra[normalized]
 }
 export function isColorOption(title: string) { return /^(color|colour|boja|боја|цвет|колір)$/i.test(title.trim()) }

@@ -24,19 +24,7 @@ type AuthContextValue = {
   isLoggedIn: boolean
   refresh: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
-  signup: (params: {
-    email: string
-    password: string
-    first_name: string
-    last_name: string
-    phone: string
-    notes?: string
-    country_code: string
-    city?: string
-    challenge_id: string
-    code: string
-    postal_code: string
-  }) => Promise<void>
+  signup: (params: Parameters<typeof signupApi>[0]) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -83,19 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refresh])
 
-  const signup = useCallback(async (params: {
-    email: string
-    password: string
-    first_name: string
-    last_name: string
-    phone: string
-    notes?: string
-    country_code: string
-    city?: string
-    challenge_id: string
-    code: string
-    postal_code: string
-  }) => {
+  const signup = useCallback(async (params: Parameters<typeof signupApi>[0]) => {
     setIsMutating(true)
     try {
       const created = await signupApi(params)

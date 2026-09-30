@@ -159,6 +159,26 @@
       "failed": "Unable to reset your password. Please try again.",
       "changeEmail": "Change email",
       "codeLabel": "Password reset code"
+    },
+    "validation": {
+      "required": "Please fill in this field.",
+      "name": "Enter a valid name.",
+      "email": "Enter an email such as name@example.com.",
+      "phone": "Enter a phone number with country code, e.g. +381 64 123 4567.",
+      "password": "Use between 8 and 256 characters.",
+      "postalCode": "Enter a 5-digit postal code.",
+      "length": "This text is too long.",
+      "consent": "Please accept the terms and acknowledge the privacy policy.",
+      "chooseCity": "Choose a city",
+      "otherCity": "Another city / settlement",
+      "cityName": "City / settlement name",
+      "show": "Show",
+      "hide": "Hide",
+      "passwordHint": "At least 8 characters. Your password is hidden by default.",
+      "agree": "I accept the",
+      "terms": "terms of use",
+      "and": "and acknowledge the",
+      "privacy": "privacy policy"
     }
   },
   "account": {

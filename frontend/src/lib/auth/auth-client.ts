@@ -66,6 +66,7 @@ export async function signup(params: {
   country_code: string
   city?: string
   postal_code: string
+  terms_accepted: boolean
 }) {
   const email = params.email.trim().toLowerCase()
   await sdk.client.fetch("/store/registration/verify", { method: "POST", body: { ...params, email }, cache: "no-store" })

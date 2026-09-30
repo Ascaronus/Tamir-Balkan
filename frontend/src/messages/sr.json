@@ -159,6 +159,26 @@
       "failed": "Promena lozinke nije uspela. Pokušajte ponovo.",
       "changeEmail": "Promeni email",
       "codeLabel": "Kod za promenu lozinke"
+    },
+    "validation": {
+      "required": "Popunite ovo polje.",
+      "name": "Unesite ispravno ime.",
+      "email": "Unesite email, na primer ime@primer.com.",
+      "phone": "Unesite telefon sa pozivnim brojem, npr. +381 64 123 4567.",
+      "password": "Koristite između 8 i 256 znakova.",
+      "postalCode": "Unesite poštanski broj od 5 cifara.",
+      "length": "Tekst je predugačak.",
+      "consent": "Prihvatite uslove korišćenja i potvrdite da ste pročitali politiku privatnosti.",
+      "chooseCity": "Izaberite grad",
+      "otherCity": "Drugi grad / naselje",
+      "cityName": "Naziv grada / naselja",
+      "show": "Prikaži",
+      "hide": "Sakrij",
+      "passwordHint": "Najmanje 8 znakova. Lozinka je podrazumevano skrivena.",
+      "agree": "Prihvatam",
+      "terms": "uslove korišćenja",
+      "and": "i potvrđujem da sam pročitao/la",
+      "privacy": "politiku privatnosti"
     }
   },
   "account": {

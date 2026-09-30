@@ -25,7 +25,10 @@ function FilterForm({ filters, selection, onApply }: { filters: CatalogResult["f
   }}>
     <h2 className="filter-heading">{t("sidebar.title")}</h2><CategoryNavigation activeId={selection.category_id} onNavigate={onApply} />
     <fieldset><legend>{t("design.color")}</legend><div className="flex flex-wrap gap-1">
-      {available(filters.colors, selection.color).map(item => { const color = colorSwatch(item.label); return <label key={item.value} className={color ? "color-choice" : "text-choice"} title={`${item.label} (${item.count})`}><input type="checkbox" name="color" value={item.value} defaultChecked={selection.color.includes(item.value)} /><span className={color ? "color-dot" : "size-chip"} style={color ? { backgroundColor: color } : undefined}>{color ? <span className="sr-only">{item.label}</span> : item.label}</span></label> })}
+      {available(filters.colors, selection.color).map(item => {
+        const color = colorSwatch(item.label) || colorSwatch(item.value)
+        return <label key={item.value} className="catalog-color-choice"><input type="checkbox" name="color" value={item.value} defaultChecked={selection.color.includes(item.value)} />{color && <span className="color-dot" aria-hidden="true" style={{ backgroundColor: color }} />}<span>{item.label}</span><span className="sr-only"> ({item.count})</span></label>
+      })}
       {!filters.colors.length && !selection.color.length && <p className="text-xs text-[var(--store-text-muted)]">{t("design.noOptions")}</p>}
     </div></fieldset>
     <fieldset><legend>{t("design.size")}</legend><div className="flex flex-wrap gap-2">{available(filters.sizes, selection.size).map(item => <label key={item.value} className="text-choice"><input type="checkbox" name="size" value={item.value} defaultChecked={selection.size.includes(item.value)} /><span className="size-chip">{item.label}</span></label>)}{!filters.sizes.length && !selection.size.length && <p className="text-xs text-[var(--store-text-muted)]">{t("design.noOptions")}</p>}</div></fieldset>

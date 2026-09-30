@@ -4,6 +4,7 @@ import {load,hooks,find} from '../test-support/component-harness.mjs'
 test('signup waits for code, shows prominent spam reminder and cooldown, then activates and redirects',async()=>{
  const h=hooks();let requests=0,signups=0,redirect,submitted
  const c=load('frontend/src/components/auth/RegisterForm.tsx',{
+  '@/lib/auth/registration-fields':load('frontend/src/lib/auth/registration-fields.ts'),
   react:h.react,'next/link':'Link','next/navigation':{useRouter:()=>({push:path=>redirect=path})},
   '@/components/security/Captcha':{useCaptcha:()=>({requestCaptcha:async()=> 'captcha',captcha:null})},
   '@/lib/reviews/client':{reviewErrorKey:()=> 'error'},
@@ -13,7 +14,11 @@ test('signup waits for code, shows prominent spam reminder and cooldown, then ac
  },{window:{setInterval:()=>1,clearInterval(){}}})
  const render=()=>h.render(()=>c.RegisterForm({countryCode:'rs'}))
  let tree=render()
- find(tree,n=>n.type==='input'&&n.props.type==='email').props.onChange({target:{value:'TEST@example.test'}})
+ await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}})
+ assert.equal(requests,0,'invalid profile must not request CAPTCHA/email')
+ tree=render()
+ for(const [name,value] of Object.entries({firstName:'Igor',lastName:'Test',email:'TEST@example.test',phone:'0641234567',postalCode:'11000',password:'test-password'})) find(tree,n=>n.type==='input'&&n.props.name===name).props.onChange({target:{value}})
+ find(tree,n=>n.type==='input'&&n.props.name==='consent').props.onChange({target:{checked:true}})
  tree=render();await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}});tree=render()
  assert.equal(requests,1);assert.equal(signups,0);assert.equal(redirect,undefined)
  const spam=find(tree,n=>n.type==='aside'&&n.props.role==='note')
@@ -21,6 +26,7 @@ test('signup waits for code, shows prominent spam reminder and cooldown, then ac
  assert.equal(find(tree,n=>n.type==='button'&&n.props.children==='auth.code.resendWait').props.disabled,true)
  find(tree,n=>n.type==='input'&&n.props.autoComplete==='one-time-code').props.onChange({target:{value:'12ab3456'}})
  tree=render();await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}})
+ assert.equal(submitted.terms_accepted,true);assert.equal(submitted.phone,'+381641234567');
  assert.equal(signups,1);assert.equal(submitted.code,'123456');assert.equal(submitted.challenge_id,'challenge')
  assert.equal(redirect,'/rs/account')
 })

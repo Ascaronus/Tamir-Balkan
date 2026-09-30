@@ -12,6 +12,7 @@ export function registrationProfile(body: Record<string, unknown>) {
     if (typeof value !== "string" || !value.trim() || value.length > max || /[\x00-\x1f]/.test(value)) throw new ReviewError(400, "REGISTRATION_INVALID")
     return value.trim()
   }
+  if (body.terms_accepted !== true) throw new ReviewError(400, "REGISTRATION_INVALID")
   const password = body.password
   if (typeof password !== "string" || password.length < 8 || password.length > 256) throw new ReviewError(400, "REGISTRATION_INVALID")
   const first_name = field("first_name", 60)
@@ -44,7 +45,7 @@ export async function activateRegistration(req: MedusaRequest, email: string, ch
   const { result } = await createCustomerAccountWorkflow(req.scope).run({ input: {
     authIdentityId: registered.authIdentity.id,
     customerData: { email, first_name: profile.first_name, last_name: profile.last_name, phone: profile.phone,
-      metadata: { notes: profile.notes || null, registration_challenge: challengeId, email_verified_at: new Date().toISOString() },
+      metadata: { terms_accepted_at: new Date().toISOString(), privacy_acknowledged_at: new Date().toISOString(), consent_version: "2026-09-30", notes: profile.notes || null, registration_challenge: challengeId, email_verified_at: new Date().toISOString() },
       addresses: [{ first_name: profile.first_name, last_name: profile.last_name, phone: profile.phone,
         address_1: "-", country_code: "rs", city: profile.city || undefined, postal_code: profile.postal_code,
         is_default_billing: true, is_default_shipping: true }],

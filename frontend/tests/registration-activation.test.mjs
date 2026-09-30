@@ -23,6 +23,8 @@ test('verified registration creates a new account with address and verification 
  assert.equal(input.authIdentityId,'auth_new')
  assert.equal(input.customerData.metadata.registration_challenge,'challenge')
  assert.ok(input.customerData.metadata.email_verified_at)
+ assert.ok(input.customerData.metadata.terms_accepted_at)
+ assert.ok(input.customerData.metadata.privacy_acknowledged_at)
  assert.equal(input.customerData.addresses[0].postal_code,'21000')
  assert.equal(input.customerData.password,undefined)
 })
@@ -35,4 +37,11 @@ test('lost successful response can be retried only for the same challenge and pa
  assert.equal(await s.run(),'existing');assert.deepEqual(s.calls,[])
  const wrong=setup({id:'existing',metadata:{registration_challenge:'challenge'}},false)
  await assert.rejects(wrong.run(),/ACCOUNT_EXISTS/);assert.deepEqual(wrong.calls,[])
+})
+test('server rejects registration without affirmative consent before creating an account',()=>{
+ const s=setup()
+ const body={password:'test-password',first_name:'Igor',last_name:'Test',phone:'+381641234567',postal_code:'11000',country_code:'rs'}
+ for(const terms_accepted of [undefined,false,'true',1]) assert.throws(()=>s.registrationProfile({...body,terms_accepted}),/REGISTRATION_INVALID/)
+ assert.equal(s.registrationProfile({...body,terms_accepted:true}).first_name,'Igor')
+ assert.deepEqual(s.calls,[])
 })
