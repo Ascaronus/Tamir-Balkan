@@ -79,13 +79,14 @@ body {
 .button-secondary { border: 1px solid var(--store-border); background: white; }
 .button-secondary:hover, .button-quiet:hover { background: var(--store-bg-muted); }
 .catalog-page { padding-block: 40px 64px; }
-.collection-banner { display: grid; grid-template-columns: 2fr 3fr; min-height: 248px; background: var(--store-bg-muted); margin-bottom: 40px; }
-.collection-copy { padding: 32px; align-self: center; }
+.collection-banner { position: relative; isolation: isolate; display: grid; grid-template-columns: 44% minmax(0, 1fr); min-height: clamp(320px, 26vw, 624px); background: #eeece8; margin-bottom: 40px; overflow: hidden; }
+.collection-copy { position: relative; z-index: 1; padding: clamp(24px, 2.5vw, 64px); align-self: center; }
 .collection-copy h2 { font-size: 48px; font-weight: 600; line-height: 1.17; letter-spacing: -.02em; }
 .collection-copy p { font-size: 24px; font-weight: 600; color: var(--store-text-muted); margin-block: 20px 16px; }
 .collection-copy a { min-width: 224px; }
-.collection-image { position: relative; min-height: 248px; overflow: hidden; }
-.collection-image img { object-fit: cover; }
+.collection-image { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.collection-image img { object-fit: cover; object-position: center top; }
+.collection-image::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgb(250 249 246 / .82), rgb(250 249 246 / .55) 32%, transparent 52%); pointer-events: none; }
 .catalog-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; column-gap: clamp(40px, 1.875vw, 48px); row-gap: 24px; scroll-margin-top: 24px; }
 .catalog-filter-desktop { grid-column: 1; grid-row: 1 / 4; }
 .catalog-heading { grid-column: 2; grid-row: 1; }
@@ -174,12 +175,14 @@ body {
   .desktop-language, .header-search, .header-categories { display: none; }
   .mobile-menu { display: inline-flex; }
   .catalog-page { padding-block: 28px; }
-  .collection-banner { display: flex; flex-direction: column; background: white; margin-bottom: 24px; gap: 24px; }
+  .collection-banner { display: flex; flex-direction: column; min-height: 0; background: white; margin-bottom: 24px; gap: 24px; }
   .collection-copy { padding: 0; align-self: stretch; }
   .collection-copy h2 { font-size: 32px; line-height: 40px; }
   .collection-copy p { font-size: 16px; line-height: 24px; margin: 20px 0 0; font-weight: 400; }
-  .collection-copy a { display: none; }
-  .collection-image { min-height: 168px; aspect-ratio: 342 / 168; }
+  .collection-copy a { display: inline-flex; min-width: 0; margin-top: 16px; }
+  .collection-image { position: relative; inset: auto; width: 100%; min-height: 0; aspect-ratio: 7 / 4; }
+  .collection-image img { object-position: right top; }
+  .collection-image::after { display: none; }
   .catalog-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 8px; }
   .catalog-heading { grid-column: 1 / -1; grid-row: 1; }
   .catalog-heading > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
