@@ -15,11 +15,10 @@ export function ShopHeader({ onOpenCatalog }: { countryCode?: "rs"; onOpenCatalo
     <div className="shop-header-row store-container">
       <div className="header-tools">
         <button type="button" onClick={onOpenCatalog} className="icon-button mobile-menu" aria-label={t("header.catalog")} aria-haspopup="dialog" aria-controls="store-sidebar"><DesignIcon name="menu" /></button>
-        <div className="desktop-language"><LanguageSwitcher /></div>
-        <form action="/rs/catalog" role="search" className="header-search"><button aria-label={t("catalog.search")}><DesignIcon name="search" /></button><input name="q" maxLength={200} placeholder={t("catalog.searchPlaceholder")} aria-label={t("catalog.search")} /></form>
+
       </div>
       <Link href="/" className="brand-link" aria-label={t("header.homeAria")}><Image src="/log.png" alt="TAMIR — Collection for men" width={139} height={78} sizes="(max-width: 900px) 94px, 120px" className="brand-logo" preload /></Link>
-      <div className="header-actions"><Link className="header-action" href={isLoggedIn ? "/rs/account" : "/rs/account/login"} aria-label={t("header.account")}><DesignIcon name="user" /><span className="header-action-label">{t("header.account")}</span></Link><Link href="/rs/cart" className="header-action" aria-label={t("header.cartAria")}><CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span></Link></div>
+      <div className="header-actions"><div className="header-language"><LanguageSwitcher /></div><Link className="header-action" href={isLoggedIn ? "/rs/account" : "/rs/account/login"} aria-label={t("header.account")}><DesignIcon name="user" /><span className="header-action-label">{t("header.account")}</span></Link><Link href="/rs/cart" className="header-action" aria-label={t("header.cartAria")}><CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span></Link></div>
     </div>
     <div className="header-categories"><CategoryNavigation horizontal /></div>
   </header>

@@ -10,6 +10,7 @@ import { reviewSummaries } from "@/lib/reviews/server"
 import type { Summary } from "@/lib/reviews/client"
 import { ProductCard } from "./ProductCard"
 import { CatalogFilters } from "./CatalogFilters"
+import { DesignIcon } from "./DesignIcon"
 
 export function CatalogClient({ initial, selection, regionId, title, summaries: initialSummaries }: { initial: CatalogResult | null; selection: CatalogSelection; regionId: string; title: string; summaries: Record<string, Summary> | null }) {
   const { t, locale } = useLocaleContext()
@@ -40,7 +41,16 @@ export function CatalogClient({ initial, selection, regionId, title, summaries: 
   const count = data?.count ?? 0
   return <section id="catalog-products" className="catalog-layout" aria-busy={loading || pending}>
     <CatalogFilters filters={data?.filters ?? emptyFilters} selection={selection} />
-    <div className="catalog-heading"><div><h1>{title}</h1><p className="mt-4 text-xs text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p></div></div>
+    <div className="catalog-heading"><h1>{title}</h1></div>
+    <form role="search" className="catalog-search" action="/rs/catalog" onSubmit={event => {
+      event.preventDefault()
+      const q = String(new FormData(event.currentTarget).get("q") ?? "").trim()
+      startTransition(() => router.push(`/rs/catalog?${catalogParams({ ...selection, q, page: 1 })}`, { scroll: false }))
+    }}>
+      <button type="submit" aria-label={t("catalog.search")}><DesignIcon name="search" /></button>
+      <input key={selection.q} type="search" name="q" maxLength={200} defaultValue={selection.q} placeholder={t("catalog.searchPlaceholder")} aria-label={t("catalog.search")} enterKeyHint="search" />
+    </form>
+    <p className="catalog-count text-sm text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p>
     <label className="catalog-sort"><span className="sr-only">{t("design.sort")}</span><select value={selection.sort} onChange={e => startTransition(() => router.push(`/rs/catalog?${catalogParams({ ...selection, sort: e.target.value as CatalogSelection["sort"], page: 1 })}`, { scroll: false }))}>{catalogSorts.map(sort => <option key={sort} value={sort}>{t(`design.sorts.${sort}`)}</option>)}</select></label>
     <div className="catalog-results">
       {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs/catalog" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{data.products.map(product => <ProductCard key={product.id} product={product} summary={summaries ? summaries[product.id] ?? { rating: 0, count: 0 } : null} />)}</ul>}

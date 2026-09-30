@@ -36,7 +36,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="flex items-center gap-0.5"
+      className="language-switcher flex items-center gap-0.5"
       role="group"
       aria-label={t("lang.label")}
     >
