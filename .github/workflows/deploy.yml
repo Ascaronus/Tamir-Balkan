@@ -1,0 +1,55 @@
+name: Deploy TAMIR
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tamir-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Deploy latest main to VPS
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+
+          : "${VPS_HOST:?Missing VPS_HOST}"
+          : "${VPS_PORT:?Missing VPS_PORT}"
+          : "${VPS_SSH_KEY:?Missing VPS_SSH_KEY}"
+          : "${VPS_KNOWN_HOSTS:?Missing VPS_KNOWN_HOSTS}"
+
+          umask 077
+          deploy_dir="$(mktemp -d)"
+          trap 'rm -rf "$deploy_dir"' EXIT
+
+          printf '%s\n' "$VPS_SSH_KEY" > "$deploy_dir/key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$deploy_dir/known_hosts"
+
+          ssh -T \
+            -p "$VPS_PORT" \
+            -i "$deploy_dir/key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o HostKeyAlias=tamir-vps \
+            -o UserKnownHostsFile="$deploy_dir/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=6 \
+            "tamir-deploy@$VPS_HOST" deploy
