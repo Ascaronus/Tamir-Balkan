@@ -11,6 +11,7 @@ import { localizedText } from "@/lib/i18n/content"
 import { getImagesForVariant, getStoreProductImageUrl } from "@/lib/product-image"
 import type { Summary } from "@/lib/reviews/client"
 import { ProductImage } from "./ProductImage"
+import { ColorSwatch } from "./ColorSwatch"
 
 export function ProductCard({ product, summary }: { product: CatalogProduct; summary?: Summary | null }) {
   const { t, locale } = useLocaleContext()
@@ -44,8 +45,8 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
         const swatch = colorSwatch(value)
         const candidates = variants.filter(v => v.options?.some(o => o.option_id === optionId && o.value === value))
         const target = matchingVariant(candidates, current, optionId, value) ?? candidates.find(canPurchase) ?? candidates[0]
-        const content = swatch ? <span aria-hidden="true" className="color-mini" style={{ backgroundColor: swatch }} /> : <span>{value}</span>
         const selected = Boolean(current?.options?.some(o => o.option_id === optionId && o.value === value))
+        const content = swatch ? <ColorSwatch color={swatch} selected={selected} compact /> : <span>{value}</span>
         return <button key={`${optionId}:${value}`} type="button" className="product-card-color-choice"
           disabled={!target} aria-pressed={selected} title={value} aria-label={`${t("design.color")}: ${value}`}
           onClick={() => { if (target) setSelection({ context, id: target.id }) }}>{content}</button>

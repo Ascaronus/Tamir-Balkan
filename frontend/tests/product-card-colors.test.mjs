@@ -6,7 +6,7 @@ import {getImagesForVariant,getStoreProductImageUrl} from '../src/lib/product-im
 function card(initialProduct) {
  const state=hooks()
  const {ProductCard}=load('frontend/src/components/store/ProductCard.tsx',{
-  react:state.react,'next/link':{default:'Link'},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({t:k=>k,locale:'sr'})},
+  './ColorSwatch':{ColorSwatch:'ColorSwatch'},react:state.react,'next/link':{default:'Link'},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({t:k=>k,locale:'sr'})},
   '@/components/reviews/Stars':{Stars:'Stars',ReviewIcon:'ReviewIcon'},
   '@/lib/store/catalog':{isColorOption:t=>t==='Color',colorSwatch:c=>c==='Black'?'#000000':undefined},
   '@/lib/store/commerce':{canPurchase,matchingVariant,variantAmount},'@/lib/format-money':{formatMoney:p=>String(p)},

@@ -12,6 +12,7 @@ import type { HttpTypes } from "@medusajs/types"
 import { useCart } from "@/components/cart/CartProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { ProductImage } from "@/components/store/ProductImage"
+import { ColorSwatch } from "@/components/store/ColorSwatch"
 import { getImagesForVariant } from "@/lib/product-image"
 import { formatMoney } from "@/lib/format-money"
 import { canPurchase, stockLimit, matchingVariant, variantAmount } from "@/lib/store/commerce"
@@ -118,7 +119,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
             if (matched) url.searchParams.set("v_id", matched.id)
             else return
             window.history.replaceState(null, "", url)
-          }} title={value} aria-label={value} className={swatch ? "color-choice" : "size-chip disabled:opacity-30"}>{swatch ? <span className="color-dot" style={{ backgroundColor: swatch }} /> : value === "One size" ? t("product.oneSize") : value}</button>
+          }} title={value} aria-label={value} className={swatch ? "color-choice" : "size-chip disabled:opacity-30"}>{swatch ? <ColorSwatch color={swatch} selected={Boolean(selected)} /> : value === "One size" ? t("product.oneSize") : value}</button>
         })}
       </div></fieldset>)}
       {!product.options?.length && variants.length > 1 && <label className="mt-6 grid gap-2">{t("product.variant")}<select value={variant?.id} onChange={e => selectVariant(e.target.value)} className="rounded border p-3">{variants.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select></label>}

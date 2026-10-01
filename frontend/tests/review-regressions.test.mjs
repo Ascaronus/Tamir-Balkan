@@ -59,6 +59,7 @@ test('unknown guest order never displays confirmed',async()=>{
 test('variant URL changes remount selection with the requested variant',()=>{
  const h=hooks();let id='m'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
+  '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'next/link':{},
  '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'sr',t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/auth/auth-storage':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
  })
