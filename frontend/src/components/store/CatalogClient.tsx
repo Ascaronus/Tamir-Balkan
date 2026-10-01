@@ -41,6 +41,7 @@ export function CatalogClient({ initial, selection, regionId, title, summaries: 
   const count = data?.count ?? 0
   return <section id="catalog-products" className="catalog-layout" aria-busy={loading || pending}>
     <CatalogFilters filters={data?.filters ?? emptyFilters} selection={selection} />
+    <div className="catalog-toolbar">
     <div className="catalog-heading"><h1>{title}</h1></div>
     <form role="search" className="catalog-search" action="/rs/catalog" onSubmit={event => {
       event.preventDefault()
@@ -50,6 +51,7 @@ export function CatalogClient({ initial, selection, regionId, title, summaries: 
       <button type="submit" aria-label={t("catalog.search")}><DesignIcon name="search" /></button>
       <input key={selection.q} type="search" name="q" maxLength={200} defaultValue={selection.q} placeholder={t("catalog.searchPlaceholder")} aria-label={t("catalog.search")} enterKeyHint="search" />
     </form>
+    </div>
     <p className="catalog-count text-sm text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p>
     <label className="catalog-sort"><span className="sr-only">{t("design.sort")}</span><select value={selection.sort} onChange={e => startTransition(() => router.push(`/rs/catalog?${catalogParams({ ...selection, sort: e.target.value as CatalogSelection["sort"], page: 1 })}`, { scroll: false }))}>{catalogSorts.map(sort => <option key={sort} value={sort}>{t(`design.sorts.${sort}`)}</option>)}</select></label>
     <div className="catalog-results">
