@@ -1,9 +1,11 @@
 import type { MedusaResponse } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys, QueryContext } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules, QueryContext } from "@medusajs/framework/utils"
 import { wrapProductsWithTaxPrices } from "@medusajs/medusa/api/store/products/helpers"
 import { wrapVariantsWithInventoryQuantityForSalesChannel } from "@medusajs/medusa/api/utils/middlewares/index"
 import { catalogSorts, selectCatalog, type CatalogProduct } from "../../../../utils/catalog"
 import type { CatalogRequest } from "../../../../utils/catalog-http"
+import type { ITranslationModuleService } from "@medusajs/types/dist/translation/service"
+import { catalogSearchFields, searchCatalogProducts } from "../../../../utils/catalog-search"
 import { catalogPopularity } from "../../../../utils/catalog-popularity"
 
 const BATCH_SIZE = 200
@@ -22,16 +24,23 @@ export async function GET(req: CatalogRequest, res: MedusaResponse) {
   const context = { variants: { calculated_price: QueryContext(req.pricingContext!) } }
   const options = { locale: req.locale, cache: { enable: false } }
   const candidates: CatalogProduct[] = []
+  const translation = input.q ? req.scope.resolve(Modules.TRANSLATION) as ITranslationModuleService : undefined
+  // Search the original text plus translations; localize only the final response.
+  const scanOptions = input.q ? { cache: { enable: false } } : options
+  const fields = input.q ? [...scanFields, ...catalogSearchFields] : scanFields
+  let scanned = 0
   // Always graph, never estimated index counts. Only lightweight data is loaded
   // across the assortment; images, descriptions and stock are loaded for a page.
   for (let skip = 0; ; skip += BATCH_SIZE) {
-    const { data, metadata } = await query.graph({ entity: "product", fields: scanFields,
-      filters: req.filterableFields, pagination: { skip, take: BATCH_SIZE, order: { id: "ASC" } }, context }, options)
-    if ((metadata?.count ?? 0) > MAX_CATALOG_CANDIDATES || candidates.length + data.length > MAX_CATALOG_CANDIDATES) {
+    const { data, metadata } = await query.graph({ entity: "product", fields,
+      filters: req.filterableFields, pagination: { skip, take: BATCH_SIZE, order: { id: "ASC" } }, context }, scanOptions)
+    scanned += data.length
+    if ((metadata?.count ?? 0) > MAX_CATALOG_CANDIDATES || scanned > MAX_CATALOG_CANDIDATES) {
       return res.status(503).json({ code: "CATALOG_SCOPE_TOO_LARGE", message: "Narrow the catalog by category or search" })
     }
-    await wrapProductsWithTaxPrices(req, data as any)
-    candidates.push(...data as unknown as CatalogProduct[])
+    const matching = input.q ? await searchCatalogProducts(data, input.q, translation!) : data
+    await wrapProductsWithTaxPrices(req, matching as any)
+    candidates.push(...matching as unknown as CatalogProduct[])
     if (data.length < BATCH_SIZE || (metadata?.count !== undefined && skip + data.length >= metadata.count)) break
   }
   const popularity = input.sort === "popularity" ? await catalogPopularity(

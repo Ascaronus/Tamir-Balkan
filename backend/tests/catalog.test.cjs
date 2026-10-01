@@ -72,3 +72,18 @@ test('multilingual option names and products without a size/color', () => {
   assert.equal(select([p]).count, 1)
   assert.equal(select([p], { color: 'red' }).count, 0)
 })
+
+
+test('translated search handles Serbian diacritics, malformed metadata, native translation pagination and public fields only', async () => {
+  const { searchCatalogProducts } = require('../src/utils/catalog-search')
+  const products = [{ id: 'a', title: 'Shirt', metadata: { private_note: 'secret', i18n: { sr: { title: 'Košulja Đorđe', private_note: 'hidden' } } }, variants: [{ sku: 'T-0042' }] },
+    { id: 'b', title: 'Scarf', metadata: { i18n: null } }]
+  const translations = Array.from({ length: 201 }, (_, i) => ({ reference_id: 'b', locale_code: i === 200 ? 'sr-Latn-RS' : 'fr', translations: { title: i === 200 ? 'Zimski šal' : 'not-public' } }))
+  const calls = []
+  const service = { listTranslations: async (filters, options) => { calls.push(options.skip); return translations.slice(options.skip, options.skip + options.take) } }
+  for (const q of ['  KOSULJA  DJORDJE ', 'košulja', 'Shirt', 'T-0042']) assert.deepEqual((await searchCatalogProducts(products, q, service)).map(p => p.id), ['a'])
+  assert.deepEqual((await searchCatalogProducts(products, 'zimski sal', service)).map(p => p.id), ['b'])
+  assert.ok(calls.includes(200))
+  for (const q of ['secret', 'hidden', 'not-public', 'reference_id']) assert.deepEqual(await searchCatalogProducts(products, q, service), [])
+  await assert.rejects(searchCatalogProducts(products, 'shirt', { listTranslations: async () => { throw Error('translation unavailable') } }), /translation unavailable/)
+})

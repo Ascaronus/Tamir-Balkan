@@ -11,11 +11,12 @@ export type CatalogRequest = RequestWithContext<never> & { catalogInput: Catalog
 function prepareCatalogQuery(req: CatalogRequest, res: MedusaResponse, next: MedusaNextFunction) {
   try {
     req.catalogInput = parseCatalogInput(req.query)
-    const { region_id, country_code, province, category_id, q } = req.catalogInput
+    const { region_id, country_code, province, category_id } = req.catalogInput
     // Custom filters never reach Medusa's product selector. No user-supplied
     // fields, status, channel IDs or pricing context can bypass Store defaults.
+    // Keep q in catalogInput: native product q cannot find separate translations.
     req.query = { region_id, ...(country_code ? { country_code } : {}), ...(province ? { province } : {}),
-      ...(category_id ? { category_id } : {}), ...(q ? { q } : {}) }
+      ...(category_id ? { category_id } : {}) }
     next()
   } catch (error) {
     if (error instanceof CatalogInputError) return res.status(400).json({ code: "INVALID_CATALOG_QUERY", message: error.message })
