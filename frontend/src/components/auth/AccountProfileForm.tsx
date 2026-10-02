@@ -13,6 +13,9 @@ import {
   getDefaultAddressId,
 } from "@/lib/checkout/apply-customer"
 
+import { formatPhone, normalizePhone, registrationCities } from "@/lib/auth/registration-fields"
+import { profileErrors } from "@/lib/auth/profile-fields"
+
 export function AccountProfileForm({ countryCode }: { countryCode: string }) {
   const saveLock = useRef(false)
   const t = useTranslations()
@@ -31,6 +34,12 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
   const [postalCode, setPostalCode] = useState("")
   const [country, setCountry] = useState<"rs">("rs")
   const [notes, setNotes] = useState("")
+  const [validated, setValidated] = useState(false)
+  const [otherCity, setOtherCity] = useState(false)
+  const fields = { firstName, lastName, phone, city, postalCode, address1, notes }
+  const errors = validated ? profileErrors(fields) : {}
+  const fieldProps = (name: string) => ({ id: `profile-${name}`, name, "aria-invalid": Boolean(errors[name]), "aria-describedby": errors[name] ? `profile-${name}-error` : undefined })
+  const fieldError = (name: string) => errors[name] ? <span id={`profile-${name}-error`} className="field-error">{t(`auth.validation.${errors[name]}`)}</span> : null
   const [addressId, setAddressId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -47,10 +56,11 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
         const v = customerToCheckoutForm(c, countryCode)
         setFirstName(v.firstName)
         setLastName(v.lastName)
-        setPhone(v.phone)
+        setPhone(formatPhone(v.phone))
         setEmail(v.email)
         setAddress1(v.address1)
         setCity(v.city)
+        setOtherCity(Boolean(v.city && !registrationCities.includes(v.city)))
         setPostalCode(v.postalCode)
         setCountry(v.country)
         setNotes(v.notes)
@@ -70,7 +80,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
   if (!customer) return null
 
   return (
-    <div className="rounded border border-[var(--store-border)] bg-white p-6">
+    <div className="profile-panel">
       <h2 className="text-lg font-semibold text-[var(--store-text)]">
         {t("account.profileSection")}
       </h2>
@@ -84,10 +94,17 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
         </div>
       ) : (
         <form
-          className="mt-6 grid gap-4"
+          noValidate
+          className="profile-form checkout-form mt-6"
           onSubmit={async (e) => {
             e.preventDefault()
             if (saveLock.current) return
+            setValidated(true)
+            const invalid = profileErrors(fields)
+            if (Object.keys(invalid).length) {
+              document.getElementById(`profile-${Object.keys(invalid)[0]}`)?.focus()
+              return
+            }
             saveLock.current = true
             setSaving(true)
             setError(null)
@@ -110,7 +127,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               await updateCustomerProfile({
                 first_name: firstName.trim(),
                 last_name: lastName.trim(),
-                phone: phone.trim(),
+                phone: normalizePhone(phone),
                 metadata: prevMeta,
               })
 
@@ -122,7 +139,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
                   addressId: addressId ?? getDefaultAddressId(current as unknown as Record<string, unknown>),
                   first_name: firstName.trim(),
                   last_name: lastName.trim(),
-                  phone: phone.trim(),
+                  phone: normalizePhone(phone),
                   address_1: address1.trim() || "-",
                   city: city.trim(),
                   postal_code: postalCode.trim(),
@@ -142,6 +159,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             }
           }}
         >
+          <fieldset disabled={saving} className="profile-fields">
           <p className="text-xs text-[var(--store-text-muted)]">
             {t("account.emailReadOnly")}
           </p>
@@ -150,34 +168,36 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               {t("auth.register.email")}
             </span>
             <input
-              value={email}
+              id="profile-email" type="email" autoComplete="email" value={email}
               readOnly
               className="h-12 cursor-not-allowed rounded border border-[var(--store-border)] bg-neutral-50 px-3 text-sm"
             />
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="profile-field-row">
             <label className="grid gap-1">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.firstName")}
               </span>
               <input
-                value={firstName}
+                {...fieldProps("firstName")} autoComplete="given-name" maxLength={100} value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 required
                 className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
+              {fieldError("firstName")}
             </label>
             <label className="grid gap-1">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.lastName")}
               </span>
               <input
-                value={lastName}
+                {...fieldProps("lastName")} autoComplete="family-name" maxLength={100} value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 required
                 className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
+              {fieldError("lastName")}
             </label>
           </div>
 
@@ -186,16 +206,18 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               {t("auth.register.phone")}
             </span>
             <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              {...fieldProps("phone")} type="tel" inputMode="tel" autoComplete="tel" maxLength={25} placeholder="+381 64 123 4567" onBlur={() => setPhone(formatPhone(phone))} value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/[^+0-9 ()-]/g, ""))}
               required
               className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
+              {fieldError("phone")}
           </label>
 
           <h3 className="pt-2 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
             {t("account.addressSection")}
           </h3>
+          <p className="text-sm text-[var(--store-text-muted)]">{t("account.addressOptionalHint")}</p>
 
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
@@ -212,38 +234,42 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             </select>
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="profile-field-row">
             <label className="grid gap-1">
               <span className="text-sm font-medium text-[var(--store-text)]">
-                {t("auth.register.postalCode")}
+                {t("auth.register.postalCode").replace(/\s*\*$/, "")}
               </span>
               <input
-                value={postalCode}
-                onChange={(e) => setPostalCode(e.target.value)}
+                {...fieldProps("postalCode")} autoComplete="postal-code" inputMode="numeric" maxLength={5} value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
                 className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
               />
+              {fieldError("postalCode")}
             </label>
             <label className="grid gap-1">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.city")}
               </span>
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
-              />
+              <select {...(!otherCity ? fieldProps("city") : { id: "profile-city-choice" })} autoComplete="address-level2" value={otherCity ? "__other" : city} onChange={e => { setOtherCity(e.target.value === "__other"); setCity(e.target.value === "__other" ? "" : e.target.value) }}>
+                <option value="">{t("auth.validation.chooseCity")}</option>
+                {registrationCities.map(name => <option key={name} value={name}>{name}</option>)}
+                <option value="__other">{t("auth.validation.otherCity")}</option>
+              </select>
+              {otherCity && <input {...fieldProps("city")} aria-label={t("auth.validation.otherCity")} autoComplete="address-level2" maxLength={100} value={city} onChange={e => setCity(e.target.value)} placeholder={t("auth.validation.otherCity")} />}
+              {fieldError("city")}
             </label>
           </div>
 
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              {t("checkout.address")}
+              {t("checkout.address").replace(/\s*\*$/, "")}
             </span>
             <input
-              value={address1}
+              {...fieldProps("address1")} autoComplete="address-line1" maxLength={200} value={address1}
               onChange={(e) => setAddress1(e.target.value)}
               className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
             />
+              {fieldError("address1")}
           </label>
 
           <label className="grid gap-1">
@@ -251,19 +277,20 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               {t("auth.register.notes")}
             </span>
             <textarea
-              value={notes}
+              {...fieldProps("notes")} maxLength={1000} value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="min-h-20 rounded border border-[var(--store-border)] px-3 py-2 text-sm"
             />
+              {fieldError("notes")}
           </label>
 
           {error ? (
-            <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           ) : null}
           {ok ? (
-            <div className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <div role="status" className="rounded bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               {t("account.profileSaved")}
             </div>
           ) : null}
@@ -275,6 +302,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           >
             {saving ? t("account.savingProfile") : t("account.saveProfile")}
           </button>
+          </fieldset>
         </form>
       )}
     </div>

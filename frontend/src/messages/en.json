@@ -233,7 +233,8 @@
       "partially_delivered": "Partially delivered",
       "delivered": "Delivered",
       "unknown": "Not available"
-    }
+    },
+    "addressOptionalHint": "A delivery address is optional. If you add one, complete the city, postal code and street."
   },
   "sidebar": {
     "title": "Catalog",

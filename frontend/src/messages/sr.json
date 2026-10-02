@@ -233,7 +233,8 @@
       "partially_delivered": "Delimično isporučeno",
       "delivered": "Isporučeno",
       "unknown": "Nije dostupno"
-    }
+    },
+    "addressOptionalHint": "Adresa je opciona. Ako je unosite, popunite grad, poštanski broj i ulicu."
   },
   "sidebar": {
     "title": "Katalog",

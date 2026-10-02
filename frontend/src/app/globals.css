@@ -372,3 +372,20 @@ body { line-height: 1.5; }
 @media (max-width: 599px) { .checkout-field-row { grid-template-columns: minmax(0,1fr); } }
 @media (min-width: 1801px) { .commerce-page { padding-inline: 64px; } }
 @media (min-width: 600px) and (max-width: 900px) { .commerce-page { padding-inline: 32px; } }
+
+/* Money never splits the currency; labels may wrap independently. */
+.commerce-page .order-summary strong, .commerce-page .order-summary .shrink-0 { white-space: nowrap; flex-shrink: 0; }
+.profile-panel { padding: 32px; border: 1px solid var(--store-border); border-radius: 4px; background: white; }
+.profile-panel h2 { font-size: 24px; line-height: 32px; }
+.profile-panel h3 { font-size: 18px; line-height: 28px; letter-spacing: 0; text-transform: none; }
+.profile-fields { display: grid; min-width: 0; gap: 20px; border: 0; padding: 0; }
+.profile-field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.profile-form input[readonly] { background: var(--store-bg-muted); color: var(--store-text-muted); }
+.profile-form button[type=submit] { height: auto; min-height: 48px; padding-block: 12px; font-size: 16px; line-height: 24px; }
+.account-page .account-nav { align-self: start; }
+.account-page .account-nav > * { font-size: 16px; min-height: 48px; white-space: normal; }
+.account-page h1 { font-size: 40px; line-height: 48px; }
+@media (max-width: 900px) { .profile-panel { padding: 20px; } .account-page h1 { font-size: 32px; line-height: 40px; } }
+@media (max-width: 600px) { .profile-field-row { grid-template-columns: minmax(0,1fr); } }
+.account-page .account-heading { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .account-page .account-nav { flex-direction: column; align-items: stretch; } }

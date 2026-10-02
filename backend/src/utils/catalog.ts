@@ -57,7 +57,7 @@ export function parseCatalogInput(query: Record<string, unknown>): CatalogInput 
     sort: sort as CatalogInput["sort"], limit: integer("limit", 24, 1, 100), offset: integer("offset", 0, 0, 10000) }
 }
 
-type Option = { option_id?: string; value: string; option?: { title?: string } }
+type Option = { id?: string; option_id?: string; value: string; option?: { title?: string } }
 export type CatalogVariant = { id: string; options?: Option[]; calculated_price?: {
   calculated_amount?: number | null; calculated_amount_with_tax?: number | null; currency_code?: string
 } | null }

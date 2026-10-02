@@ -5,8 +5,11 @@ const t=k=>k
 
 test('profile saves reuse created address and send explicit note deletion',async()=>{
  const h=hooks();let creates=0,saved
- let customer={id:'c',first_name:'A',last_name:'B',phone:'123',email:'a@example.test',addresses:[]}
+ let customer={id:'c',first_name:'A',last_name:'B',phone:'+381641234567',email:'a@example.test',addresses:[]}
+ const fields=load('frontend/src/lib/auth/registration-fields.ts')
+ const checkout=load('frontend/src/lib/checkout/checkout-fields.ts',{'@/lib/auth/registration-fields':fields})
  const form=load('frontend/src/components/auth/AccountProfileForm.tsx',{
+  '@/lib/auth/registration-fields':fields,'@/lib/auth/profile-fields':load('frontend/src/lib/auth/profile-fields.ts',{'@/lib/checkout/checkout-fields':checkout}),
   react:h.react,'@/components/auth/AuthProvider':{useAuth:()=>({customer,refresh:async()=>{customer={...customer}}})},
   '@/components/i18n/LocaleProvider':{useTranslations:()=>t},
   '@/lib/checkout/apply-customer':load('frontend/src/lib/checkout/apply-customer.ts'),
@@ -16,6 +19,8 @@ test('profile saves reuse created address and send explicit note deletion',async
  render();await h.flush();let tree=render()
  const postal=find(tree,n=>n.type==='label'&&JSON.stringify(n.props.children).includes('auth.register.postalCode'))
  find(postal,n=>n.type==='input').props.onChange({target:{value:'21000'}})
+ find(tree,n=>n.props?.id==='profile-city').props.onChange({target:{value:'Novi Sad'}})
+ find(tree,n=>n.props?.id==='profile-address1').props.onChange({target:{value:'Test 1'}})
  for(let i=0;i<2;i++){tree=render();await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}});render();await h.flush()}
  assert.equal(creates,1);assert.equal(saved.metadata.notes,null)
 })

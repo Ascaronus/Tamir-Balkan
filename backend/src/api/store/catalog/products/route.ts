@@ -8,12 +8,14 @@ import type { ITranslationModuleService } from "@medusajs/types/dist/translation
 import { catalogSearchFields, searchCatalogProducts } from "../../../../utils/catalog-search"
 import { catalogPopularity } from "../../../../utils/catalog-popularity"
 
+import { localizeCatalogFacets } from "../../../../utils/catalog-translations"
+
 const BATCH_SIZE = 200
 // Explicit failure is safer than returning a partly filtered catalog. For a
 // larger assortment replace candidate scans with a dedicated search index.
 export const MAX_CATALOG_CANDIDATES = 10000
 const scanFields = ["id", "created_at", "type_id", "options.id", "options.title",
-  "variants.id", "variants.product_id", "variants.options.option_id", "variants.options.value", "variants.calculated_price.*"]
+  "variants.id", "variants.product_id", "variants.options.id", "variants.options.option_id", "variants.options.value", "variants.calculated_price.*"]
 
 export async function GET(req: CatalogRequest, res: MedusaResponse) {
   res.setHeader("Cache-Control", "private, no-store")
@@ -24,9 +26,9 @@ export async function GET(req: CatalogRequest, res: MedusaResponse) {
   const context = { variants: { calculated_price: QueryContext(req.pricingContext!) } }
   const options = { locale: req.locale, cache: { enable: false } }
   const candidates: CatalogProduct[] = []
-  const translation = input.q ? req.scope.resolve(Modules.TRANSLATION) as ITranslationModuleService : undefined
+  const translation = req.scope.resolve(Modules.TRANSLATION) as ITranslationModuleService
   // Search the original text plus translations; localize only the final response.
-  const scanOptions = input.q ? { cache: { enable: false } } : options
+  const scanOptions = { cache: { enable: false } }
   const fields = input.q ? [...scanFields, ...catalogSearchFields] : scanFields
   let scanned = 0
   // Always graph, never estimated index counts. Only lightweight data is loaded
@@ -47,6 +49,7 @@ export async function GET(req: CatalogRequest, res: MedusaResponse) {
     req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION), candidates.map(p => p.id),
     req.publishable_key_context.sales_channel_ids, input.region_id) : new Map<string, number>()
   const selected = selectCatalog(candidates, input, currency, popularity)
+  const filters = await localizeCatalogFacets(selected.filters, candidates, req.locale, translation)
   let products: any[] = []
   if (selected.rows.length) {
     const ids = selected.rows.map(row => row.id)
@@ -64,6 +67,6 @@ export async function GET(req: CatalogRequest, res: MedusaResponse) {
     } }))
   }
   return res.json({ products, count: selected.count, offset: input.offset, limit: input.limit, sort: input.sort,
-    currency_code: currency, sort_options: catalogSorts, filters: selected.filters,
+    currency_code: currency, sort_options: catalogSorts, filters,
     applied_filters: { size: input.size, color: input.color, min_price: input.min_price ?? null, max_price: input.max_price ?? null } })
 }
