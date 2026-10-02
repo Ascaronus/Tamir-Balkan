@@ -33,7 +33,10 @@ test('missing customer profile fails login explicitly',async()=>{
 })
 test('payment method request can be retried after failure',async()=>{
  const h=hooks();let requests=0
+ const fields=load('frontend/src/lib/auth/registration-fields.ts')
+ const validation=load('frontend/src/lib/checkout/checkout-fields.ts',{'@/lib/auth/registration-fields':fields})
  const c=load('frontend/src/components/checkout/CheckoutPageClient.tsx',{
+  '@/lib/auth/registration-fields':fields,'@/lib/checkout/checkout-fields':validation,
   react:h.react,'next/link':'Link','next/navigation':{useRouter:()=>({push(){}})},
   '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true,refresh:async()=>{}})},
   '@/components/cart/CartProvider':{useCart:()=>({cart:{id:'cart',region_id:'region',items:[{id:'i',quantity:1}]},isReady:true,isMutating:false})},
@@ -43,6 +46,7 @@ test('payment method request can be retried after failure',async()=>{
  })
  const render=()=>h.render(()=>c.CheckoutPageClient({countryCode:'rs'}))
  render();await h.flush();let tree=render()
+ for(const [id,value] of Object.entries({firstName:'Test',lastName:'Shopper',email:'test@example.com',phone:'+381641234567',postalCode:'21000',city:'Novi Sad',address1:'Test 1',consent:true})){find(tree,n=>n.props?.id===`checkout-${id}`).props.onChange({target:{value,checked:value}});tree=render()}
  await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}});tree=render()
  assert.equal(find(tree,n=>n.type==='button'&&n.props.type==='submit').props.disabled,true)
  find(tree,n=>n.type==='button'&&n.props.children==='checkout.retryPayment').props.onClick()

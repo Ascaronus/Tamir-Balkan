@@ -53,7 +53,7 @@
     "delivery": "Dostava",
     "country": "Zemlja *",
     "postalCode": "Poštanski broj *",
-    "city": "Grad",
+    "city": "Grad *",
     "address": "Adresa *",
     "notes": "Napomene",
     "shipping": "Dostava",

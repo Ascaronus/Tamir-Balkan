@@ -53,7 +53,7 @@
     "delivery": "Delivery",
     "country": "Country *",
     "postalCode": "Postal code *",
-    "city": "City",
+    "city": "City *",
     "address": "Address *",
     "notes": "Notes",
     "shipping": "Shipping",

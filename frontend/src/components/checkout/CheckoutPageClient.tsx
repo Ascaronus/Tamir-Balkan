@@ -1,5 +1,7 @@
 "use client"
 
+import { checkoutErrors } from "@/lib/checkout/checkout-fields"
+import { formatPhone, normalizePhone, registrationCities } from "@/lib/auth/registration-fields"
 import type { HttpTypes } from "@medusajs/types"
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
@@ -55,6 +57,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [postalCode, setPostalCode] = useState("")
   const [notes, setNotes] = useState("")
   const [address1, setAddress1] = useState("")
+  const [consent, setConsent] = useState(false)
+  const [validated, setValidated] = useState(false)
+  const [otherCity, setOtherCity] = useState(false)
+  const fields = { firstName, lastName, email, phone, country, city, postalCode, address1, notes, consent }
+  const fieldErrors = validated ? checkoutErrors(fields) : {}
+  const fieldProps = (name: string) => ({ id: `checkout-${name}`, name, "aria-invalid": Boolean(fieldErrors[name]), "aria-describedby": fieldErrors[name] ? `checkout-${name}-error` : undefined })
+  const fieldError = (name: string) => fieldErrors[name] ? <span id={`checkout-${name}-error`} className="field-error">{t(`auth.validation.${fieldErrors[name]}`)}</span> : null
 
   const [shippingOptions, setShippingOptions] = useState<
     { id: string; name?: string; amount?: number; price_type?: string }[]
@@ -89,6 +98,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     setPhone(v.phone)
     setCountry(v.country)
     setCity(v.city)
+    setOtherCity(Boolean(v.city && !registrationCities.includes(v.city)))
     setPostalCode(v.postalCode)
     setAddress1(v.address1)
     setNotes(v.notes)
@@ -105,6 +115,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
     setPhone(v.phone)
     setCountry(v.country)
     setCity(v.city)
+    setOtherCity(Boolean(v.city && !registrationCities.includes(v.city)))
     setPostalCode(v.postalCode)
     setAddress1(v.address1)
     setNotes(v.notes)
@@ -154,7 +165,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   return (
     <div className="checkout-layout">
       <div className="checkout-heading">
-        <h1 className="text-3xl font-semibold text-[var(--store-text)]">
+        <h1 className="commerce-title">
           {t("checkout.title")}
         </h1>
         <p className="mt-4 text-sm text-[var(--store-text-muted)]">
@@ -174,9 +185,17 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
       <form
         id="checkout-form"
         className="checkout-form"
+        noValidate
+        aria-busy={loading}
         onSubmit={async (e) => {
           e.preventDefault()
-          if (submitLock.current) return
+          if (submitLock.current || isMutating) return
+          const errors = checkoutErrors(fields)
+          setValidated(true)
+          if (Object.keys(errors).length) {
+            document.getElementById(`checkout-${Object.keys(errors)[0]}`)?.focus()
+            return
+          }
           submitLock.current = true
           setLoading(true)
           setError(null)
@@ -192,7 +211,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
                 city: city.trim() || undefined,
                 postal_code: postalCode.trim(),
                 country_code: country,
-                phone: phone.trim(),
+                phone: normalizePhone(phone),
               },
               notes: notes.trim() || undefined,
             })
@@ -227,6 +246,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           }
         }}
       >
+        <fieldset disabled={loading || isMutating} className="checkout-fields">
         {customer ? (
           <div className="mb-6 rounded border border-[var(--store-border)] bg-[var(--store-bg)] p-4">
             <p className="text-sm font-medium text-[var(--store-text)]">
@@ -265,84 +285,99 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           </div>
         ) : null}
 
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
+        <h2 className="checkout-section-title">
           {t("checkout.customer")}
         </h2>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="checkout-field-row">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.firstName")}
             </span>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("firstName")} autoComplete="given-name" maxLength={100} value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("firstName")}
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.lastName")}
             </span>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("lastName")} autoComplete="family-name" maxLength={100} value={lastName} onChange={(e) => setLastName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("lastName")}
           </label>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="checkout-field-row">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.email")}
             </span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("email")} autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} type="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("email")}
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.phone")}
             </span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("phone")} autoComplete="tel" maxLength={25} value={phone} type="tel" inputMode="tel" placeholder="+381 64 123 4567" onBlur={() => setPhone(formatPhone(phone))} onChange={(e) => setPhone(e.target.value.replace(/[^+0-9 ()-]/g, ""))} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("phone")}
           </label>
         </div>
 
-        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
+        <h2 className="checkout-section-title mt-8">
           {t("checkout.delivery")}
         </h2>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="checkout-field-row">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.country")}
             </span>
-            <select value={country} onChange={(e) => setCountry(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm">
+            <select {...fieldProps("country")} autoComplete="country" value={country} onChange={(e) => setCountry(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm">
               <option value="rs">{t("countries.rs")}</option>
             </select>
+            {fieldError("country")}
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.postalCode")}
             </span>
-            <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("postalCode")} autoComplete="postal-code" maxLength={5} value={postalCode} inputMode="numeric" onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("postalCode")}
           </label>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="checkout-field-row">
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.city")}
             </span>
-            <input value={city} onChange={(e) => setCity(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <select {...(!otherCity ? fieldProps("city") : { id: "checkout-city-choice" })} aria-label={t("checkout.city")} autoComplete="address-level2" value={otherCity ? "__other" : city} onChange={e => { setOtherCity(e.target.value === "__other"); setCity(e.target.value === "__other" ? "" : e.target.value) }} required>
+              <option value="">{t("auth.validation.chooseCity")}</option>
+              {registrationCities.map(name => <option key={name} value={name}>{name}</option>)}
+              <option value="__other">{t("auth.validation.otherCity")}</option>
+            </select>
+            {!otherCity && fieldError("city")}
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.address")}
             </span>
-            <input value={address1} onChange={(e) => setAddress1(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("address1")} autoComplete="address-line1" maxLength={200} value={address1} onChange={(e) => setAddress1(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            {fieldError("address1")}
           </label>
         </div>
+
+        {otherCity && <label className="mt-4 grid gap-1"><span>{t("auth.validation.cityName")} *</span><input {...fieldProps("city")} autoComplete="address-level2" value={city} maxLength={100} onChange={e => setCity(e.target.value)} required />{fieldError("city")}</label>}
 
         <label className="mt-4 grid gap-1">
           <span className="text-sm font-medium text-[var(--store-text)]">
             {t("checkout.notes")}
           </span>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24 rounded border border-[var(--store-border)] px-3 py-2 text-sm" />
+          <textarea {...fieldProps("notes")} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24 rounded border border-[var(--store-border)] px-3 py-2 text-sm" />
+          {fieldError("notes")}
         </label>
 
-        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
+        <h2 className="checkout-section-title mt-8">
           {t("checkout.shipping")}
         </h2>
         <div className="mt-4 grid gap-2">
@@ -377,7 +412,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           )}
         </div>
 
-        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wider text-[var(--store-text-muted)]">
+        <h2 className="checkout-section-title mt-8">
           {t("checkout.payment")}
         </h2>
         <div className="mt-4 grid gap-2">
@@ -402,6 +437,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           ) : null}
         </div>
 
+        </fieldset>
         {error ? (
           <div role="alert" className="mt-6 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
@@ -415,15 +451,17 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <div className="flex justify-between gap-4 text-sm"><span>{t("design.productsSubtotal")}</span><strong>{formatMoney(cart.item_total ?? cart.item_subtotal ?? cart.subtotal ?? 0, cart.currency_code)}</strong></div>
         {deliveryPrepared && quotedCart && <><div className="mt-4 flex justify-between gap-4 text-sm"><span>{t("checkout.shipping")}</span><span>{formatMoney(quotedCart.shipping_total, cart.currency_code)}</span></div><div className="mt-6 flex justify-between gap-4 border-t border-[var(--store-border)] pt-6 text-lg font-semibold"><span>{t("design.total")}</span><span>{formatMoney(quotedCart.total, cart.currency_code)}</span></div></>}
         <p className="mt-4 text-xs text-[var(--store-text-muted)]">{deliveryPrepared ? t("checkout.shipping") + ": " + (shippingOptions.find(option => option.id === selectedShipping)?.name || t("checkout.shippingRequired")) : t("design.shippingLater")}</p>
-        <p className="mt-6 text-sm">
-          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">{t("legal.checkout")}</a>
-        </p>
+        <div className="registration-consent mt-6">
+          <input {...fieldProps("consent")} form="checkout-form" type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={loading || isMutating} required />
+          <label htmlFor="checkout-consent">{t("auth.validation.agree")} <Link href="/terms" target="_blank">{t("auth.validation.terms")}</Link> {t("auth.validation.and")} <Link href="/privacy" target="_blank">{t("auth.validation.privacy")}</Link>.</label>
+        </div>
+        {fieldError("consent")}
 
         <button
           type="submit"
           form="checkout-form"
           disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping || !quotedCart))}
-          className="mt-8 inline-flex h-12 w-full items-center justify-center rounded bg-[var(--store-accent)] hover:bg-[var(--store-accent-hover)] px-6 text-sm font-semibold text-white disabled:opacity-60"
+          className="button-primary checkout-submit mt-8 w-full disabled:opacity-60"
         >
           {loading ? t(deliveryPrepared ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}
         </button>
