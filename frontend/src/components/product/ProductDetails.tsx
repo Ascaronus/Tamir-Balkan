@@ -22,7 +22,8 @@ export function ProductDetails(props: { product: HttpTypes.StoreProduct; initial
   const searchParams = useSearchParams()
   const { customer, isReady: authReady } = useAuth()
   const { locale, t } = useLocaleContext()
-  const [priced, setPriced] = useState<{ customerId: string; product: HttpTypes.StoreProduct } | null>(null)
+  const [priced, setPriced] = useState<{ context: string; product: HttpTypes.StoreProduct } | null>(null)
+  const pricingContext = `${customer?.id ?? "guest"}:${props.product.id}:${locale}`
   const [priceError, setPriceError] = useState(false)
   const [retryPrice, setRetryPrice] = useState(0)
   useEffect(() => {
@@ -34,15 +35,15 @@ export function ProductDetails(props: { product: HttpTypes.StoreProduct; initial
       const { products } = await listProductsByCountry({ countryCode: "rs", handle: props.product.handle, limit: 1, locale, token: getAuthToken(), signal: abort.signal })
       if (!abort.signal.aborted) {
         if (!products[0]) throw new Error("PRODUCT_UNAVAILABLE")
-        setPriced({ customerId: customer.id, product: products[0] })
+        setPriced({ context: pricingContext, product: products[0] })
       }
     }).catch(() => { if (!abort.signal.aborted) setPriceError(true) })
     return () => abort.abort()
-  }, [authReady, customer, props.product.handle, locale, retryPrice])
-  const product = customer && priced?.customerId === customer.id ? priced.product : props.product
-  const pricingReady = authReady && (!customer || priced?.customerId === customer.id)
+  }, [authReady, customer, props.product.handle, locale, pricingContext, retryPrice])
+  const product = customer && priced?.context === pricingContext ? priced.product : props.product
+  const pricingReady = authReady && (!customer || priced?.context === pricingContext)
   const selectedId = searchParams.get("v_id") ?? props.initialVariantId
-  return <><ProductSelection key={product.id + ":" + (selectedId ?? "default")} product={product} initialVariantId={selectedId} ratingSummary={props.ratingSummary} pricingReady={pricingReady} />{priceError && customer && <p role="alert" className="mt-4 text-sm text-red-700">{t("common.loadFailed")} <button type="button" className="underline" onClick={() => setRetryPrice(n => n + 1)}>{t("common.retry")}</button></p>}</>
+  return <><ProductSelection key={product.id + ":" + locale + ":" + (selectedId ?? "default")} product={product} initialVariantId={selectedId} ratingSummary={props.ratingSummary} pricingReady={pricingReady} />{priceError && customer && <p role="alert" className="mt-4 text-sm text-red-700">{t("common.loadFailed")} <button type="button" className="underline" onClick={() => setRetryPrice(n => n + 1)}>{t("common.retry")}</button></p>}</>
 }
 
 function ProductSelection({ product, initialVariantId, ratingSummary, pricingReady }: { product: HttpTypes.StoreProduct; initialVariantId?: string; ratingSummary?: React.ReactNode; pricingReady: boolean }) {
