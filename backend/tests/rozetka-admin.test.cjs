@@ -137,3 +137,28 @@ test('concurrent request fails before product writes and releases lock connectio
  await assert.rejects(executeImport(c,valid(),'admin'),/уже импортируется/)
  assert.equal(actions.length,0);assert.equal(state.released,true)
 })
+
+test('uploaded XML is isolated from URL cache and imports without downloading the default feed',async()=>{
+ const {loadFeed,ROZETKA_SOURCE}=require('../src/utils/rozetka-preview')
+ assert.equal(ROZETKA_SOURCE,'https://tamir.ua/ua/rozetka/')
+ const original=global.fetch; const uploads=xml.replaceAll('model.html','uploaded.html').replaceAll('Шапка TAMIR','Загруженная шапка')
+ global.fetch=async()=>{throw Error('upload must not make network request')}
+ try {
+  const sourceInput={type:'file',name:'catalog.xml',xml:uploads}
+  const feed=await loadFeed(true,sourceInput);assert.match(feed.products[0].title,/Загруженная/)
+  const c=setup(),body=valid();body.source=sourceInput;body.draft=initialDraft(feed.products[0]);body.draft.category_id='cat';body.draft.variants.forEach(v=>{v.price='100';v.stock='0'})
+  assert.equal((await executeImport(c,body,'admin')).action,'created')
+  await assert.rejects(loadFeed(true,{type:'file',name:'bad.xml',xml:'<broken>'}),/XML/)
+  await assert.rejects(loadFeed(true,{type:'file',name:'large.xml',xml:'я'.repeat(6*1024*1024)}),/10 МБ/)
+ } finally {global.fetch=original}
+})
+
+test('editable URL is used and cached separately for each source',async()=>{
+ const {loadFeed}=require('../src/utils/rozetka-preview'),original=global.fetch,calls=[]
+ global.fetch=async url=>{calls.push(url);return new Response(xml.replaceAll('Шапка TAMIR',url.includes('/ua/')?'UA title':'RU title'))}
+ try {
+  assert.match((await loadFeed(true,{type:'url',url:'https://tamir.ua/ua/rozetka/'})).products[0].title,/UA title/)
+  assert.match((await loadFeed(false,{type:'url',url:'https://tamir.ua/rozetka/'})).products[0].title,/RU title/)
+  assert.equal(calls.length,2)
+ } finally {global.fetch=original}
+})

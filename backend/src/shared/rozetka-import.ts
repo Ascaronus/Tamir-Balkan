@@ -1,3 +1,6 @@
+export const DEFAULT_XML_URL = "https://tamir.ua/ua/rozetka/"
+export const MAX_XML_BYTES = 10 * 1024 * 1024
+export type ImportSource = { type: "url"; url: string } | { type: "file"; name: string; xml: string }
 export type SourceVariant = {
   id: string; sku: string; size: string; color: string; price: number | null;
   currency: string; stock: number; available: boolean; params: { name: string; value: string }[]

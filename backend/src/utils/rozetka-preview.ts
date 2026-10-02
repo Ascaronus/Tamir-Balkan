@@ -1,9 +1,16 @@
 import crypto from "node:crypto"
+import { z } from "zod"
+import { DEFAULT_XML_URL, MAX_XML_BYTES, type ImportSource } from "../shared/rozetka-import"
 import { XMLParser, XMLValidator } from "fast-xml-parser"
 import { numeric, offerSize, offerStock } from "./rozetka"
 import type { SourceProduct, SourceVariant } from "../shared/rozetka-import"
 
-export const ROZETKA_SOURCE = "https://tamir.ua/rozetka/"
+export const ROZETKA_SOURCE = DEFAULT_XML_URL
+export const sourceSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("url"), url: z.string().trim().url().max(2048) }).strict(),
+  z.object({ type: z.literal("file"), name: z.string().min(1).max(255), xml: z.string().min(1).max(MAX_XML_BYTES) }).strict(),
+])
+export const sourceLabel = (source: ImportSource) => source.type === "url" ? source.url : source.name
 export class ImportError extends Error {
   constructor(public status: number, message: string, public product_id?: string) { super(message) }
 }
@@ -104,13 +111,20 @@ export function parseFeed(xml: string): FeedSnapshot {
   }
   return { fetched_at: new Date().toISOString(), products: [...groups.values()], source_categories: categories }
 }
-let snapshot: FeedSnapshot | undefined, expires = 0, pending: Promise<FeedSnapshot> | undefined
-export async function loadFeed(refresh = false): Promise<FeedSnapshot> {
-  if (!refresh && snapshot && Date.now() < expires) return snapshot
-  if (pending) return pending
-  pending = (async () => {
-    const { body } = await fetchSource(ROZETKA_SOURCE, 20 * 1024 * 1024)
-    const result = parseFeed(body.toString("utf8")); snapshot = result; expires = Date.now() + 60000; return result
+let snapshot: FeedSnapshot | undefined, expires = 0, snapshotKey = ""
+let pending: { key: string; promise: Promise<FeedSnapshot> } | undefined
+export async function loadFeed(refresh = false, input: ImportSource = { type: "url", url: ROZETKA_SOURCE }): Promise<FeedSnapshot> {
+  const parsed = sourceSchema.safeParse(input)
+  if (!parsed.success) throw new ImportError(400, "Укажите ссылку на XML или выберите XML-файл до 10 МБ")
+  const source = parsed.data
+  if (source.type === "file" && Buffer.byteLength(source.xml, "utf8") > MAX_XML_BYTES) throw new ImportError(413, "XML-файл должен быть не больше 10 МБ")
+  const key = source.type === "file" ? digest(source.xml) : sourceUrl(source.url)
+  if (!refresh && snapshot && snapshotKey === key && Date.now() < expires) return snapshot
+  if (pending?.key === key) return pending.promise
+  const promise = (async () => {
+    const xml = source.type === "file" ? source.xml : (await fetchSource(source.url, MAX_XML_BYTES)).body.toString("utf8")
+    const result = parseFeed(xml); snapshot = result; snapshotKey = key; expires = Date.now() + 60000; return result
   })()
-  try { return await pending } finally { pending = undefined }
+  pending = { key, promise }
+  try { return await promise } finally { if (pending?.promise === promise) pending = undefined }
 }

@@ -4,11 +4,12 @@ import { createProductsWorkflow, updateProductsWorkflow, createProductVariantsWo
   createInventoryLevelsWorkflow, linkSalesChannelsToStockLocationWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 import { statfs } from "node:fs/promises"
-import { draftErrors, numberInput, type ImportDraft, type ImportPreview, type ImportResult, type SourceProduct } from "../shared/rozetka-import"
-import { digest, fetchSource, ImportError, loadFeed, ROZETKA_SOURCE } from "./rozetka-preview"
+import { draftErrors, numberInput, type ImportDraft, type ImportPreview, type ImportResult, type SourceProduct, type ImportSource } from "../shared/rozetka-import"
+import { digest, fetchSource, ImportError, loadFeed, ROZETKA_SOURCE, sourceSchema, sourceLabel } from "./rozetka-preview"
 
 const short = z.string().trim().max(255), description = z.string().max(20000)
 export const importRequestSchema = z.object({
+  source: sourceSchema.optional(),
   draft: z.object({ key: z.string().regex(/^[a-f0-9]{64}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     title: short.min(1), description, title_sr: short, title_en: short, description_sr: description, description_en: description,
     vendor: short, category_id: short.min(1), images: z.array(z.string().url().max(2048)).max(30), status: z.enum(["draft", "published"]),
@@ -57,15 +58,15 @@ async function listAll(service: any, method: string, filters = {}, select?: stri
     if (all.length >= 10000) throw new ImportError(422, "Слишком много записей в настройках магазина")
   }
 }
-export async function previewImport(container: MedusaContainer, refresh = false): Promise<ImportPreview> {
+export async function previewImport(container: MedusaContainer, refresh = false, source: ImportSource = { type: "url", url: ROZETKA_SOURCE }): Promise<ImportPreview> {
   const [feed, products, categories, locations, channels, stores] = await Promise.all([
-    loadFeed(refresh), importedProducts(container),
+    loadFeed(refresh, source), importedProducts(container),
     listAll(container.resolve(Modules.PRODUCT), "listProductCategories", { is_active: true, is_internal: false }, ["id", "name", "parent_category_id"]),
     listAll(container.resolve(Modules.STOCK_LOCATION), "listStockLocations"),
     listAll(container.resolve(Modules.SALES_CHANNEL), "listSalesChannels", { is_disabled: false }),
     container.resolve(Modules.STORE).listStores(),
   ])
-  return { ...feed, source: ROZETKA_SOURCE,
+  return { ...feed, source: sourceLabel(source),
     products: feed.products.map(p => {
       const existing = findImported(products, p)
       return { ...p, ...(existing ? { existing: { id: existing.id, title: existing.title, status: existing.status,
@@ -107,7 +108,7 @@ async function saveTranslations(container: MedusaContainer, id: string, draft: I
 export async function executeImport(container: MedusaContainer, body: unknown, actor: string): Promise<ImportResult> {
   const preliminary = importRequestSchema.safeParse(body)
   if (!preliminary.success) throw new ImportError(400, "Некорректные поля запроса импорта")
-  const feed = await loadFeed()
+  const feed = await loadFeed(false, preliminary.data.source)
   const source = feed.products.find(p => p.key === preliminary.data.draft.key)
   if (!source) throw new ImportError(409, "Товар исчез из источника. Обновите предпросмотр.")
   const { draft, settings } = validateImport(body, source)
@@ -205,7 +206,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
         const data = { title: [variant.size, variant.color].filter(Boolean).join(" / "), sku: variant.sku,
           options: { Size: variant.size, ...(colorEnabled ? { Color: variant.color } : {}) },
           prices: [{ currency_code: "rsd", amount: numberInput(variant.price)! }], manage_inventory: true, allow_backorder: false,
-          metadata: { ...(match?.metadata || {}), rozetka_offer_id: variant.id, rozetka_url: source.url, rozetka_feed_source: digest(ROZETKA_SOURCE),
+          metadata: { ...(match?.metadata || {}), rozetka_offer_id: variant.id, rozetka_url: source.url, rozetka_feed_source: digest(preliminary.data.source ? sourceLabel(preliminary.data.source) : ROZETKA_SOURCE),
             rozetka_params: source.variants.find(v => v.id === variant.id)?.params || [] } }
         if (match) await updateProductVariantsWorkflow(container).run({ input: { product_variants: [{ ...data, id: match.id }] } })
         else await createProductVariantsWorkflow(container).run({ input: { product_variants: [{ ...data, product_id: id }] } })

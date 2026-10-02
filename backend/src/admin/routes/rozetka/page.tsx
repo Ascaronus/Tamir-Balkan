@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { draftErrors, initialDraft, numberInput, type ImportDraft, type ImportPreview, type ImportResult, type ImportSettings, type SourceProduct } from "../../../shared/rozetka-import"
+import { DEFAULT_XML_URL, MAX_XML_BYTES, type ImportSource, draftErrors, initialDraft, numberInput, type ImportDraft, type ImportPreview, type ImportResult, type ImportSettings, type SourceProduct } from "../../../shared/rozetka-import"
 import "./rozetka.css"
 
 const STORAGE = "tamir-rozetka-drafts-v1"
@@ -29,6 +29,11 @@ function categoryPath(id: string, categories: ImportPreview["categories"]) {
 }
 
 export default function RozetkaImportPage() {
+  const [sourceMode, setSourceMode] = useState<"url" | "file">("url")
+  const [sourceUrl, setSourceUrl] = useState(DEFAULT_XML_URL)
+  const [sourceFile, setSourceFile] = useState<Extract<ImportSource, { type: "file" }> | null>(null)
+  const [loadedSource, setLoadedSource] = useState<ImportSource | null>(null)
+  const [fileReading, setFileReading] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [drafts, setDrafts] = useState<Record<string, ImportDraft>>({})
   const [selected, setSelected] = useState<string[]>([])
@@ -89,13 +94,26 @@ export default function RozetkaImportPage() {
     const product = preview?.products.find(p => p.key === key); if (!product) return
     setDrafts(old => ({ ...old, [key]: { ...(old[key] || initialDraft(product)), ...change } }))
   }
+  async function chooseFile(file?: File) {
+    setSourceFile(null); setError("")
+    if (!file) return
+    if (file.size > MAX_XML_BYTES || !file.size) { setError("Выберите непустой XML-файл до 10 МБ."); return }
+    setFileReading(true)
+    try {
+      const xml = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer())
+      setSourceFile({ type: "file", name: file.name, xml })
+    } catch { setError("Не удалось прочитать файл. Сохраните XML в кодировке UTF-8.") }
+    finally { setFileReading(false) }
+  }
   async function load() {
-    if (busy.current) return
+    if (busy.current || fileReading || loading) return
+    const source: ImportSource | null = sourceMode === "url" ? { type: "url", url: sourceUrl.trim() } : sourceFile
+    if (!source) { setError("Сначала выберите XML-файл."); return }
     setLoading(true); setError("")
     try {
-      const next = await request<ImportPreview>("/admin/rozetka?refresh=true")
+      const next = await request<ImportPreview>("/admin/rozetka", source)
       if (!mounted.current) return
-      setPreview(next); setSelected([]); setPage(0)
+      setPreview(next); setLoadedSource(source); setSelected([]); setPage(0)
       setSettings(old => ({ ...old, stock_location_id: next.locations.some(l => l.id === old.stock_location_id) ? old.stock_location_id : next.default_location_id,
         sales_channel_id: next.sales_channels.some(c => c.id === old.sales_channel_id) ? old.sales_channel_id : next.default_sales_channel_id }))
       setNotice("Источник загружен. Ваши правки сохранены; изменившиеся товары помечены для проверки.")
@@ -150,7 +168,7 @@ export default function RozetkaImportPage() {
     setConfirming(true)
   }
   async function run() {
-    if (busy.current) return
+    if (busy.current || !loadedSource) return
     const queue = chosen.map(p => ({ ...getDraft(p) })), config = { ...settings }
     busy.current = true; stop.current = false; setRunning(true); setConfirming(false); setError(""); setProgress({ done: 0, total: queue.length })
     let succeeded = 0, failed = 0
@@ -159,7 +177,7 @@ export default function RozetkaImportPage() {
         if (stop.current || !mounted.current) break
         setResults(old => ({ ...old, [d.key]: { state: "running", message: "Импортируется…" } }))
         try {
-          const result = await request<ImportResult>("/admin/rozetka/import", { draft: d, settings: config })
+          const result = await request<ImportResult>("/admin/rozetka/import", { draft: d, settings: config, source: loadedSource })
           succeeded++
           if (mounted.current) {
             setResults(old => ({ ...old, [d.key]: { state: "success", product_id: result.product_id, message: `${result.action === "replayed" ? "Уже импортирован" : result.action === "created" ? "Создан" : "Обновлён"} · ${result.status === "published" ? "опубликован" : "черновик"}` } }))
@@ -197,12 +215,25 @@ export default function RozetkaImportPage() {
   function closeEditor() { if (!translating) setEditing(null) }
   return <div className="rz-page">
     <header className="rz-header"><div><div className="rz-eyebrow">TAMIR · КАТАЛОГ ПОСТАВЩИКА</div><h1>Импорт Rozetka</h1><p>Выберите товары, подготовьте карточки и перенесите в магазин.</p></div>
-      <button className="rz-primary" disabled={loading || running} onClick={() => void load()}>{loading ? "Загружаем источник…" : preview ? "Обновить источник" : "Загрузить товары"}</button></header>
-    <div className="rz-source"><span>Источник: <a href="https://tamir.ua/rozetka/" target="_blank" rel="noreferrer">tamir.ua/rozetka</a></span><span>{preview ? `${preview.products.length} товаров · ${preview.products.reduce((n, p) => n + p.variants.length, 0)} вариантов · ${new Date(preview.fetched_at).toLocaleString("ru-RU")}` : "Просмотр ничего не меняет в магазине"}</span></div>
+      </header>
+    <fieldset disabled={running || loading || fileReading} className="rz-source-picker">
+      <legend>Источник товаров</legend>
+      <div className="rz-source-modes" role="group" aria-label="Способ загрузки XML">
+        <button aria-pressed={sourceMode === "url"} className={sourceMode === "url" ? "active" : ""} onClick={() => setSourceMode("url")}>По ссылке</button>
+        <button aria-pressed={sourceMode === "file"} className={sourceMode === "file" ? "active" : ""} onClick={() => setSourceMode("file")}>XML-файл</button>
+      </div>
+      <div className="rz-source-input">
+        {sourceMode === "url" ? <label>Адрес XML<input type="url" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder={DEFAULT_XML_URL} /><span className="rz-help">HTTPS-ссылка tamir.ua. Можно изменить язык или путь к выгрузке.</span></label>
+          : <label>Файл XML<input type="file" accept=".xml,application/xml,text/xml" onChange={e => void chooseFile(e.target.files?.[0])} /><span className="rz-help">{fileReading ? "Читаем файл…" : sourceFile ? `${sourceFile.name} · ${(new Blob([sourceFile.xml]).size / 1024).toFixed(0)} КБ` : "XML/YML в UTF-8, до 10 МБ. После выбора нажмите «Загрузить товары»."}</span></label>}
+        <button className="rz-primary" disabled={sourceMode === "file" && !sourceFile} onClick={() => void load()}>{loading ? "Загружаем…" : "Загрузить товары"}</button>
+      </div>
+      {preview && loadedSource && <p className="rz-loaded-source">Загружен {loadedSource.type === "file" ? "файл" : "адрес"}: <strong>{preview.source}</strong> · {preview.products.length} товаров · {preview.products.reduce((n, p) => n + p.variants.length, 0)} вариантов · {new Date(preview.fetched_at).toLocaleString("ru-RU")}</p>}
+      <p className="rz-help">Загрузка открывает предпросмотр. Изменение адреса или выбор другого файла применится после нажатия «Загрузить товары».</p>
+    </fieldset>
     {error && <div className="rz-alert rz-error" role="alert">{error}</div>}
     {notice && <div className="rz-alert" role="status">{notice}</div>}
     {running && <div className="rz-progress" role="status"><div><strong>Импорт: {progress.done} из {progress.total}</strong><p>Товары обрабатываются по одному. Не закрывайте страницу.</p></div><progress value={progress.done} max={progress.total} /><button onClick={() => { stop.current = true; setNotice("Остановка после текущего товара…") }}>Остановить очередь</button></div>}
-    {!preview ? <section className="rz-empty"><div className="rz-empty-icon">↓</div><h2>Сначала посмотрите, что импортируете</h2><p>Фотографии, цены источника, описания и размеры появятся здесь.<br />Можно выбрать отдельные товары и изменить каждую карточку.</p><button disabled={loading} onClick={() => void load()}>{loading ? "Загрузка…" : "Загрузить каталог tamir.ua"}</button></section> : <>
+    {!preview ? <section className="rz-empty"><div className="rz-empty-icon">↓</div><h2>Сначала посмотрите, что импортируете</h2><p>Фотографии, цены источника, описания и размеры появятся здесь.<br />Можно выбрать отдельные товары и изменить каждую карточку.</p><p className="rz-help">Выберите ссылку или XML-файл в блоке выше.</p></section> : <>
       <fieldset disabled={running || loading} className="rz-settings"><legend>Куда и как импортировать</legend>
         <label>Склад<select value={settings.stock_location_id} onChange={e => setSettings(s => ({ ...s, stock_location_id: e.target.value }))}><option value="">Выберите склад</option>{preview.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
         <label>Канал продаж<select value={settings.sales_channel_id} onChange={e => setSettings(s => ({ ...s, sales_channel_id: e.target.value }))}><option value="">Выберите канал</option>{preview.sales_channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
