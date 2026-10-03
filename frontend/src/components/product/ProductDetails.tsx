@@ -65,6 +65,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
   const [quantity, setQuantity] = useState(1)
   const [message, setMessage] = useState<"added" | "error" | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
+  const [origin, setOrigin] = useState("50% 50%")
   const title = localizedText(product, "title", product.title, locale)
   const description = localizedText(product, "description", product.description ?? "", locale).replace(/<[^>]*>/g, " ")
   const limit = stockLimit(variant)
@@ -83,8 +84,9 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
   return <div className="product-layout">
     <div className={`product-gallery${images.length > 1 ? "" : " product-gallery-single"}`}>
       <button type="button" disabled={!hero} onClick={() => dialog.current?.showModal()} aria-label={t("product.zoom")}
-        className="relative block product-hero w-full cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
-        <ProductImage src={hero?.url} alt={title} eager className="absolute inset-0 h-full w-full object-contain" />
+        onPointerMove={event => { if (event.pointerType === "mouse") { const r = event.currentTarget.getBoundingClientRect(); setOrigin(`${(event.clientX - r.left) / r.width * 100}% ${(event.clientY - r.top) / r.height * 100}%`) } }}
+        className="group relative block product-hero w-full cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
+        <div className="h-full w-full transition-transform duration-200 [@media(hover:hover)]:group-hover:scale-[1.8]" style={{ transformOrigin: origin }}><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-cover" /></div>
       </button>
       {images.length > 1 && <div className="product-thumbnails" aria-label={t("product.photos")}>
         {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className="product-thumbnail"><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
