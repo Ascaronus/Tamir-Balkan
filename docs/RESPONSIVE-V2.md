@@ -4,7 +4,8 @@ Design source: [Figma, page 04 · TAMIR / Responsive v2](https://www.figma.com/d
 
 ## Layout and typography
 
-The catalog and product page now use a container up to 2560 px wide. Horizontal
+The catalog and product page use a container up to 2560 px wide. The product
+overview is centered within it and capped at 1200 px. Horizontal
 padding grows from 48 px at 1920 px to 80 px at 2560 px. Tablets use 32 px;
 phones use 20 px, or 16 px at widths of 360 px and below. Checkout and account
 forms retain a narrower reading width.
@@ -16,7 +17,13 @@ three at 1401–1799 px, and two below. Mobile navigation and filter drawers sta
 at 900 px. Photos keep their aspect ratio and crop to the card frame.
 
 Product thumbnails sit to the left on desktop and below the main photo on
-mobile. Zoom still displays the complete image. Color selectors have centered
+mobile. Following the tamir.ua reference (2026-10-03), the main photo uses a
+portrait 3:4 frame up to 460 × 613 px, capped at 75% of the viewport height.
+Main photos and thumbnails display the complete image without cropping. Hover
+does not magnify the photo; clicking opens the existing full-image dialog.
+This intentionally replaces the oversized gallery in Figma frame 79:1499;
+the existing typography, colors and thumbnail placement remain in use.
+Color selectors have centered
 32 px swatches in 44 px controls. Delivery/return details use an expandable
 section. Reviews preserve their existing voting, authentication and collapse
 rules.
