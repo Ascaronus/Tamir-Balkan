@@ -18,7 +18,7 @@ export const importRequestSchema = z.object({
     weight: z.string().max(20), material: short, origin_country: z.string().trim().max(2),
     mode: z.enum(["create", "update"]), existing_id: short.optional(), existing_updated_at: z.string().max(64).optional(),
   }).strict(),
-  settings: z.object({ stock_location_id: short.min(1), sales_channel_id: short.min(1), image_mode: z.enum(["remote", "copy"]) }).strict(),
+  settings: z.object({ stock_location_id: short.min(1), sales_channel_id: short.min(1), shipping_profile_id: short.min(1).optional(), image_mode: z.enum(["remote", "copy"]) }).strict(),
 }).strict()
 export function validateImport(body: unknown, source: SourceProduct) {
   const parsed = importRequestSchema.safeParse(body)
@@ -58,13 +58,18 @@ async function listAll(service: any, method: string, filters = {}, select?: stri
     if (all.length >= 10000) throw new ImportError(422, "Слишком много записей в настройках магазина")
   }
 }
+export function chooseShippingProfile(profiles: { id: string; type: string }[], selectedId?: string) {
+  if (selectedId) return profiles.find(p => p.id === selectedId)
+  return profiles.find(p => p.type === "default") ?? (profiles.length === 1 ? profiles[0] : undefined)
+}
 export async function previewImport(container: MedusaContainer, refresh = false, source: ImportSource = { type: "url", url: ROZETKA_SOURCE }): Promise<ImportPreview> {
-  const [feed, products, categories, locations, channels, stores] = await Promise.all([
+  const [feed, products, categories, locations, channels, stores, profiles] = await Promise.all([
     loadFeed(refresh, source), importedProducts(container),
     listAll(container.resolve(Modules.PRODUCT), "listProductCategories", { is_active: true, is_internal: false }, ["id", "name", "parent_category_id"]),
     listAll(container.resolve(Modules.STOCK_LOCATION), "listStockLocations"),
     listAll(container.resolve(Modules.SALES_CHANNEL), "listSalesChannels", { is_disabled: false }),
     container.resolve(Modules.STORE).listStores(),
+    listAll(container.resolve(Modules.FULFILLMENT), "listShippingProfiles"),
   ])
   return { ...feed, source: sourceLabel(source),
     products: feed.products.map(p => {
@@ -74,6 +79,8 @@ export async function previewImport(container: MedusaContainer, refresh = false,
     }),
     categories: categories.map(c => ({ id: c.id, name: c.name, parent_category_id: c.parent_category_id })),
     locations: locations.map(l => ({ id: l.id, name: l.name })), sales_channels: channels.map(c => ({ id: c.id, name: c.name })),
+    shipping_profiles: profiles.map(p => ({ id: p.id, name: p.name })),
+    default_shipping_profile_id: chooseShippingProfile(profiles)?.id || "",
     default_location_id: locations.find(l => l.id === (process.env.ROZETKA_STOCK_LOCATION_ID || "sloc_01KNA4KNCV0D9RQYWKD6R2DY76"))?.id || locations[0]?.id || "",
     default_sales_channel_id: channels.find(c => c.id === stores[0]?.default_sales_channel_id)?.id || channels[0]?.id || "",
     translation_available: Boolean(process.env.GOOGLE_TRANSLATE_API_KEY && process.env.GOOGLE_TRANSLATE_API_KEY !== "YOUR_GOOGLE_KEY"),
@@ -127,9 +134,14 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
     const [category, channel, location, profiles] = await Promise.all([
       module.retrieveProductCategory(draft.category_id, { select: ["id", "is_active", "is_internal"] }), container.resolve(Modules.SALES_CHANNEL).retrieveSalesChannel(settings.sales_channel_id),
       container.resolve(Modules.STOCK_LOCATION).retrieveStockLocation(settings.stock_location_id),
-      container.resolve(Modules.FULFILLMENT).listShippingProfiles({ type: "default" }),
+      listAll(container.resolve(Modules.FULFILLMENT), "listShippingProfiles"),
     ])
-    if (!category.is_active || category.is_internal || channel.is_disabled || !location || !profiles[0]) throw new ImportError(400, "Проверьте активную категорию, канал продаж, склад и профиль доставки магазина")
+    if (!category.is_active || category.is_internal || channel.is_disabled || !location) throw new ImportError(400, "Проверьте активную категорию, канал продаж и склад магазина")
+    const shippingProfile = chooseShippingProfile(profiles, settings.shipping_profile_id)
+    if (!shippingProfile) throw new ImportError(400, settings.shipping_profile_id
+      ? "Выбранный профиль доставки удалён. Обновите источник и выберите профиль заново."
+      : profiles.length ? "Выберите профиль доставки в блоке «Куда и как импортировать». В магазине нет профиля по умолчанию."
+      : "В магазине нет профилей доставки. Создайте профиль в настройках доставки и обновите источник.")
     const selected = draft.variants.filter(v => v.selected)
     const current = existing ? await module.retrieveProduct(existing.id, { relations: ["options", "options.values", "variants", "variants.options"] }) : undefined
     const colorEnabled = selected.some(v => v.color)
@@ -171,7 +183,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
     try {
       if (!id) {
         const { result } = await createProductsWorkflow(container).run({ input: { products: [{ title: draft.title, handle: source.handle,
-          status: "draft", shipping_profile_id: profiles[0].id, sales_channels: [{ id: settings.sales_channel_id }],
+          status: "draft", shipping_profile_id: shippingProfile.id, sales_channels: [{ id: settings.sales_channel_id }],
           options, variants: [], metadata }] } })
         id = result[0].id
       } else await module.updateProducts(id, { status: "draft", metadata })
@@ -197,7 +209,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
         await module.updateProductOptions(old.id, { values: [...new Set([...old.values.map(v => v.value), ...option.values])] })
       }
       await updateProductsWorkflow(container).run({ input: { products: [{ id, title: draft.title, description: draft.description,
-        status: "draft", category_ids: [draft.category_id], images, thumbnail: images[0]?.url ?? null,
+        status: "draft", shipping_profile_id: shippingProfile.id, category_ids: [draft.category_id], images, thumbnail: images[0]?.url ?? null,
         ...(draft.weight ? { weight: numberInput(draft.weight)! } : {}), ...(draft.material ? { material: draft.material } : {}),
         ...(draft.origin_country ? { origin_country: draft.origin_country.toLowerCase() } : {}),
         metadata: { ...metadata, rozetka_media: mediaMap } }] } })

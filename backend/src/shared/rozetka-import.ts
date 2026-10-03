@@ -19,13 +19,14 @@ export type ImportDraft = {
   weight: string; material: string; origin_country: string;
   mode: "create" | "update"; existing_id?: string; existing_updated_at?: string
 }
-export type ImportSettings = { stock_location_id: string; sales_channel_id: string; image_mode: "remote" | "copy" }
+export type ImportSettings = { stock_location_id: string; sales_channel_id: string; shipping_profile_id?: string; image_mode: "remote" | "copy" }
 export type ImportPreview = {
   source: string; fetched_at: string; products: SourceProduct[];
   categories: { id: string; name: string; parent_category_id?: string | null }[];
   source_categories: { id: string; name: string; parent_id: string; count: number }[];
   locations: { id: string; name: string }[]; sales_channels: { id: string; name: string }[];
-  default_location_id: string; default_sales_channel_id: string; translation_available: boolean
+  shipping_profiles: { id: string; name: string }[];
+  default_location_id: string; default_sales_channel_id: string; default_shipping_profile_id: string; translation_available: boolean
 }
 export type ImportResult = { product_id: string; status: string; action: "created" | "updated" | "replayed"; title: string }
 

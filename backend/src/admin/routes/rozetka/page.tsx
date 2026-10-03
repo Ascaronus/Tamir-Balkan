@@ -37,7 +37,7 @@ export default function RozetkaImportPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [drafts, setDrafts] = useState<Record<string, ImportDraft>>({})
   const [selected, setSelected] = useState<string[]>([])
-  const [settings, setSettings] = useState<ImportSettings>({ stock_location_id: "", sales_channel_id: "", image_mode: "remote" })
+  const [settings, setSettings] = useState<ImportSettings>({ stock_location_id: "", sales_channel_id: "", shipping_profile_id: "", image_mode: "remote" })
   const [loading, setLoading] = useState(false), [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(""), [notice, setNotice] = useState("")
   const [search, setSearch] = useState(""), [category, setCategory] = useState("")
@@ -115,6 +115,7 @@ export default function RozetkaImportPage() {
       if (!mounted.current) return
       setPreview(next); setLoadedSource(source); setSelected([]); setPage(0)
       setSettings(old => ({ ...old, stock_location_id: next.locations.some(l => l.id === old.stock_location_id) ? old.stock_location_id : next.default_location_id,
+        shipping_profile_id: next.shipping_profiles.some(p => p.id === old.shipping_profile_id) ? old.shipping_profile_id : next.default_shipping_profile_id,
         sales_channel_id: next.sales_channels.some(c => c.id === old.sales_channel_id) ? old.sales_channel_id : next.default_sales_channel_id }))
       setNotice("Источник загружен. Ваши правки сохранены; изменившиеся товары помечены для проверки.")
     } catch (e) { setError(e instanceof Error ? e.message : "Ошибка загрузки") }
@@ -160,6 +161,7 @@ export default function RozetkaImportPage() {
     setError("")
     if (!chosen.length) { setError("Выберите товары галочками."); return }
     if (!settings.stock_location_id || !settings.sales_channel_id) { setError("Выберите склад и канал продаж."); return }
+    if (!settings.shipping_profile_id) { setError("Выберите профиль доставки в блоке «Куда и как импортировать»."); return }
     for (const p of chosen) {
       const d = getDraft(p), errors = draftErrors(d)
       if (d.fingerprint !== p.fingerprint || d.existing_id !== p.existing?.id || d.existing_updated_at !== p.existing?.updated_at) errors.unshift("Источник или товар магазина изменился. Нажмите «Принять текущие данные» после проверки.")
@@ -185,7 +187,11 @@ export default function RozetkaImportPage() {
           }
         } catch (e) {
           failed++
-          if (mounted.current) setResults(old => ({ ...old, [d.key]: { state: "error", message: e instanceof Error ? e.message : "Ошибка импорта", product_id: (e as { product_id?: string }).product_id } }))
+          if (mounted.current) {
+            const message = e instanceof Error ? e.message : "Ошибка импорта"
+            setError(`${d.title}: ${message}`)
+            setResults(old => ({ ...old, [d.key]: { state: "error", message, product_id: (e as { product_id?: string }).product_id } }))
+          }
           // Stop on an error: the user can inspect a partial draft before retrying.
           stop.current = true
         }
@@ -237,6 +243,7 @@ export default function RozetkaImportPage() {
       <fieldset disabled={running || loading} className="rz-settings"><legend>Куда и как импортировать</legend>
         <label>Склад<select value={settings.stock_location_id} onChange={e => setSettings(s => ({ ...s, stock_location_id: e.target.value }))}><option value="">Выберите склад</option>{preview.locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
         <label>Канал продаж<select value={settings.sales_channel_id} onChange={e => setSettings(s => ({ ...s, sales_channel_id: e.target.value }))}><option value="">Выберите канал</option>{preview.sales_channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label>Профиль доставки<select value={settings.shipping_profile_id || ""} onChange={e => setSettings(s => ({ ...s, shipping_profile_id: e.target.value }))}><option value="">Выберите профиль доставки</option>{preview.shipping_profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <label>Хранение фотографий<select value={settings.image_mode} onChange={e => setSettings(s => ({ ...s, image_mode: e.target.value as ImportSettings["image_mode"] }))}><option value="remote">Ссылки на tamir.ua — не занимают диск</option><option value="copy">Копировать фотографии в магазин</option></select></label>
         <p className="rz-help rz-wide">Новые товары создаются черновиками, остатки магазина — 0. Измените их в редакторе при необходимости. Ссылки на фото зависят от доступности tamir.ua.</p>
       </fieldset>
@@ -276,7 +283,7 @@ export default function RozetkaImportPage() {
         </fieldset>
       </div><footer className="rz-dialog-footer"><span>{prices(draft)} · {draft.variants.filter(v => v.selected).length} вариантов · {draft.images.length} фото</span><button disabled={translating} onClick={closeEditor}>Готово — сохранить правки</button></footer>
     </div></div>}
-    {confirming && <div className="rz-overlay"><div className="rz-dialog rz-confirm" role="dialog" aria-modal="true" aria-labelledby="rz-confirm-title" tabIndex={-1} ref={modal} onKeyDown={e => { if (e.key === "Escape") setConfirming(false) }}><header className="rz-dialog-header"><h2 id="rz-confirm-title">Проверка перед импортом</h2><button aria-label="Закрыть проверку" onClick={() => setConfirming(false)}>✕</button></header><div className="rz-dialog-body"><p>Склад: <strong>{preview?.locations.find(l => l.id === settings.stock_location_id)?.name}</strong></p><p>Канал: <strong>{preview?.sales_channels.find(c => c.id === settings.sales_channel_id)?.name}</strong> · Фото: {settings.image_mode === "remote" ? "ссылки на tamir.ua" : "копирование в магазин"}</p><p className="rz-help">Импортируются только перечисленные товары и выбранные варианты. При ошибке очередь остановится, незавершённый товар останется черновиком.</p><ul className="rz-confirm-list">{chosen.map(p => { const d = getDraft(p); return <li key={p.key}><strong>{d.title}</strong><span>{categoryPath(d.category_id, categories)} · {prices(d)}</span><span>{d.variants.filter(v => v.selected).length} вариантов · {d.images.length} фото · {d.mode === "update" ? "Обновить" : "Создать"} · {d.status === "published" ? "ОПУБЛИКОВАТЬ" : "Черновик"}</span></li> })}</ul></div><footer className="rz-dialog-footer"><button onClick={() => setConfirming(false)}>Вернуться к правкам</button><button className="rz-primary" onClick={() => void run()}>Импортировать {chosen.length} товаров</button></footer></div></div>}
+    {confirming && <div className="rz-overlay"><div className="rz-dialog rz-confirm" role="dialog" aria-modal="true" aria-labelledby="rz-confirm-title" tabIndex={-1} ref={modal} onKeyDown={e => { if (e.key === "Escape") setConfirming(false) }}><header className="rz-dialog-header"><h2 id="rz-confirm-title">Проверка перед импортом</h2><button aria-label="Закрыть проверку" onClick={() => setConfirming(false)}>✕</button></header><div className="rz-dialog-body"><p>Склад: <strong>{preview?.locations.find(l => l.id === settings.stock_location_id)?.name}</strong></p><p>Канал: <strong>{preview?.sales_channels.find(c => c.id === settings.sales_channel_id)?.name}</strong> · Фото: {settings.image_mode === "remote" ? "ссылки на tamir.ua" : "копирование в магазин"}</p><p>Профиль доставки: <strong>{preview?.shipping_profiles.find(p => p.id === settings.shipping_profile_id)?.name}</strong></p><p className="rz-help">Импортируются только перечисленные товары и выбранные варианты. При ошибке очередь остановится, незавершённый товар останется черновиком.</p><ul className="rz-confirm-list">{chosen.map(p => { const d = getDraft(p); return <li key={p.key}><strong>{d.title}</strong><span>{categoryPath(d.category_id, categories)} · {prices(d)}</span><span>{d.variants.filter(v => v.selected).length} вариантов · {d.images.length} фото · {d.mode === "update" ? "Обновить" : "Создать"} · {d.status === "published" ? "ОПУБЛИКОВАТЬ" : "Черновик"}</span></li> })}</ul></div><footer className="rz-dialog-footer"><button onClick={() => setConfirming(false)}>Вернуться к правкам</button><button className="rz-primary" onClick={() => void run()}>Импортировать {chosen.length} товаров</button></footer></div></div>}
   </div>
 }
 export const config = defineRouteConfig({ label: "Импорт Rozetka" })

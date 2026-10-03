@@ -33,7 +33,7 @@ const flows = Object.fromEntries(['createProductsWorkflow','updateProductsWorkfl
  return {result:[]}
 }})]))
 Module._load = function(name, parent, main) { return name === '@medusajs/medusa/core-flows' ? flows : oldLoad.call(this,name,parent,main) }
-const { validateImport, executeImport, findImported } = require('../src/utils/rozetka-admin')
+const { validateImport, executeImport, findImported, chooseShippingProfile } = require('../src/utils/rozetka-admin')
 Module._load = oldLoad
 const { Modules, ContainerRegistrationKeys } = require('@medusajs/framework/utils')
 function setup() {
@@ -52,7 +52,7 @@ function setup() {
   if(key===ContainerRegistrationKeys.LOGGER)return {error:()=>{}}
   if(key===Modules.SALES_CHANNEL)return {retrieveSalesChannel:async()=>({is_disabled:false})}
   if(key===Modules.STOCK_LOCATION)return {retrieveStockLocation:async()=>({id:'loc'})}
-  if(key===Modules.FULFILLMENT)return {listShippingProfiles:async()=>[{id:'sp'}]}
+  if(key===Modules.FULFILLMENT)return {listShippingProfiles:async()=>state.profiles??[{id:'sp',type:'default'}]}
   if(key===Modules.TRANSLATION)return {listTranslations:async({locale_code})=>state.translations.filter(t=>t.locale_code===locale_code),createTranslations:async data=>{state.translations.push({...data,id:'tr'+state.translations.length});return data},updateTranslations:async data=>Object.assign(state.translations.find(t=>t.id===data.id),data)}
   if(key===Modules.INVENTORY)return {listInventoryLevels:async({inventory_item_id,location_id})=>state.levels.filter(l=>l.inventory_item_id===inventory_item_id&&l.location_id===location_id),updateInventoryLevels:async(data)=>{for(const l of data)Object.assign(state.levels.find(x=>x.id===l.id),l)}}
   if(key===ContainerRegistrationKeys.QUERY)return {graph:async args=>{
@@ -136,6 +136,34 @@ test('concurrent request fails before product writes and releases lock connectio
  const c=setup();state.locked=true
  await assert.rejects(executeImport(c,valid(),'admin'),/уже импортируется/)
  assert.equal(actions.length,0);assert.equal(state.released,true)
+})
+
+test('custom shipping profiles work without a default and ambiguous or deleted profiles fail before writes',async()=>{
+ const c=setup(),body=valid()
+ state.profiles=[{id:'pickup',type:'Store Pickup'},{id:'shipping',type:' Shipping'}]
+ await assert.rejects(executeImport(c,body,'admin'),/Выберите профиль доставки/)
+ assert.equal(actions.length,0);assert.equal(state.product,null)
+ body.settings.shipping_profile_id='deleted'
+ await assert.rejects(executeImport(c,body,'admin'),/профиль доставки удалён/)
+ assert.equal(actions.length,0)
+ body.settings.shipping_profile_id='pickup'
+ await executeImport(c,body,'admin')
+ assert.equal(state.product.shipping_profile_id,'pickup')
+ assert.equal(actions.find(a=>a.name==='createProductsWorkflow').input.products[0].shipping_profile_id,'pickup')
+ const updated=structuredClone(body)
+ updated.draft.mode='update';updated.draft.existing_id='prod';updated.draft.existing_updated_at=state.product.updated_at
+ updated.settings.shipping_profile_id='shipping'
+ await executeImport(c,updated,'admin')
+ assert.equal(state.product.shipping_profile_id,'shipping')
+})
+
+test('shipping profile fallback prefers default, supports a sole custom profile, and never ignores an explicit choice',()=>{
+ const custom={id:'custom',type:'Shipping'},standard={id:'standard',type:'default'}
+ assert.equal(chooseShippingProfile([custom,standard]).id,'standard')
+ assert.equal(chooseShippingProfile([custom]).id,'custom')
+ assert.equal(chooseShippingProfile([custom,standard],'custom').id,'custom')
+ assert.equal(chooseShippingProfile([custom,standard],'deleted'),undefined)
+ assert.equal(chooseShippingProfile([]),undefined)
 })
 
 test('uploaded XML is isolated from URL cache and imports without downloading the default feed',async()=>{
