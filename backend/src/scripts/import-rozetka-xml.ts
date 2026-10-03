@@ -1,3 +1,5 @@
+import { importedProducts } from "../utils/rozetka-admin"
+import { rozetkaProductHandle } from "../utils/rozetka-product-text"
 import { missingSourceInventory } from "../utils/import-scope"
 import { offerSize, offerStock, offerPictures, offerPriceRsd } from "../utils/rozetka"
 import type { ExecArgs } from "@medusajs/framework/types"
@@ -563,6 +565,8 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
 
   logger.info(`Importing products: ${byProductKey.size} groups`)
 
+  const knownProducts = await importedProducts(container)
+  const reservedProducts = [...knownProducts]
   const productsInput: any[] = []
   const skuToStock: Record<string, number> = {}
   const translationCache = new Map<string, { titleEn: string; titleSr: string; descEn: string; descSr: string }>()
@@ -666,10 +670,13 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       }
     })
 
+    const existing = knownProducts.find(p => p.metadata?.rozetka_product_key === key)
+    const publicHandle = rozetkaProductHandle(titleSr, crypto.createHash("sha256").update(key).digest("hex"), reservedProducts, existing)
+    reservedProducts.push({ id: `pending-${key}`, handle: publicHandle })
     productsInput.push({
-      title: titleEn,
-      handle,
-      description: descText,
+      title: titleSr,
+      handle: publicHandle,
+      description: descSr,
       status: "published",
       sales_channels: [{ id: salesChannelId }],
       shipping_profile_id: shippingProfile.id,
@@ -684,6 +691,9 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       ],
       variants,
       metadata: {
+        ...(existing?.metadata || {}),
+        ...(existing?.handle && existing.handle !== publicHandle ? { rozetka_legacy_handle: existing.handle } : {}),
+        rozetka_original_text: { title, description: descText },
         rozetka_product_key: key,
         rozetka_url: first.url,
         rozetka_vendor: first.vendor ? String(first.vendor) : undefined,
@@ -697,17 +707,12 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     })
   }
 
-  // 3) Create products (idempotency via handle: if already exists, skip)
-  // We do a simple skip-if-exists based on handle to avoid duplicates.
-  const handles = productsInput.map((p) => p.handle)
-  const { data: existingProducts } = await query.graph({
-    entity: "product",
-    fields: ["id", "handle"],
-    filters: { handle: handles },
-  })
-  const existingHandleToId = new Map<string, string>(
-    (existingProducts ?? []).map((p: any) => [String(p.handle), String(p.id)])
-  )
+  // Stable source identity survives public URL changes. Never adopt a manual product by slug.
+  const existingHandleToId = new Map<string, string>()
+  for (const product of productsInput) {
+    const existing = knownProducts.find(p => p.metadata?.rozetka_product_key === product.metadata.rozetka_product_key)
+    if (existing) existingHandleToId.set(product.handle, existing.id)
+  }
   const existingHandles = new Set(existingHandleToId.keys())
   const toCreateProducts = productsInput.filter((p) => !existingHandles.has(p.handle))
 

@@ -54,3 +54,8 @@ test('fresh catalog preference or another product supersedes the local selection
  assert.equal(href(instance.render({...p,catalog:{...p.catalog,preferred_variant_id:'black-m'}})),'/rs/products/shirt?v_id=black-m')
  assert.equal(href(instance.render({...p,id:'another'})),'/rs/products/shirt?v_id=custom-l')
 })
+
+test('single-variant product links are clean while multi-variant selections remain addressable',()=>{
+ const p=product([variant('one','One Size','Black')])
+ assert.equal(href(card(p).render()),'/rs/products/shirt')
+})

@@ -151,5 +151,15 @@ JS
 git merge --ff-only "$target"
 trap - ERR
 bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
+# Repair existing imported text/URLs only once the new redirect-capable release is live.
+node <<'JS'
+const path = require('node:path'), { spawnSync } = require('node:child_process')
+const config = require(path.join(process.env.TAMIR_RELEASE, 'ecosystem.config.cjs'))
+const app = config.apps.find(app => app.name === 'tamir-backend')
+const result = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/normalize-rozetka-products.ts'], {
+  cwd: app.cwd, env: { ...process.env, ...app.env, ROZETKA_NORMALIZE_APPLY: 'true' }, stdio: 'inherit'
+})
+if (result.status !== 0) process.exit(result.status || 1)
+JS
 trap - ERR
 echo "Deployment complete. Release: $release_dir Backup: $backup_dir"

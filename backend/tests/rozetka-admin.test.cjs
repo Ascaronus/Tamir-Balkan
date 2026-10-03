@@ -34,6 +34,7 @@ const flows = Object.fromEntries(['createProductsWorkflow','updateProductsWorkfl
 }})]))
 Module._load = function(name, parent, main) { return name === '@medusajs/medusa/core-flows' ? flows : oldLoad.call(this,name,parent,main) }
 const { validateImport, executeImport, findImported, chooseShippingProfile } = require('../src/utils/rozetka-admin')
+const normalizeProducts = require('../src/scripts/normalize-rozetka-products').default
 Module._load = oldLoad
 const { Modules, ContainerRegistrationKeys } = require('@medusajs/framework/utils')
 function setup() {
@@ -49,7 +50,7 @@ function setup() {
  const container={resolve(key){
   if(key===Modules.PRODUCT)return product
   if(key===ContainerRegistrationKeys.PG_CONNECTION)return db
-  if(key===ContainerRegistrationKeys.LOGGER)return {error:()=>{}}
+  if(key===ContainerRegistrationKeys.LOGGER)return {error:()=>{},info:()=>{}}
   if(key===Modules.SALES_CHANNEL)return {retrieveSalesChannel:async()=>({is_disabled:false})}
   if(key===Modules.STOCK_LOCATION)return {retrieveStockLocation:async()=>({id:'loc'})}
   if(key===Modules.FULFILLMENT)return {listShippingProfiles:async()=>state.profiles??[{id:'sp',type:'default'}]}
@@ -189,4 +190,54 @@ test('editable URL is used and cached separately for each source',async()=>{
   assert.match((await loadFeed(false,{type:'url',url:'https://tamir.ua/rozetka/'})).products[0].title,/RU title/)
   assert.equal(calls.length,2)
  } finally {global.fetch=original}
+})
+
+test('Serbian becomes primary text, source and English survive, and reimport preserves public URL', async () => {
+ const c=setup(),body=valid();body.source={type:'file',name:'test.xml',xml}
+ body.draft.title_sr='Zimska muška kapa sive boje';body.draft.description_sr='Topla kapa.';body.draft.description_en='Warm hat.'
+ await executeImport(c,body,'admin')
+ assert.equal(state.product.title,'Zimska muška kapa sive boje')
+ assert.equal(state.product.description,'Topla kapa.')
+ assert.equal(state.product.handle,'zimska-muska-kapa-sive-boje')
+ assert.equal(state.product.metadata.rozetka_original_text.title,source.title)
+ assert.equal(state.translations.find(t=>t.locale_code==='en').translations.description,'Warm hat.')
+ body.draft.mode='update';body.draft.existing_id='prod';body.draft.existing_updated_at=state.product.updated_at;body.draft.title_sr='Novo ime'
+ await executeImport(c,body,'admin')
+ assert.equal(state.product.handle,'zimska-muska-kapa-sive-boje')
+ assert.equal(state.product.title,'Novo ime')
+})
+test('updating a legacy import records its old handle for permanent redirects', async () => {
+ const c=setup(),body=valid();body.source={type:'file',name:'test.xml',xml};await executeImport(c,body,'admin')
+ state.product.handle=source.handle
+ body.draft.mode='update';body.draft.existing_id='prod';body.draft.existing_updated_at=state.product.updated_at
+ await executeImport(c,body,'admin')
+ assert.equal(state.product.handle,'kapa')
+ assert.equal(state.product.metadata.rozetka_legacy_handle,source.handle)
+})
+test('slug transliteration, collisions, reserved aliases and manual handles', () => {
+ const {productSlug,rozetkaProductHandle}=require('../src/utils/rozetka-product-text')
+ assert.equal(productSlug('Čarape — Đorđe / Šešir!'),'carape-djordje-sesir')
+ assert.equal(productSlug('Зимска мушка капа'),'zimska-muska-kapa')
+ const products=[{id:'a',handle:'kapa'},{id:'b',handle:'other',metadata:{rozetka_legacy_handle:'kapa-12345678'}}]
+ assert.equal(rozetkaProductHandle('Kapa','1234567890',products),'kapa-12345678-2')
+ assert.equal(rozetkaProductHandle('New title','key',products,{id:'c',handle:'my-custom-url'}),'my-custom-url')
+})
+
+
+test('existing-product repair is idempotent and preserves stock, status and translations', async () => {
+ const c=setup(),body=valid();body.source={type:'file',name:'test.xml',xml};body.draft.status='published';body.draft.description_sr='Opis'
+ await executeImport(c,body,'admin')
+ state.product.handle=source.handle;state.product.title=source.title;state.product.description='Source description'
+ delete state.product.metadata.rozetka_text_version;delete state.product.metadata.rozetka_original_text
+ const variants=JSON.stringify(state.product.variants),levels=JSON.stringify(state.levels),translations=JSON.stringify(state.translations)
+ const previous=process.env.ROZETKA_NORMALIZE_APPLY
+ try {
+  process.env.ROZETKA_NORMALIZE_APPLY='true';await normalizeProducts({container:c})
+  assert.equal(state.product.title,'Kapa');assert.equal(state.product.description,'Opis');assert.equal(state.product.handle,'kapa')
+  assert.equal(state.product.metadata.rozetka_legacy_handle,source.handle)
+  assert.equal(state.product.metadata.rozetka_original_text.description,'Source description')
+  assert.equal(state.product.status,'published');assert.equal(JSON.stringify(state.product.variants),variants)
+  assert.equal(JSON.stringify(state.levels),levels);assert.equal(JSON.stringify(state.translations),translations)
+  const repaired=actions.length;await normalizeProducts({container:c});assert.equal(actions.length,repaired)
+ } finally { if(previous===undefined)delete process.env.ROZETKA_NORMALIZE_APPLY;else process.env.ROZETKA_NORMALIZE_APPLY=previous }
 })

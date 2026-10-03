@@ -7,6 +7,8 @@ import { statfs } from "node:fs/promises"
 import { draftErrors, numberInput, type ImportDraft, type ImportPreview, type ImportResult, type SourceProduct, type ImportSource } from "../shared/rozetka-import"
 import { digest, fetchSource, ImportError, loadFeed, ROZETKA_SOURCE, sourceSchema, sourceLabel } from "./rozetka-preview"
 
+import { rozetkaProductText, rozetkaProductHandle } from "./rozetka-product-text"
+
 const short = z.string().trim().max(255), description = z.string().max(20000)
 export const importRequestSchema = z.object({
   source: sourceSchema.optional(),
@@ -37,7 +39,7 @@ export function validateImport(body: unknown, source: SourceProduct) {
 export async function importedProducts(container: MedusaContainer): Promise<any[]> {
   const query = container.resolve(ContainerRegistrationKeys.QUERY), all: any[] = []
   for (let skip = 0; ; skip += 200) {
-    const { data } = await query.graph({ entity: "product", fields: ["id", "handle", "title", "status", "updated_at", "metadata", "categories.id"], pagination: { skip, take: 200 } })
+    const { data } = await query.graph({ entity: "product", fields: ["id", "handle", "title", "description", "status", "updated_at", "metadata", "categories.id"], pagination: { skip, take: 200 } })
     all.push(...data)
     if (data.length < 200) return all
     if (all.length >= 20000) throw new ImportError(422, "Каталог слишком большой для этого инструмента")
@@ -122,7 +124,8 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
   return withImportLock(container, async () => {
     const module = container.resolve(Modules.PRODUCT), query = container.resolve(ContainerRegistrationKeys.QUERY)
     const inventory = container.resolve(Modules.INVENTORY)
-    const existing = findImported(await importedProducts(container), source)
+    const products = await importedProducts(container)
+    const existing = findImported(products, source)
     const hash = digest(JSON.stringify({ draft, settings })), marker = existing?.metadata?.rozetka_admin_import
     const resuming = marker?.request_hash === hash
     if (resuming && marker.state === "complete") return { product_id: existing.id, status: existing.status, action: "replayed", title: existing.title }
@@ -167,6 +170,8 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
       const color = v.options.find(o => current?.options.find(p => p.id === o.option_id)?.title === "Color")?.value || ""
       if (selected.some(s => s.size === size && s.color === color)) throw new ImportError(409, "Сочетание размера и цвета занято другим вариантом. Проверьте варианты товара.")
     }
+    const text = rozetkaProductText(draft)
+    const handle = rozetkaProductHandle(text.title, source.key, products, existing)
     let id = existing?.id as string | undefined
     const oldMetadata = { ...(existing?.metadata || {}) }
     // Product text is stored in native Medusa translations. Preserve unrelated legacy metadata.
@@ -178,11 +183,13 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
     const metadata = { ...oldMetadata, rozetka_product_key: source.url, rozetka_admin_key: source.key,
       rozetka_url: source.url, rozetka_vendor: draft.vendor, rozetka_category_id: source.category_id,
       rozetka_source_fingerprint: source.fingerprint,
+      rozetka_original_text: { title: draft.title, description: draft.description }, rozetka_text_version: 1,
+      ...(existing?.handle && existing.handle !== handle ? { rozetka_legacy_handle: existing.handle } : {}),
       rozetka_admin_import: { request_hash: hash, state: "processing", actor, started_at: new Date().toISOString() } }
     const options = optionNames.map(title => ({ title, values: [...new Set(selected.map(v => title === "Size" ? v.size : v.color))] }))
     try {
       if (!id) {
-        const { result } = await createProductsWorkflow(container).run({ input: { products: [{ title: draft.title, handle: source.handle,
+        const { result } = await createProductsWorkflow(container).run({ input: { products: [{ ...text, handle,
           status: "draft", shipping_profile_id: shippingProfile.id, sales_channels: [{ id: settings.sales_channel_id }],
           options, variants: [], metadata }] } })
         id = result[0].id
@@ -208,7 +215,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
         const old = current.options.find(o => o.title === option.title)!
         await module.updateProductOptions(old.id, { values: [...new Set([...old.values.map(v => v.value), ...option.values])] })
       }
-      await updateProductsWorkflow(container).run({ input: { products: [{ id, title: draft.title, description: draft.description,
+      await updateProductsWorkflow(container).run({ input: { products: [{ id, ...text, handle,
         status: "draft", shipping_profile_id: shippingProfile.id, category_ids: [draft.category_id], images, thumbnail: images[0]?.url ?? null,
         ...(draft.weight ? { weight: numberInput(draft.weight)! } : {}), ...(draft.material ? { material: draft.material } : {}),
         ...(draft.origin_country ? { origin_country: draft.origin_country.toLowerCase() } : {}),
@@ -244,7 +251,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
       await updateProductsWorkflow(container).run({ input: { products: [{ id, status: draft.status,
         sales_channels: channelIds.map(channelId => ({ id: channelId })),
         metadata: { ...metadata, rozetka_media: mediaMap, rozetka_admin_import: { ...metadata.rozetka_admin_import, state: "complete", completed_at: new Date().toISOString() } } }] } })
-      return { product_id: id, status: draft.status, title: draft.title, action: existing ? "updated" : "created" }
+      return { product_id: id, status: draft.status, title: text.title, action: existing ? "updated" : "created" }
     } catch (error) {
       container.resolve(ContainerRegistrationKeys.LOGGER).error(`Rozetka import failed for ${source.key}, product ${id || "not created"}: ${error instanceof Error ? error.message : "unknown error"}`)
       if (error instanceof ImportError) { error.product_id ||= id; throw error }

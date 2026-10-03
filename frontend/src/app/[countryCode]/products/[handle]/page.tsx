@@ -9,7 +9,8 @@ import { productJsonLd } from "@/lib/seo/product"
 import { siteUrl, serializeJsonLd } from "@/lib/seo"
 import type { Locale } from "@/lib/i18n/config"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
+import { sdk } from "@/lib/medusa"
 import { listProductsByCountry } from "@/lib/store/products"
 import { StoreShell } from "@/components/store/StoreShell"
 import { getTranslations } from "@/lib/i18n/server"
@@ -18,7 +19,12 @@ import { ProductDetails } from "@/components/product/ProductDetails"
 
 const getProduct = cache(async (handle: string, locale: Locale) => {
   const { products } = await listProductsByCountry({ countryCode: "rs", handle, limit: 1, locale })
-  return products[0]
+  if (products[0] || !/^rozetka-[a-f0-9]{16,20}$/.test(handle)) return products[0]
+  const alias = await sdk.client.fetch<{ handle: string }>(`/store/product-redirects/${encodeURIComponent(handle)}`, { cache: "no-store" })
+    .catch((error: { status?: number }) => { if (error.status === 404) return null; throw error })
+  if (!alias?.handle || alias.handle === handle) return undefined
+  // The normal Store query still enforces publication and sales-channel access.
+  return (await listProductsByCountry({ countryCode: "rs", handle: alias.handle, limit: 1, locale })).products[0]
 })
 
 export async function generateMetadata({ params }: {
@@ -31,7 +37,7 @@ export async function generateMetadata({ params }: {
   if (!product) notFound()
   const title = localizedText(product, "title", product.title, locale)
   const description = localizedText(product, "description", product.description || title, locale).replace(/<[^>]*>/g, "").slice(0, 160)
-  const url = siteUrl("/rs/products/" + encodeURIComponent(handle))
+  const url = siteUrl("/rs/products/" + encodeURIComponent(product.handle))
   const images = getImagesForVariant(product).map(image => image.url)
   return { title: title + " | Tamir", description, alternates: { canonical: url },
     openGraph: { title, description, url, images, type: "website" },
@@ -48,7 +54,12 @@ export default async function ProductPage({ params, searchParams }: {
   if (countryCode.toLowerCase() !== "rs") notFound()
   const product = await getProduct(handle, locale)
   if (!product) notFound()
-  const url = siteUrl("/rs/products/" + encodeURIComponent(handle))
+  if (product.handle !== handle) {
+    const variant = (await searchParams).v_id
+    const suffix = variant && product.variants?.some(v => v.id === variant) && product.variants.length > 1 ? `?v_id=${encodeURIComponent(variant)}` : ""
+    permanentRedirect(`/rs/products/${encodeURIComponent(product.handle)}${suffix}`)
+  }
+  const url = siteUrl("/rs/products/" + encodeURIComponent(product.handle))
   const reviews = await productReviews(product.id)
   const reviewSummary = reviews ? { count: reviews.count, rating: reviews.rating } : null
   const structuredData = productJsonLd(product, locale, url, reviews)

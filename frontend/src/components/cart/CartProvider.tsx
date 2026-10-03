@@ -5,6 +5,8 @@ import { addToCart, getOrCreateCart, removeLineItem, updateLineItem, type Cart }
 import { useAuth } from "@/components/auth/AuthProvider"
 import { stableItems } from "@/lib/store/commerce"
 
+import { useLocalizedCart } from "./useLocalizedCart"
+
 type CartContextValue = {
   cart: Cart | null
   isReady: boolean
@@ -62,14 +64,15 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     return () => { mounted = false; generation.current += 1; window.removeEventListener("tb-cart-reset", initialize) }
   }, [refresh, authReady])
 
+  const localizedCart = useLocalizedCart(cart)
   const value = useMemo<CartContextValue>(() => ({
-    cart, isReady, isMutating: pending > 0, error,
+    cart: localizedCart, isReady, isMutating: pending > 0, error,
     itemCount: cart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
     refresh,
     addItem: async (variantId, quantity = 1) => { await run(() => addToCart({ countryCode, variantId, quantity })) },
     updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, lineItemId, quantity })) },
     removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, lineItemId })) },
-  }), [cart, isReady, pending, error, refresh, run, countryCode])
+  }), [cart, localizedCart, isReady, pending, error, refresh, run, countryCode])
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 export function useCart() {

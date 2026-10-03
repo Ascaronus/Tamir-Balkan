@@ -22,7 +22,7 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
   const [selection, setSelection] = useState<{ context: string; id: string } | null>(null)
   const chosen = selection?.context === context ? variants.find(v => v.id === selection.id) : undefined
   const current = chosen ?? variants.find(v => v.id === initialId) ?? variants.find(canPurchase) ?? variants[0]
-  const href = `/rs/products/${encodeURIComponent(product.handle)}${current ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
+  const href = `/rs/products/${encodeURIComponent(product.handle)}${current && variants.length > 1 ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
   const image = current?.images?.length ? getImagesForVariant(product, current.id)[0]?.url : getStoreProductImageUrl(product)
   const price = chosen ? variantAmount(chosen.calculated_price) : product.catalog.price
   const colors = (product.options ?? []).filter(o => isColorOption(o.title)).flatMap(option =>
