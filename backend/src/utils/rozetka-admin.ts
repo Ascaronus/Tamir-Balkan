@@ -9,6 +9,8 @@ import { digest, fetchSource, ImportError, loadFeed, ROZETKA_SOURCE, sourceSchem
 
 import { rozetkaProductText, rozetkaProductHandle } from "./rozetka-product-text"
 
+import { fillProductOptionTranslations } from "./option-auto-translate"
+
 const short = z.string().trim().max(255), description = z.string().max(20000)
 export const importRequestSchema = z.object({
   source: sourceSchema.optional(),
@@ -128,7 +130,8 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
     const existing = findImported(products, source)
     const hash = digest(JSON.stringify({ draft, settings })), marker = existing?.metadata?.rozetka_admin_import
     const resuming = marker?.request_hash === hash
-    if (resuming && marker.state === "complete") return { product_id: existing.id, status: existing.status, action: "replayed", title: existing.title }
+    if (resuming && marker.state === "complete") return { product_id: existing.id, status: existing.status, action: "replayed", title: existing.title,
+      warnings: await fillProductOptionTranslations(container, existing.id) }
     if (existing && !resuming) {
       if (draft.mode !== "update" || draft.existing_id !== existing.id) throw new ImportError(409, "Товар уже существует. Обновите предпросмотр и явно разрешите обновление.")
       if (new Date(existing.updated_at).toISOString() !== draft.existing_updated_at) throw new ImportError(409, "Товар изменён в админке после предпросмотра. Обновите список перед импортом.")
@@ -245,13 +248,14 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
         else await createInventoryLevelsWorkflow(container).run({ input: { inventory_levels: [level] } })
       }
       await saveTranslations(container, id, draft)
+      const warnings = await fillProductOptionTranslations(container, id)
       // Preserve other sales channels while ensuring the selected one is linked.
       const { data: linked } = await query.graph({ entity: "product", fields: ["id", "sales_channels.id"], filters: { id } })
       const channelIds = [...new Set([settings.sales_channel_id, ...(linked[0]?.sales_channels?.flatMap(c => c ? [c.id] : []) || [])])]
       await updateProductsWorkflow(container).run({ input: { products: [{ id, status: draft.status,
         sales_channels: channelIds.map(channelId => ({ id: channelId })),
         metadata: { ...metadata, rozetka_media: mediaMap, rozetka_admin_import: { ...metadata.rozetka_admin_import, state: "complete", completed_at: new Date().toISOString() } } }] } })
-      return { product_id: id, status: draft.status, title: text.title, action: existing ? "updated" : "created" }
+      return { product_id: id, status: draft.status, title: text.title, action: existing ? "updated" : "created", warnings }
     } catch (error) {
       container.resolve(ContainerRegistrationKeys.LOGGER).error(`Rozetka import failed for ${source.key}, product ${id || "not created"}: ${error instanceof Error ? error.message : "unknown error"}`)
       if (error instanceof ImportError) { error.product_id ||= id; throw error }

@@ -28,7 +28,7 @@ export type ImportPreview = {
   shipping_profiles: { id: string; name: string }[];
   default_location_id: string; default_sales_channel_id: string; default_shipping_profile_id: string; translation_available: boolean
 }
-export type ImportResult = { product_id: string; status: string; action: "created" | "updated" | "replayed"; title: string }
+export type ImportResult = { product_id: string; status: string; action: "created" | "updated" | "replayed"; title: string; warnings?: string[] }
 
 export function numberInput(value: string): number | null {
   if (!value.trim()) return null

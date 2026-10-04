@@ -20,7 +20,7 @@ const oldLoad = Module._load
 const flows = Object.fromEntries(['createProductsWorkflow','updateProductsWorkflow','createProductVariantsWorkflow','updateProductVariantsWorkflow','createInventoryLevelsWorkflow','linkSalesChannelsToStockLocationWorkflow'].map(name => [name, () => ({run: async ({input}) => {
  actions.push({name,input})
  if (name === 'createProductsWorkflow') {
-  const p = input.products[0]; state.product = {...p,id:'prod',updated_at:'2026-10-02T10:00:00.000Z',categories:[],options:p.options.map((o,i)=>({...o,id:'opt'+i,values:o.values.map(value=>({value}))})),variants:[]}
+  const p = input.products[0]; state.product = {...p,id:'prod',updated_at:'2026-10-02T10:00:00.000Z',categories:[],options:p.options.map((o,i)=>({...o,id:'opt'+i,values:o.values.map((value,j)=>({id:`val${i}-${j}`,value}))})),variants:[]}
   return {result:[state.product]}
  }
  if (name === 'updateProductsWorkflow') { Object.assign(state.product,input.products[0]); return {result:[state.product]} }
@@ -43,7 +43,7 @@ function setup() {
   retrieveProductCategory:async()=>({id:'cat',is_active:true,is_internal:false}),
   retrieveProduct:async()=>state.product,
   updateProducts:async(id,data)=>{Object.assign(state.product,data);return state.product},
-  updateProductOptions:async(id,data)=>{Object.assign(state.product.options.find(o=>o.id===id),{values:data.values.map(value=>({value}))})},
+  updateProductOptions:async(id,data)=>{Object.assign(state.product.options.find(o=>o.id===id),{values:data.values.map((value,j)=>({id:`${id}-val${j}`,value}))})},
   listProductVariants:async({sku})=>(state.product?.variants||[]).filter(v=>v.sku===sku),
  }
  const db={client:{acquireConnection:async()=>({}),releaseConnection:async()=>{state.released=true}},raw(sql){return {connection:async()=>({rows:[{locked:sql.includes('try')?!state.locked:true}]})}}}
@@ -54,7 +54,7 @@ function setup() {
   if(key===Modules.SALES_CHANNEL)return {retrieveSalesChannel:async()=>({is_disabled:false})}
   if(key===Modules.STOCK_LOCATION)return {retrieveStockLocation:async()=>({id:'loc'})}
   if(key===Modules.FULFILLMENT)return {listShippingProfiles:async()=>state.profiles??[{id:'sp',type:'default'}]}
-  if(key===Modules.TRANSLATION)return {listTranslations:async({locale_code})=>state.translations.filter(t=>t.locale_code===locale_code),createTranslations:async data=>{state.translations.push({...data,id:'tr'+state.translations.length});return data},updateTranslations:async data=>Object.assign(state.translations.find(t=>t.id===data.id),data)}
+  if(key===Modules.TRANSLATION)return {listTranslations:async filters=>state.translations.filter(t=>Object.entries(filters).every(([key,value])=>Array.isArray(value)?value.includes(t[key]):t[key]===value)),createTranslations:async data=>{state.translations.push({...data,id:'tr'+state.translations.length});return data},updateTranslations:async data=>Object.assign(state.translations.find(t=>t.id===data.id),data)}
   if(key===Modules.INVENTORY)return {listInventoryLevels:async({inventory_item_id,location_id})=>state.levels.filter(l=>l.inventory_item_id===inventory_item_id&&l.location_id===location_id),updateInventoryLevels:async(data)=>{for(const l of data)Object.assign(state.levels.find(x=>x.id===l.id),l)}}
   if(key===ContainerRegistrationKeys.QUERY)return {graph:async args=>{
    if(args.entity==='product')return {data:state.product?[state.product]:[]}
@@ -240,4 +240,36 @@ test('existing-product repair is idempotent and preserves stock, status and tran
   assert.equal(JSON.stringify(state.levels),levels);assert.equal(JSON.stringify(state.translations),translations)
   const repaired=actions.length;await normalizeProducts({container:c});assert.equal(actions.length,repaired)
  } finally { if(previous===undefined)delete process.env.ROZETKA_NORMALIZE_APPLY;else process.env.ROZETKA_NORMALIZE_APPLY=previous }
+})
+
+
+test('Rozetka import auto-saves option translations, preserves manual text and replay fills only missing cells', async () => {
+ const c=setup(),body=valid();body.source={type:'file',name:'test.xml',xml}
+ const oldFetch=global.fetch,oldKey=process.env.GOOGLE_TRANSLATE_API_KEY,calls=[]
+ process.env.GOOGLE_TRANSLATE_API_KEY='test-only'
+ global.fetch=async(_url,init)=>{const data=JSON.parse(init.body);calls.push(data);return new Response(JSON.stringify({data:{translations:data.q.map(q=>({translatedText:data.target==='sr'?'Величина':q}))}}))}
+ try {
+  assert.deepEqual((await executeImport(c,body,'admin')).warnings,[])
+  const size=state.translations.find(t=>t.reference==='product_option'&&t.locale_code==='sr-RS')
+  assert.equal(size.translations.title,'Veličina')
+  assert.equal(state.translations.filter(t=>t.reference==='product_option_value').length,4)
+  assert.ok(calls.every(call=>!call.q.includes('58')&&!call.q.includes('60')))
+  const count=calls.length;size.translations.title='Ručni prevod'
+  assert.equal((await executeImport(c,body,'admin')).action,'replayed')
+  assert.equal(calls.length,count);assert.equal(size.translations.title,'Ručni prevod')
+  const en=state.translations.find(t=>t.reference==='product_option'&&t.locale_code==='en');en.translations.title=''
+  await executeImport(c,body,'admin');assert.equal(en.translations.title,'Size');assert.equal(calls.length,count+1)
+ } finally {global.fetch=oldFetch;if(oldKey===undefined)delete process.env.GOOGLE_TRANSLATE_API_KEY;else process.env.GOOGLE_TRANSLATE_API_KEY=oldKey}
+})
+test('Rozetka translation outage does not fail product import and missing configuration is reported', async () => {
+ const c=setup(),body=valid();body.source={type:'file',name:'test.xml',xml};body.draft.status='published'
+ const oldFetch=global.fetch,oldKey=process.env.GOOGLE_TRANSLATE_API_KEY
+ process.env.GOOGLE_TRANSLATE_API_KEY='test-only';global.fetch=async()=>new Response('{}',{status:429})
+ try {
+  const result=await executeImport(c,body,'admin')
+  assert.equal(result.status,'published');assert.match(result.warnings[0],/Не все переводы опций/)
+  assert.equal(state.translations.filter(t=>t.reference!=='product').length,0)
+  delete process.env.GOOGLE_TRANSLATE_API_KEY
+  assert.match((await executeImport(c,body,'admin')).warnings[0],/не настроен/)
+ } finally {global.fetch=oldFetch;if(oldKey===undefined)delete process.env.GOOGLE_TRANSLATE_API_KEY;else process.env.GOOGLE_TRANSLATE_API_KEY=oldKey}
 })

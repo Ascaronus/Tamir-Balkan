@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {load} from '../test-support/component-harness.mjs'
-const {optionTranslationRows,translationDraft,optionTranslationPayload,cellKey}=load('backend/src/admin/lib/option-translations.ts')
+const {optionTranslationRows,translationDraft,optionTranslationPayload,cellKey}=load('backend/src/shared/option-translations.ts')
 const option={id:'color',title:'Color',translations:[{id:'title-sr',locale_code:'sr-RS',translations:{title:'Boja'}}],values:[{id:'black',value:'Black',translations:[{id:'value-sr',locale_code:'sr-RS',translations:{value:'Crna',other:'keep'}}]}]}
 test('editor reads saved native option translations and saves arbitrary labels by option value ID',()=>{
  const rows=optionTranslationRows([option]),baseline=translationDraft(rows)
@@ -26,7 +26,7 @@ test('admin widget loads real rows, posts only edited values and reloads the sav
  const {hooks,find}=await import('../test-support/component-harness.mjs')
  const h=hooks(),posts=[]
  let current=structuredClone(option)
- const helpers=load('backend/src/admin/lib/option-translations.ts')
+ const helpers=load('backend/src/shared/option-translations.ts')
  const widget=load('backend/src/admin/widgets/product-option-translations.tsx',{
   react:h.react,'@medusajs/admin-sdk':{defineWidgetConfig:v=>v},
   '@medusajs/ui':Object.fromEntries(['Button','Checkbox','Container','Heading','Input','Label','Text'].map(n=>[n,n])),
@@ -54,7 +54,7 @@ test('admin widget loads real rows, posts only edited values and reloads the sav
 
 test('automatic translation fills empty draft cells without saving or replacing manual text',async()=>{
  const {hooks,find}=await import('../test-support/component-harness.mjs'),h=hooks(),posts=[]
- const helpers=load('backend/src/admin/lib/option-translations.ts')
+ const helpers=load('backend/src/shared/option-translations.ts')
  const widget=load('backend/src/admin/widgets/product-option-translations.tsx',{
   react:h.react,'@medusajs/admin-sdk':{defineWidgetConfig:v=>v},
   '@medusajs/ui':Object.fromEntries(['Button','Checkbox','Container','Heading','Input','Label','Text'].map(n=>[n,n])),
@@ -77,4 +77,39 @@ test('automatic translation fills empty draft cells without saving or replacing 
  const rows=helpers.optionTranslationRows([option]),draft=helpers.translationDraft(rows)
  assert.equal(helpers.optionAutoTranslationCells(rows,draft).length,2)
  assert.equal(helpers.optionAutoTranslationCells(rows,draft,true).length,4)
+})
+
+test('missing option status counts empty native fields and ignores products without options',()=>{
+ const {missingOptionTranslations}=load('backend/src/shared/option-translations.ts')
+ assert.deepEqual({...missingOptionTranslations([option])},{'sr-RS':0,en:2})
+ assert.deepEqual({...missingOptionTranslations([])},{'sr-RS':0,en:0})
+ const blank=structuredClone(option);blank.values[0].translations[0].translations.value='  '
+ assert.equal(missingOptionTranslations([blank])['sr-RS'],1)
+})
+test('product list audit checks subsequent catalog pages and links only incomplete products',async()=>{
+ const {hooks,find}=await import('../test-support/component-harness.mjs'),h=hooks(),offsets=[]
+ const widget=load('backend/src/admin/widgets/product-option-translation-status.tsx',{
+  react:h.react,'@medusajs/admin-sdk':{defineWidgetConfig:v=>v},
+  '@medusajs/ui':Object.fromEntries(['Button','Container','Heading','Text'].map(n=>[n,n])),
+  '../lib/option-translations':load('backend/src/shared/option-translations.ts'),
+ },{fetch:async(path,init)=>{
+  assert.equal(init.credentials,'include');const offset=new URL('http://admin'+path).searchParams.get('offset');offsets.push(offset)
+  return {ok:true,json:async()=>({count:101,products:offset==='0'?Array.from({length:100},(_,i)=>({id:'p'+i,title:'No options',options:[]})):[{id:'missing',title:'Missing option translations',options:[option]}]})}
+ }})
+ const render=()=>h.render(()=>widget.default());render();await h.flush();const tree=render()
+ assert.deepEqual(offsets,['0','100'])
+ assert.equal(find(tree,n=>n.type==='a').props.href,'/app/products/missing#option-translations')
+ assert.match(JSON.stringify(tree),/Нет переводов опций/)
+ assert.equal(widget.config.zone,'product.list.before')
+})
+test('failed translation audit shows an error instead of claiming all products are translated',async()=>{
+ const {hooks,find}=await import('../test-support/component-harness.mjs'),h=hooks()
+ const widget=load('backend/src/admin/widgets/product-option-translation-status.tsx',{
+  react:h.react,'@medusajs/admin-sdk':{defineWidgetConfig:v=>v},
+  '@medusajs/ui':Object.fromEntries(['Button','Container','Heading','Text'].map(n=>[n,n])),
+  '../lib/option-translations':load('backend/src/shared/option-translations.ts'),
+ },{fetch:async()=>({ok:false})})
+ const render=()=>h.render(()=>widget.default());render();await h.flush();const tree=render()
+ assert.ok(find(tree,n=>n.props?.role==='alert'))
+ assert.ok(!JSON.stringify(tree).includes('Переводы всех опций'))
 })
