@@ -6,6 +6,7 @@ function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, 
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/admin/products/:id/option-translations/translate", methods: ["POST"], bodyParser: { sizeLimit: "64kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/admin/rozetka*", bodyParser: { sizeLimit: "25mb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/store/catalog/products", methods: ["GET"], middlewares: catalogMiddlewares },
   { matcher: "/auth/customer/:provider/register", methods: ["POST"], middlewares: [verifiedRegistrationRequired] },

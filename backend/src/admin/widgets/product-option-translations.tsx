@@ -1,13 +1,16 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import type { AdminProduct, DetailWidgetProps } from "@medusajs/framework/types"
-import { Button, Container, Heading, Input, Label, Text } from "@medusajs/ui"
+import { Button, Checkbox, Container, Heading, Input, Label, Text } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
-import { cellKey, optionLocales, optionTranslationPayload, optionTranslationRows, translationDraft, type Option } from "../lib/option-translations"
+import { cellKey, optionAutoTranslationCells, optionLocales, optionTranslationPayload, optionTranslationRows, translationDraft, type Option } from "../lib/option-translations"
 
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, { credentials: "include", cache: "no-store", method: body ? "POST" : "GET",
     headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) })
-  if (!res.ok) throw Error(res.status === 401 || res.status === 403 ? "AUTH_REQUIRED" : "REQUEST_FAILED")
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw Error(res.status === 401 || res.status === 403 ? "Войдите в админку и повторите попытку." : error.message || "Не удалось выполнить запрос.")
+  }
   return res.json()
 }
 function loadOptions(id: string) {
@@ -19,6 +22,10 @@ export default function ProductOptionTranslations({ data }: DetailWidgetProps<Ad
   const [baseline, setBaseline] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [translating, setTranslating] = useState(false)
+  const [replace, setReplace] = useState(false)
+  const [notice, setNotice] = useState("")
+  const generation = useRef(0)
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
   const [revision, setRevision] = useState(0)
@@ -31,16 +38,32 @@ export default function ProductOptionTranslations({ data }: DetailWidgetProps<Ad
   }
   useEffect(() => {
     let cancelled = false
+    generation.current += 1; setNotice(""); setReplace(false)
     setLoading(true); setError(""); setSaved(false); setOptions([]); setDraft({}); setBaseline({})
     loadOptions(data.id).then(({ product }) => { if (!cancelled) apply(product.options ?? []) })
       .catch(() => { if (!cancelled) setError("Не удалось загрузить переводы. Обновите страницу и проверьте вход в админку.") })
       .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+    return () => { cancelled = true; generation.current += 1 }
   }, [data.id, data.updated_at, revision])
   const dirty = Object.keys(draft).some(key => draft[key] !== baseline[key])
+  const cells = optionAutoTranslationCells(optionTranslationRows(options), draft, replace)
+  async function translate() {
+    if (lock.current || loading || !cells.length) return
+    lock.current = true; setTranslating(true); setError(""); setNotice(""); setSaved(false)
+    const id = data.id, version = generation.current
+    try {
+      const result = await request<{ values: Record<string, string> }>(`/admin/products/${encodeURIComponent(id)}/option-translations/translate`, { cells })
+      if (currentId.current === id && generation.current === version) {
+        setDraft(previous => ({ ...previous, ...result.values }))
+        setNotice("Автоперевод добавлен в поля. Проверьте текст и нажмите «Сохранить переводы».")
+      }
+    } catch (e) {
+      if (currentId.current === id && generation.current === version) setError(e instanceof Error ? e.message : "Не удалось перевести опции.")
+    } finally { lock.current = false; setTranslating(false) }
+  }
   async function save() {
     if (lock.current || loading || !dirty) return
-    lock.current = true; setSaving(true); setError(""); setSaved(false)
+    lock.current = true; setSaving(true); setError(""); setSaved(false); setNotice("")
     const id = data.id
     try {
       const fresh = await loadOptions(id)
@@ -57,13 +80,18 @@ export default function ProductOptionTranslations({ data }: DetailWidgetProps<Ad
   return <Container id="option-translations" className="p-0">
     <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
       <Heading level="h2">Переводы опций · SR / EN</Heading>
-      <Button variant="secondary" size="small" disabled={loading || saving} onClick={() => { if (!dirty || window.confirm("Отменить несохранённые изменения и загрузить переводы заново?")) setRevision(n => n + 1) }}>Обновить</Button>
+      <Button variant="secondary" size="small" disabled={loading || saving || translating} onClick={() => { if (!dirty || window.confirm("Отменить несохранённые изменения и загрузить переводы заново?")) setRevision(n => n + 1) }}>Обновить</Button>
     </div>
     <div className="border-t border-ui-border-base px-6 py-4">
       <Text className="text-ui-fg-subtle">Здесь переводятся названия опций и их значения — подписи цветов и размеров в карточках и фильтрах. Название варианта редактируется отдельно.</Text>
       <Text className="mt-2 text-ui-fg-subtle">SR использует локаль sr-RS, EN — en. Пустое поле означает исходное значение. Переводы сохраняются в стандартной базе Medusa; повторно создавать опции не нужно.</Text>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <Button type="button" variant="secondary" size="small" disabled={loading || saving || translating || !cells.length} onClick={() => void translate()}>{translating ? "Переводим…" : "Автоперевод SR + EN"}</Button>
+        <Label className="flex items-center gap-2"><Checkbox checked={replace} disabled={loading || saving || translating} onCheckedChange={value => setReplace(value === true)} />Заменить заполненные переводы</Label>
+      </div>
+      <Text className="mt-2 text-ui-fg-subtle">Google Translate, как в импорте Rozetka. По умолчанию заполняет пустые поля; SR — латиницей. Размеры S/M/L и числа сохраняются. Используется тариф вашего Google Cloud.</Text>
       {loading ? <Text className="mt-4">Загрузка…</Text> : <form noValidate onSubmit={e => { e.preventDefault(); void save() }}>
-        <fieldset disabled={saving} className="min-w-0 border-0 p-0">
+        <fieldset disabled={saving || translating} className="min-w-0 border-0 p-0">
           {options.map(option => <section key={option.id} className="mt-6 border-t border-ui-border-base pt-4">
             <Heading level="h3">{option.title}</Heading>
             {optionTranslationRows([option]).map(row => <div key={row.id} className="mt-4 grid min-w-0 gap-3 md:grid-cols-3">
@@ -79,6 +107,7 @@ export default function ProductOptionTranslations({ data }: DetailWidgetProps<Ad
         </fieldset>
       </form>}
       {error && <Text role="alert" className="mt-4 text-ui-fg-error">{error}</Text>}
+      {notice && <Text role="status" className="mt-4 text-ui-fg-subtle">{notice}</Text>}
       {saved && <Text role="status" className="mt-4 text-ui-fg-success">Переводы сохранены. Обновите страницу магазина, чтобы увидеть изменения.</Text>}
     </div>
   </Container>

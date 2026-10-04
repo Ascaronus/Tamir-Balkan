@@ -33,3 +33,8 @@ export function optionTranslationPayload(rows: TranslationRow[], baseline: Recor
   }
   return { create, update }
 }
+
+export function optionAutoTranslationCells(rows: TranslationRow[], draft: Record<string, string>, replace = false) {
+  return rows.flatMap(row => optionLocales.filter(({ code }) => replace || !(draft[cellKey(row.id, code)] ?? '').trim())
+    .map(({ code }) => ({ id: row.id, locale: code })))
+}
