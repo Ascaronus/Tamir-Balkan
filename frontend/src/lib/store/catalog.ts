@@ -40,9 +40,12 @@ export function colorSwatch(value: string): string | undefined {
     greay: "gray", sivo: "gray", sivi: "gray", сива: "gray", серыи: "gray",
     bez: "beige", беж: "beige", bezh: "beige", браон: "brown", braon: "brown",
     zeleno: "green", zeleni: "green", зелена: "green", crveno: "red", crveni: "red", црвена: "red",
+    kaki: "khaki", каки: "khaki", хаки: "khaki", хакі: "khaki",
+    burgundija: "burgundy", бургундија: "burgundy", бордо: "burgundy",
   }
   const extra: Record<string, string> = { lightgray: "#b8b8b8", svetlosiva: "#b8b8b8", darkgray: "#474747", tamnosiva: "#474747", lightblue: "#9cbed8", svetloplava: "#9cbed8", pink: "#d797af", roze: "#d797af", burgundy: "#6d263c", bordo: "#6d263c", yellow: "#dbc56a", zuta: "#dbc56a", orange: "#d28a47", narandzasta: "#d28a47", purple: "#765578", ljubicasta: "#765578", olive: "#77764e", maslinasta: "#77764e", khaki: "#999577", cream: "#efe7d2", krem: "#efe7d2" }
   if (/^#[0-9a-f]{6}$/i.test(value.trim())) return value.trim()
-  return colors[aliases[normalized] || normalized] || extra[normalized]
+  const canonical = aliases[normalized] || normalized
+  return colors[canonical] || extra[canonical]
 }
 export function isColorOption(title: string) { return /^(color|colour|boja|боја|цвет|колір)$/i.test(title.trim()) }

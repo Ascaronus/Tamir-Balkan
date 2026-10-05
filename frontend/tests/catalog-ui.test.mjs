@@ -7,6 +7,14 @@ const catalog=load('frontend/src/lib/store/catalog.ts',{
  '@/lib/i18n/config':{medusaStoreLocale:locale=>locale},
  './search-params':{queryText:value=>(Array.isArray(value)?value[0]:value)?.trim()||''},
 })
+test('localized khaki and burgundy retain the same swatches as English in every shared color control',()=>{
+ for(const value of ['Kaki',' KAKI ','Каки','Хакі']) assert.equal(catalog.colorSwatch(value),catalog.colorSwatch('Khaki'))
+ for(const value of ['Burgundija','Бургундија','Bordo','Бордо']) assert.equal(catalog.colorSwatch(value),catalog.colorSwatch('Burgundy'))
+ assert.equal(catalog.colorSwatch('Kaki'),'#999577')
+ assert.equal(catalog.colorSwatch('Burgundija'),'#6d263c')
+ assert.equal(catalog.colorSwatch('Custom shade'),undefined)
+ assert.equal(catalog.colorSwatch('#123abc'),'#123abc')
+})
 test('catalog sends repeated decimal sizes, comma prices, zero, regional pricing and customer authorization',async()=>{
  const selection=catalog.catalogSelection({size:['42,5','50'],color:[' Crna ','siva'],min_price:'0',max_price:'9999,5',sort:'price_asc',page:'2'})
  const controller=new AbortController()
