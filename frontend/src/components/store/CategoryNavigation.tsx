@@ -6,16 +6,19 @@ import { listStoreProductCategories } from "@/lib/store/categories"
 import type { HttpTypes } from "@medusajs/types"
 
 const Categories = createContext<{ categories: HttpTypes.StoreProductCategory[]; failed: boolean }>({ categories: [], failed: false })
-export function CategoryProvider({ children }: { children: React.ReactNode }) {
+function uniqueCategories(categories: HttpTypes.StoreProductCategory[]) {
+  const unique = new Map<string, HttpTypes.StoreProductCategory>()
+  function walk(items: HttpTypes.StoreProductCategory[]) { for (const item of items) { if (unique.has(item.id)) continue; unique.set(item.id, item); walk(item.category_children ?? []) } }
+  walk(categories)
+  return [...unique.values()].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+}
+export function CategoryProvider({ children, initialCategories }: { children: React.ReactNode; initialCategories?: HttpTypes.StoreProductCategory[] }) {
   const { locale } = useLocaleContext()
-  const [value, setValue] = useState<{ categories: HttpTypes.StoreProductCategory[]; failed: boolean }>({ categories: [], failed: false })
+  const [value, setValue] = useState<{ categories: HttpTypes.StoreProductCategory[]; failed: boolean }>(() => ({ categories: uniqueCategories(initialCategories ?? []), failed: false }))
   useEffect(() => {
     let active = true
     listStoreProductCategories(locale).then(categories => {
-      const unique = new Map<string, HttpTypes.StoreProductCategory>()
-      function walk(items: HttpTypes.StoreProductCategory[]) { for (const item of items) { if (unique.has(item.id)) continue; unique.set(item.id, item); walk(item.category_children ?? []) } }
-      walk(categories)
-      if (active) setValue({ categories: [...unique.values()].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0)), failed: false })
+      if (active) setValue({ categories: uniqueCategories(categories), failed: false })
     }).catch(() => { if (active) setValue({ categories: [], failed: true }) })
     return () => { active = false }
   }, [locale])
