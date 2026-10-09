@@ -25,7 +25,7 @@ export default async function CatalogPage({ params, searchParams }: {
   if (selection.category_id && !category) notFound()
   const initial = region ? await fetchCatalog(selection, region.id, locale).catch(() => null) : null
   const summaries = initial ? await reviewSummaries(initial.products.map(p => p.id)) : null
-  return <StoreShell countryCode="rs" initialCategories={categories}><div className="store-container catalog-page">
+  return <StoreShell countryCode="rs" initialCategories={categories} activeCategoryId={selection.category_id}><div className="store-container catalog-page">
     {!selection.category_id && !selection.q && <section className="collection-banner" aria-label={t("design.heroTitle")}><div className="collection-copy"><h2>{t("design.heroTitle")}</h2><p>{t("design.heroSubtitle")}</p><Link href="#catalog-products" className="button-secondary">{t("design.heroAction")}</Link></div><div className="collection-image"><Image src="/design/tamir-family-winter.webp" alt={t("design.heroAlt")} fill sizes="100vw" unoptimized preload /></div></section>}
     <CatalogClient key={catalogParams(selection).toString() + locale} initial={initial} selection={selection} regionId={region?.id ?? ""} summaries={summaries} title={category?.name || t("sidebar.allProducts")} />
   </div></StoreShell>

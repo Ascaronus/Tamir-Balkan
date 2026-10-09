@@ -9,10 +9,10 @@ import { CartProvider } from "@/components/cart/CartProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
 import type { HttpTypes } from "@medusajs/types"
 
-export function StoreShell({ children, countryCode, initialCategories }: { children: React.ReactNode; countryCode?: "rs"; initialCategories?: HttpTypes.StoreProductCategory[] }) {
+export function StoreShell({ children, countryCode, initialCategories, activeCategoryId }: { children: React.ReactNode; countryCode?: "rs"; initialCategories?: HttpTypes.StoreProductCategory[]; activeCategoryId?: string }) {
   const menu = useRef<HTMLDialogElement>(null)
   const t = useTranslations()
-  return <AuthProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider initialCategories={initialCategories}>
+  return <AuthProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider initialCategories={initialCategories} activeCategoryId={activeCategoryId}>
     <div className="store-shell">
       <ShopHeader countryCode={countryCode} onOpenCatalog={() => menu.current?.showModal()} />
       <dialog ref={menu} id="store-sidebar" className="navigation-drawer" aria-label={t("header.catalog")} onClick={e => { if (e.target === e.currentTarget) menu.current?.close() }}>
