@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react"
 import Link from "next/link"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { listStoreProductCategories } from "@/lib/store/categories"
+import { categoryPath } from "@/lib/store/category-url"
 import type { HttpTypes } from "@medusajs/types"
 
 const Categories = createContext<{ categories: HttpTypes.StoreProductCategory[]; failed: boolean; activeCategoryId?: string }>({ categories: [], failed: false })
@@ -30,7 +31,7 @@ export function CategoryNavigation({ activeId, horizontal = false, onNavigate }:
   const { t } = useLocaleContext()
   return <nav aria-label={t("sidebar.title")} className={horizontal ? "category-nav-horizontal" : "category-nav"}>
     <Link href="/rs/catalog" aria-current={!selectedId ? "page" : undefined} onClick={onNavigate}>{t("sidebar.allProducts")}</Link>
-    {categories.filter(cat => !horizontal || !cat.parent_category_id).map(cat => <Link key={cat.id} href={`/rs/catalog?category_id=${encodeURIComponent(cat.id)}`} onClick={onNavigate} aria-current={cat.id === selectedId ? "page" : undefined} className={!horizontal && cat.parent_category_id ? "pl-3" : undefined}>{cat.name}</Link>)}
+    {categories.filter(cat => !horizontal || !cat.parent_category_id).map(cat => <Link key={cat.id} href={categoryPath(cat)} onClick={onNavigate} aria-current={cat.id === selectedId ? "page" : undefined} className={!horizontal && cat.parent_category_id ? "pl-3" : undefined}>{cat.name}</Link>)}
     {failed && !horizontal && <p role="status" className="text-xs text-[var(--store-text-muted)]">{t("sidebar.categoriesError")}</p>}
   </nav>
 }

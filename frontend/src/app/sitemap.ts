@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next"
 import { listProductsByCountry } from "@/lib/store/products"
 import { listStoreProductCategories } from "@/lib/store/categories"
+import { categoryPath } from "@/lib/store/category-url"
 import { siteUrl } from "@/lib/seo"
 
 export const dynamic = "force-dynamic"
@@ -36,9 +37,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   })))
   for (const { category, count } of populated) {
     if (!count) continue
-    const path = `/rs/catalog?category_id=${encodeURIComponent(category.id)}`
+    const path = categoryPath(category)
     entries.push({ url: siteUrl(path) })
-    for (let page = 2; page <= Math.ceil(count / 24); page++) entries.push({ url: siteUrl(`${path}&page=${page}`) })
+    for (let page = 2; page <= Math.ceil(count / 24); page++) entries.push({ url: siteUrl(`${path}${path.includes("?") ? "&" : "?"}page=${page}`) })
   }
   // Next 16's sitemap serializer interpolates item.url directly into XML.
   // Escape query separators here; the parsed <loc> still contains the canonical URL.

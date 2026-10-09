@@ -36,6 +36,18 @@ test('changing catalog page preserves all filters and sort without comma splitti
  assert.equal(catalog.catalogSelection({sort:'unsafe',page:'-5'}).sort,'newest')
  assert.equal(catalog.catalogSelection({page:'-5'}).page,1)
 })
+test('readable category URLs retain filters and page while API queries retain the category ID',()=>{
+ const selection=catalog.catalogSelection({category_id:'pcat_hats',size:['42,5','50'],color:'black',sort:'price_desc',page:'2'})
+ const url=new URL(catalog.catalogHref(selection,'/rs/catalog/hats'),'https://tamir.rs')
+ assert.equal(url.pathname,'/rs/catalog/hats')
+ assert.equal(url.searchParams.has('category_id'),false)
+ assert.equal(url.searchParams.get('page'),'2')
+ assert.deepEqual(url.searchParams.getAll('size'),['42,5','50'])
+ assert.equal(url.searchParams.get('sort'),'price_desc')
+ assert.equal(catalog.catalogParams(selection).get('category_id'),'pcat_hats')
+ assert.equal(catalog.catalogHref(catalog.catalogSelection({category_id:'pcat_hats'}),'/rs/catalog/hats'),'/rs/catalog/hats')
+ assert.equal(catalog.catalogHref(catalog.catalogSelection({})), '/rs/catalog')
+})
 test('product price matches tax-inclusive catalog values and preserves zero or fractional amounts',()=>{
  const commerce=load('frontend/src/lib/store/commerce.ts')
  assert.equal(commerce.variantAmount({calculated_amount:1000,calculated_amount_with_tax:1200.5}),1200.5)

@@ -21,6 +21,14 @@ export function catalogParams(selection: CatalogSelection) {
   if (selection.page > 1) params.set("page", String(selection.page))
   return params
 }
+export function catalogHref(selection: CatalogSelection, basePath = "/rs/catalog") {
+  const path = basePath.split("?")[0]
+  const params = catalogParams(selection)
+  if (path !== "/rs/catalog") params.delete("category_id")
+  if (selection.sort === "newest") params.delete("sort")
+  const query = params.toString()
+  return path + (query ? `?${query}` : "")
+}
 export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { token?: string | null; signal?: AbortSignal; limit?: number }): Promise<CatalogResult> {
   const limit = Math.max(1, Math.min(24, Math.floor(options?.limit ?? 24)))
   const query = catalogParams(selection)

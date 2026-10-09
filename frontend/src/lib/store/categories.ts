@@ -29,8 +29,8 @@ export async function listStoreProductCategories(
   return all.map(translate)
 }
 
-export async function getStoreProductCategoryById(
-  id: string,
+async function getStoreProductCategory(
+  selector: { id: string[] } | { handle: string[] },
   locale?: Locale
 ): Promise<HttpTypes.StoreProductCategory | null> {
   const { product_categories } = await sdk.client.fetch<{
@@ -38,7 +38,7 @@ export async function getStoreProductCategoryById(
   }>(`/store/product-categories`, {
     method: "GET",
     query: {
-      id: [id],
+      ...selector,
       limit: 1,
       fields: "id,name,handle,metadata",
     },
@@ -48,4 +48,12 @@ export async function getStoreProductCategoryById(
 
   const category = product_categories?.[0]
   return category ? { ...category, name: localizedText(category, "name", category.name, locale ?? "sr") } : null
+}
+
+export function getStoreProductCategoryById(id: string, locale?: Locale) {
+  return getStoreProductCategory({ id: [id] }, locale)
+}
+
+export function getStoreProductCategoryByHandle(handle: string, locale?: Locale) {
+  return getStoreProductCategory({ handle: [handle] }, locale)
 }
