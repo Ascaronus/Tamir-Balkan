@@ -40,5 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entries.push({ url: siteUrl(path) })
     for (let page = 2; page <= Math.ceil(count / 24); page++) entries.push({ url: siteUrl(`${path}&page=${page}`) })
   }
-  return entries
+  // Next 16's sitemap serializer interpolates item.url directly into XML.
+  // Escape query separators here; the parsed <loc> still contains the canonical URL.
+  return entries.map(entry => ({ ...entry, url: entry.url.replace(/&/g, "&amp;") }))
 }

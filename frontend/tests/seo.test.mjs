@@ -1,6 +1,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { createRequire } from "node:module"
 import { siteUrl, serializeJsonLd } from "../src/lib/seo.ts"
+const { resolveRouteData } = createRequire(import.meta.url)("next/dist/build/webpack/loaders/metadata/resolve-route-data.js")
 
 test("structured data cannot close the script element", () => {
   const input = { name: "</script><script>alert(1)</script>" }
@@ -59,7 +61,9 @@ test('sitemap includes populated categories and pagination with canonical URLs, 
   '@/lib/store/categories':{listStoreProductCategories:async()=>[{id:'hats',category_children:[{id:'scarves'}]},{id:'scarves'},{id:'empty'}]},
   '@/lib/store/products':{listProductsByCountry:async args=>args.categoryId?{products:[],count:{hats:27,scarves:6,empty:0}[args.categoryId]}:{products:Array.from({length:33},(_,i)=>({handle:'item-'+i})),count:33}},
  }).default
- const urls=Array.from(await sitemap(),e=>e.url)
+ const xml=resolveRouteData(await sitemap(),'sitemap')
+ assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;)/.test(xml),'sitemap XML must escape query separators')
+ const urls=Array.from(xml.matchAll(/<loc>(.*?)<\/loc>/g),match=>match[1].replace(/&amp;/g,'&'))
  assert.equal(urls.length,41);assert.equal(new Set(urls).size,41)
  for(const path of ['/rs/catalog?page=2','/rs/catalog?category_id=hats','/rs/catalog?category_id=hats&page=2','/rs/catalog?category_id=scarves'])assert.ok(urls.includes(siteUrl(path)))
  assert.ok(!urls.some(url=>/empty|v_id|rozetka-|robots|sitemap|woff|account|sort=/.test(url)))
