@@ -160,6 +160,10 @@ const result = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/script
   cwd: app.cwd, env: { ...process.env, ...app.env, ROZETKA_NORMALIZE_APPLY: 'true' }, stdio: 'inherit'
 })
 if (result.status !== 0) process.exit(result.status || 1)
+const english = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/prepare-english-store.ts'], {
+  cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
+})
+if (english.status !== 0) process.exit(english.status || 1)
 JS
 trap - ERR
 echo "Deployment complete. Release: $release_dir Backup: $backup_dir"

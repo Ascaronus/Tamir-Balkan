@@ -1,5 +1,5 @@
 "use client"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { CookieSettingsButton } from "@/components/privacy/CookieConsent"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"

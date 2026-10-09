@@ -1,3 +1,4 @@
+import { syncProductUrl } from "../utils/product-urls"
 import type { ExecArgs } from '@medusajs/framework/types'
 import { ContainerRegistrationKeys, Modules } from '@medusajs/framework/utils'
 import { updateProductsWorkflow } from '@medusajs/medusa/core-flows'
@@ -28,6 +29,14 @@ export default async function normalizeRozetkaProducts({ container }: ExecArgs) 
       if (apply) await updateProductsWorkflow(container).run({ input: { products: [{ id: product.id, title, description, handle, metadata: nextMetadata }] } })
       Object.assign(product, { title, description, handle, metadata: nextMetadata })
       changed++
+    }
+    if (apply) {
+      let ready = 0, missing = 0
+      for (const product of products) {
+        const result = await syncProductUrl(container, product.id)
+        if (result?.ready) ready++; else missing++
+      }
+      logger.info(`English URLs: ${ready} translated products, ${missing} need EN content`)
     }
     logger.info(`Rozetka text/URL repair: ${changed} products${apply ? '' : ' (dry run)'}`)
   })

@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
-import { siteUrl, serializeJsonLd } from "../src/lib/seo.ts"
+import { siteUrl, serializeJsonLd, languageAlternates } from "../src/lib/seo.ts"
 import { categoryPath, categoryRedirectPath } from "../src/lib/store/category-url.ts"
 import { queryText, normalizeCatalogQuery } from "../src/lib/store/search-params.ts"
 const { resolveRouteData } = createRequire(import.meta.url)("next/dist/build/webpack/loaders/metadata/resolve-route-data.js")
@@ -30,13 +30,13 @@ const catalog = load('frontend/src/lib/store/catalog.ts', {
 test('public legal pages explicitly allow indexing',async()=>{
  for(const [page,contentKey] of [['privacy','privacyPolicy'],['terms','terms']]) {
   const moduleUnderTest=load(`frontend/src/app/${page}/page.tsx`,{
-   'next/link':'Link','@/components/store/StoreShell':{},'@/components/privacy/CookieConsent':{},
+   '@/components/i18n/LocalizedLink':'Link','@/components/store/StoreShell':{},'@/components/privacy/CookieConsent':{},
    '@/lib/i18n/server':{getTranslations:async()=>({locale:'en'})},
-   '@/lib/legal/content':{[contentKey]:{en:{title:page}}},'@/lib/seo':{siteUrl},
+   '@/lib/legal/content':{[contentKey]:{en:{title:page}}},'@/lib/seo':{siteUrl,languageAlternates},
   })
   const metadata=await moduleUnderTest.generateMetadata()
   assert.equal(metadata.robots.index,true)
-  assert.equal(metadata.alternates.canonical,siteUrl('/'+page))
+  assert.equal(metadata.alternates.canonical,siteUrl('/en/'+page))
  }
 })
 test('private shopping and account pages retain noindex',()=>{
@@ -47,23 +47,23 @@ test('private shopping and account pages retain noindex',()=>{
 })
 test('sitemap includes public legal pages and products but no private routes',async()=>{
  const sitemap=load('frontend/src/app/sitemap.ts',{
-  '@/lib/seo':{siteUrl},'@/lib/store/products':{listProductsByCountry:async()=>({products:[{handle:'test-tie'}],count:1})},
+  '@/lib/seo':{siteUrl,languageAlternates},'@/lib/store/products':{listProductsByCountry:async()=>({products:[{handle:'test-tie'}],count:1})},
   '@/lib/store/categories':{listStoreProductCategories:async()=>[]},
   '@/lib/store/category-url':{categoryPath},
  }).default
  const entries=await sitemap()
- assert.deepEqual(Array.from(entries,e=>e.url),['/','/cookies','/privacy','/terms','/rs/products/test-tie'].map(p=>siteUrl(p)))
+ assert.deepEqual(Array.from(entries,e=>e.url),['/','/en','/cookies','/en/cookies','/privacy','/en/privacy','/terms','/en/terms','/rs/products/test-tie'].map(p=>siteUrl(p)))
 })
 
 
 test('robots allows reading noindex HTML while retaining the API crawl restriction',()=>{
- const rules=load('frontend/src/app/robots.ts',{'@/lib/seo':{siteUrl}}).default()
+ const rules=load('frontend/src/app/robots.ts',{'@/lib/seo':{siteUrl,languageAlternates}}).default()
  assert.deepEqual(Array.from(rules.rules.disallow),['/api/'])
  assert.equal(rules.sitemap,siteUrl('/sitemap.xml'))
 })
 test('sitemap includes populated categories and pagination with canonical URLs, excluding empty categories and resources',async()=>{
  const sitemap=load('frontend/src/app/sitemap.ts',{
-  '@/lib/seo':{siteUrl},
+  '@/lib/seo':{siteUrl,languageAlternates},
   '@/lib/store/categories':{listStoreProductCategories:async()=>[{id:'hats',handle:'hats',category_children:[{id:'scarves',handle:'Scarves'}]},{id:'scarves',handle:'Scarves'},{id:'empty',handle:'empty'}]},
   '@/lib/store/category-url':{categoryPath},
   '@/lib/store/products':{listProductsByCountry:async args=>args.categoryId?{products:[],count:{hats:27,scarves:6,empty:0}[args.categoryId]}:{products:Array.from({length:33},(_,i)=>({handle:'item-'+i})),count:33}},
@@ -71,20 +71,20 @@ test('sitemap includes populated categories and pagination with canonical URLs, 
  const xml=resolveRouteData(await sitemap(),'sitemap')
  assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;)/.test(xml),'sitemap XML must escape query separators')
  const urls=Array.from(xml.matchAll(/<loc>(.*?)<\/loc>/g),match=>match[1].replace(/&amp;/g,'&'))
- assert.equal(urls.length,41);assert.equal(new Set(urls).size,41)
+ assert.equal(urls.length,49);assert.equal(new Set(urls).size,49)
  for(const path of ['/rs/catalog?page=2','/rs/catalog/hats','/rs/catalog/hats?page=2','/rs/catalog/Scarves'])assert.ok(urls.includes(siteUrl(path)))
  assert.ok(!urls.some(url=>/empty|v_id|rozetka-|robots|sitemap|woff|account|sort=|category_id=/.test(url)))
 })
 function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27}={}) {
  return load('frontend/src/app/[countryCode]/catalog/page.tsx',{
-  'next/image':{},'next/link':{},'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
+  'next/image':{},'@/components/i18n/LocalizedLink':{},'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
   '@/lib/reviews/server':{},'@/lib/store/search-params':{normalizeCatalogQuery,queryText},
   '@/lib/store/catalog':catalog,'@/lib/store/regions':{getRegionByCountry:async()=>null},
   '@/lib/store/categories':{getStoreProductCategoryById:async()=>category,getStoreProductCategoryByHandle:async()=>category,listStoreProductCategories:async()=>category?[category]:[]},
   '@/lib/store/category-url':{categoryPath,categoryRedirectPath},
   '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count})},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/components/store/CatalogClient':{CatalogClient:'CatalogClient'},
-  '@/lib/i18n/server':{getTranslations:async()=>({locale:'sr',t:()=> 'Katalog'})},'@/lib/seo':{siteUrl},
+  '@/lib/i18n/server':{getTranslations:async()=>({locale:'sr',t:()=> 'Katalog'})},'@/lib/seo':{siteUrl,languageAlternates},
  })
 }
 test('catalog metadata indexes populated categories and preserves the canonical without variant, sort and filter parameters',async()=>{

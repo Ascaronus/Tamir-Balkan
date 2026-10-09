@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { StoreShell } from "@/components/store/StoreShell"
 import { CookieSettingsButton } from "@/components/privacy/CookieConsent"
 import { getTranslations } from "@/lib/i18n/server"
 import { privacyPolicy } from "@/lib/legal/content"
-import { siteUrl } from "@/lib/seo"
+import { languageAlternates } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: privacyPolicy[locale].title, alternates: { canonical: siteUrl("/privacy") }, robots: { index: true, follow: true } }
+  return { title: privacyPolicy[locale].title, alternates: languageAlternates("/privacy", locale), robots: { index: true, follow: true } }
 }
 
 export default async function PrivacyPage() {

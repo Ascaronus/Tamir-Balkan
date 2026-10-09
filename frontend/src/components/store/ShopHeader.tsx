@@ -1,6 +1,6 @@
 "use client"
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { CartLink } from "@/components/cart/CartLink"

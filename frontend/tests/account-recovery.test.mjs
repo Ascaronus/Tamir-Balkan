@@ -30,7 +30,7 @@ test('password recovery keeps code and passwords out of URLs and does not log in
 test('password reset UI requires matching passwords, shows spam notice and sends once',async()=>{
  const h=hooks();let requests=0,updates=0
  const c=load('frontend/src/components/auth/PasswordResetForm.tsx',{
-  react:h.react,'next/link':'Link',
+  react:h.react,'@/components/i18n/LocalizedLink':'Link',
   '@/components/i18n/LocaleProvider':{useTranslations:()=>key=>key},
   '@/components/security/Captcha':{useCaptcha:()=>({requestCaptcha:async()=> 'captcha',captcha:null})},
   '@/lib/reviews/client':{reviewErrorKey:()=> 'captcha-error'},

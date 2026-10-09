@@ -32,7 +32,7 @@ const flows = Object.fromEntries(['createProductsWorkflow','updateProductsWorkfl
  if (name === 'createInventoryLevelsWorkflow') state.levels.push(...input.inventory_levels.map(v=>({...v,id:'level'+state.levels.length,reserved_quantity:0})))
  return {result:[]}
 }})]))
-Module._load = function(name, parent, main) { return name === '@medusajs/medusa/core-flows' ? flows : oldLoad.call(this,name,parent,main) }
+Module._load = function(name, parent, main) { return name.endsWith('/product-urls') ? {syncProductUrl:async()=>({ready:true})} : name === '@medusajs/medusa/core-flows' ? flows : oldLoad.call(this,name,parent,main) }
 const { validateImport, executeImport, findImported, chooseShippingProfile } = require('../src/utils/rozetka-admin')
 const normalizeProducts = require('../src/scripts/normalize-rozetka-products').default
 Module._load = oldLoad

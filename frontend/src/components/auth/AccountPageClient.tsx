@@ -1,8 +1,8 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { OrderHistoryDetails } from "./OrderHistoryDetails"
-import { useRouter } from "next/navigation"
+import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useEffect, useRef, useState } from "react"
 import type { HttpTypes } from "@medusajs/types"
 import { applyReorder, reorderTargets } from "@/lib/cart/reorder"

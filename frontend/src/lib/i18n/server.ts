@@ -4,6 +4,8 @@ import { getMessages } from "@/lib/i18n/messages"
 import { createTranslator } from "@/lib/i18n/translator"
 
 export async function getLocale(): Promise<Locale> {
+  const routed = (await headers()).get("x-tamir-locale")
+  if (isLocale(routed)) return routed
   const c = await cookies()
   const v = c.get(LOCALE_COOKIE)?.value
   if (isLocale(v)) return v

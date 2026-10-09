@@ -1,6 +1,6 @@
 "use client"
 import { createContext, useContext, useEffect, useState } from "react"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { listStoreProductCategories } from "@/lib/store/categories"
 import { categoryPath } from "@/lib/store/category-url"

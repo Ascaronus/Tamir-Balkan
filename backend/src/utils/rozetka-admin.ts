@@ -1,3 +1,4 @@
+import { syncProductUrl } from "./product-urls"
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { createProductsWorkflow, updateProductsWorkflow, createProductVariantsWorkflow, updateProductVariantsWorkflow,
@@ -110,7 +111,8 @@ async function saveTranslations(container: MedusaContainer, id: string, draft: I
   const service = container.resolve(Modules.TRANSLATION)
   for (const [locale, title, description] of [["sr-RS", draft.title_sr, draft.description_sr], ["en", draft.title_en, draft.description_en]]) {
     const rows = await service.listTranslations({ reference: "product", reference_id: id, locale_code: locale }, { take: 2 })
-    const translations = { title: title || draft.title, description: description || draft.description }
+    if (locale === "en" && !title.trim() && !description.trim()) continue
+    const translations = { title: title || (locale === "en" ? rows[0]?.translations?.title || "" : draft.title), description: description || (locale === "en" ? rows[0]?.translations?.description || "" : draft.description) }
     if (rows[0]) await service.updateTranslations({ id: rows[0].id, translations: { ...rows[0].translations, ...translations } })
     else await service.createTranslations({ reference: "product", reference_id: id, locale_code: locale, translations })
   }
@@ -130,8 +132,11 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
     const existing = findImported(products, source)
     const hash = digest(JSON.stringify({ draft, settings })), marker = existing?.metadata?.rozetka_admin_import
     const resuming = marker?.request_hash === hash
-    if (resuming && marker.state === "complete") return { product_id: existing.id, status: existing.status, action: "replayed", title: existing.title,
+    if (resuming && marker.state === "complete") {
+      await syncProductUrl(container, existing.id)
+      return { product_id: existing.id, status: existing.status, action: "replayed", title: existing.title,
       warnings: await fillProductOptionTranslations(container, existing.id) }
+    }
     if (existing && !resuming) {
       if (draft.mode !== "update" || draft.existing_id !== existing.id) throw new ImportError(409, "Товар уже существует. Обновите предпросмотр и явно разрешите обновление.")
       if (new Date(existing.updated_at).toISOString() !== draft.existing_updated_at) throw new ImportError(409, "Товар изменён в админке после предпросмотра. Обновите список перед импортом.")
@@ -255,6 +260,7 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
       await updateProductsWorkflow(container).run({ input: { products: [{ id, status: draft.status,
         sales_channels: channelIds.map(channelId => ({ id: channelId })),
         metadata: { ...metadata, rozetka_media: mediaMap, rozetka_admin_import: { ...metadata.rozetka_admin_import, state: "complete", completed_at: new Date().toISOString() } } }] } })
+      await syncProductUrl(container, id)
       return { product_id: id, status: draft.status, title: text.title, action: existing ? "updated" : "created", warnings }
     } catch (error) {
       container.resolve(ContainerRegistrationKeys.LOGGER).error(`Rozetka import failed for ${source.key}, product ${id || "not created"}: ${error instanceof Error ? error.message : "unknown error"}`)

@@ -1,3 +1,4 @@
+import { productHandle } from '@/lib/i18n/paths'
 import type { Cart } from './cart-client'
 import type { Locale } from '@/lib/i18n/config'
 import { localizedText } from '@/lib/i18n/content'
@@ -9,7 +10,7 @@ export function localizeCart(cart: Cart | null, products: ProductText[], locale:
   const byId = new Map(products.map(product => [product.id, product]))
   return { ...cart, items: cart.items?.map(item => {
     const product = item.product_id ? byId.get(item.product_id) : undefined
-    return product ? { ...item, product_title: localizedText(product, 'title', product.title, locale), product_handle: product.handle } : item
+    return product ? { ...item, product_title: localizedText(product, 'title', product.title, locale), product_handle: productHandle(product, locale) } : item
   }) }
 }
 export type { ProductText }

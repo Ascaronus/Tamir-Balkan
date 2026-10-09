@@ -1,5 +1,5 @@
 "use client"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"

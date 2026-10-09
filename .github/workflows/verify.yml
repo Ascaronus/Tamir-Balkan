@@ -57,7 +57,7 @@ jobs:
         working-directory: backend
       - run: node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs
         working-directory: backend
-      - run: node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/admin-decimals.test.cjs tests/decimal-attributes.integration.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/catalog-popularity.integration.cjs
+      - run: node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/admin-decimals.test.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/catalog-popularity.integration.cjs
         working-directory: backend
       - run: npm run build
         working-directory: backend

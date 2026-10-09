@@ -5,7 +5,7 @@ test('signup waits for code, shows prominent spam reminder and cooldown, then ac
  const h=hooks();let requests=0,signups=0,redirect,submitted
  const c=load('frontend/src/components/auth/RegisterForm.tsx',{
   '@/lib/auth/registration-fields':load('frontend/src/lib/auth/registration-fields.ts'),
-  react:h.react,'next/link':'Link','next/navigation':{useRouter:()=>({push:path=>redirect=path})},
+  react:h.react,'@/components/i18n/LocalizedLink':'Link','@/components/i18n/useLocalizedRouter':{useLocalizedRouter:()=>({push:path=>redirect=path})},
   '@/components/security/Captcha':{useCaptcha:()=>({requestCaptcha:async()=> 'captcha',captcha:null})},
   '@/lib/reviews/client':{reviewErrorKey:()=> 'error'},
   '@/components/i18n/LocaleProvider':{useTranslations:()=>k=>k},

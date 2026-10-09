@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { StoreShell } from "@/components/store/StoreShell"
 import { CookieSettingsButton } from "@/components/privacy/CookieConsent"
 import { getTranslations } from "@/lib/i18n/server"
 import { cookiePolicy } from "@/lib/legal/content"
-import { siteUrl } from "@/lib/seo"
+import { languageAlternates } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: cookiePolicy[locale].title, alternates: { canonical: siteUrl("/cookies") } }
+  return { title: cookiePolicy[locale].title, alternates: languageAlternates("/cookies", locale) }
 }
 
 export default async function CookiesPage() {

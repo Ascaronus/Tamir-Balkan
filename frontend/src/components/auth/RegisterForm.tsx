@@ -1,11 +1,11 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { formatPhone, normalizePhone, registrationCities, registrationErrors } from "@/lib/auth/registration-fields"
 import { requestRegistrationCode, type RegistrationChallenge } from "@/lib/auth/auth-client"
 import { useCaptcha } from "@/components/security/Captcha"
 import { reviewErrorKey } from "@/lib/reviews/client"
-import { useRouter } from "next/navigation"
+import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
