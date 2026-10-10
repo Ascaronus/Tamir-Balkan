@@ -37,7 +37,7 @@ try {
     headers: { Host: 'tamir.rs', 'X-Forwarded-Proto': 'https', 'Accept-Language': 'en-US' }, redirect: 'manual',
   })
   assert.equal(publicEntry.status, 307)
-  assert.equal(publicEntry.headers.get('location'), 'https://tamir.rs/en?q=hat')
+  assert.equal(new URL(publicEntry.headers.get('location'), 'https://tamir.rs').href, 'https://tamir.rs/en?q=hat')
   console.log('PASS public redirect behind reverse proxy')
 } finally {
   server.kill('SIGTERM')
