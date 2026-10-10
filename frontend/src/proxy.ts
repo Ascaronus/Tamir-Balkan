@@ -3,9 +3,11 @@ import { detectBrowserLocale, isLocale, LOCALE_COOKIE, locales } from "./lib/i18
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
-  const publicUrl = new URL(request.nextUrl.href)
   // Keep the entry redirect on the public request origin behind the reverse proxy.
-  publicUrl.host = request.headers.get("host") || publicUrl.host
+  // Rebuild the origin: assigning URL.host alone retains an existing internal port.
+  const publicUrl = new URL(`${request.nextUrl.protocol}//${request.headers.get("host") || request.nextUrl.host}`)
+  publicUrl.pathname = path
+  publicUrl.search = request.nextUrl.search
   const headers = new Headers(request.headers)
   // Never trust a caller-supplied routing header.
   headers.set("x-tamir-locale", path === "/en" || path.startsWith("/en/") ? "en" : "sr")
