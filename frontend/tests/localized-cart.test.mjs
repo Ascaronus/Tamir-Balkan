@@ -20,6 +20,19 @@ test('unavailable products keep usable snapshots and legacy metadata translation
  assert.equal(localizeCart(original, [p], 'sr').items[0].product_title, 'Kapa')
 })
 
+test('cart variant uses localized option values and preserves the server snapshot and totals', () => {
+ const cart = {...original,items:[{...original.items[0],variant_id:'v1',variant_title:'One Size / Grey'}]}
+ const product = {id:'hat',title:'Kapa',handle:'kapa',variants:[{id:'other',options:[{value:'XL'}]},{id:'v1',title:'One Size / Grey',options:[{value:'Jedna veličina'},{value:'Siva'}]}]}
+ const sr = localizeCart(cart,[product],'sr')
+ assert.equal(sr.items[0].variant_title,'Jedna veličina / Siva')
+ assert.equal(sr.items[0].quantity,1)
+ assert.equal(sr.items[0].total,1480)
+ assert.equal(cart.items[0].variant_title,'One Size / Grey')
+ const en = {...product,variants:[{id:'v1',options:[{value:'One Size'},{value:'Gray'}]}]}
+ assert.equal(localizeCart(cart,[en],'en').items[0].variant_title,'One Size / Gray')
+ assert.equal(localizeCart(cart,[{...product,variants:[]}],'sr').items[0].variant_title,'One Size / Grey')
+})
+
 test('locale lookup ignores stale responses and does not refetch on quantity changes', async () => {
  const { hooks } = await import('../test-support/component-harness.mjs')
  const state=hooks(), pending=[]

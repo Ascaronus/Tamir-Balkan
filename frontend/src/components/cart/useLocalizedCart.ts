@@ -19,7 +19,7 @@ export function useLocalizedCart(cart: Cart | null) {
     const batches: string[][] = []
     for (let i = 0; i < productIds.length; i += 50) batches.push(productIds.slice(i, i + 50))
     void Promise.all(batches.map(id => sdk.client.fetch<{ products: ProductText[] }>('/store/products', {
-      query: { id, fields: 'id,title,handle,metadata', limit: id.length },
+      query: { id, fields: 'id,title,handle,metadata,*variants,*variants.options', limit: id.length },
       headers: { 'x-medusa-locale': medusaStoreLocale(locale) },
       cache: 'no-store', signal: controller.signal,
     }))).then(responses => {
