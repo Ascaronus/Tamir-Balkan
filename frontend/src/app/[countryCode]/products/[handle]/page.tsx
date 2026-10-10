@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: {
   params: Promise<{ countryCode: string; handle: string }>
 }): Promise<Metadata> {
   const { countryCode, handle } = await params
-  if (countryCode.toLowerCase() !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
   const { locale } = await getTranslations()
   const product = await getProduct(handle, locale)
   if (!product) notFound()
@@ -53,7 +53,7 @@ export default async function ProductPage({ params, searchParams }: {
 }) {
   const { t, locale } = await getTranslations()
   const { countryCode, handle } = await params
-  if (countryCode.toLowerCase() !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
   const product = await getProduct(handle, locale)
   if (!product) notFound()
   if (productHandle(product, locale) !== handle) {

@@ -17,7 +17,7 @@ import type { Locale } from "@/lib/i18n/config"
 type CatalogRouteParams = { countryCode?: string; categoryHandle?: string }
 
 async function resolveCategory(route: CatalogRouteParams, query: CatalogQuery, locale: Locale) {
-  if (route.countryCode && route.countryCode.toLowerCase() !== "rs") notFound()
+  if (route.countryCode && !["rs", "en"].includes(route.countryCode.toLowerCase())) notFound()
   const categoryId = queryText(query.category_id)
   const category = route.categoryHandle
     ? await getStoreProductCategoryByHandle(route.categoryHandle, locale)

@@ -10,8 +10,8 @@ export default async function LoginPage(props: {
 }) {
   const { countryCode } = await props.params
   const next = (await props.searchParams).next === "checkout" ? "checkout" : "account"
-  const cc = countryCode.toLowerCase()
-  if (cc !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
+  const cc = "rs"
 
   return (
     <StoreShell countryCode={cc as "rs"}>

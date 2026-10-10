@@ -8,8 +8,8 @@ export default async function CheckoutPage(props: {
   params: Promise<{ countryCode: string }>
 }) {
   const { countryCode } = await props.params
-  const cc = countryCode.toLowerCase()
-  if (cc !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
+  const cc = "rs"
 
   return (
     <StoreShell countryCode={cc as "rs"}>

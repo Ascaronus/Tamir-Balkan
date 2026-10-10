@@ -8,8 +8,8 @@ export default async function OrderPage(props: {
   params: Promise<{ countryCode: string; id: string }>
 }) {
   const { countryCode, id } = await props.params
-  const cc = countryCode.toLowerCase()
-  if (cc !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
+  const cc = "rs"
 
 
 

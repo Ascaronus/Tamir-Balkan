@@ -12,7 +12,7 @@ const response = {
 }
 const {proxy}=load('frontend/src/proxy.ts',{'next/server':{NextResponse:response},'./lib/i18n/config':config},{Headers})
 function request(path, language, cookie) {
- const url=new URL(path,'https://tamir.rs');url.clone=()=>new URL(url)
+ const url=new URL(path,'https://tamir.rs');url.clone=()=>{const copy=new URL(url);copy.clone=url.clone;return copy}
  return {nextUrl:url,headers:new Headers({'accept-language':language||'', 'x-tamir-locale':'en'}),cookies:{get:()=>cookie?{value:cookie}:undefined}}
 }
 test('only an unqualified entry selects browser/saved language, using temporary uncacheable redirects',()=>{
@@ -23,12 +23,12 @@ test('only an unqualified entry selects browser/saved language, using temporary 
  assert.equal(proxy(request('/','en','sr')).next,true)
  assert.equal(proxy(request('/','ru','en')).status,307)
 })
-test('explicit links override cookies and browser; EN rewrites preserve Serbia and query state',()=>{
+test('explicit links override cookies and browser without rewriting away the language',()=>{
  const sr=proxy(request('/rs/catalog/hats','en','en'));assert.equal(sr.next,true);assert.equal(sr.request.headers.get('x-tamir-locale'),'sr')
  const en=proxy(request('/en/catalog/hats?size=42%2C5&color=black&page=2','ru','sr'))
- assert.equal(en.rewrite,'https://tamir.rs/rs/catalog/hats?size=42%2C5&color=black&page=2');assert.equal(en.request.headers.get('x-tamir-locale'),'en')
- for(const page of ['privacy','terms','cookies'])assert.equal(proxy(request('/en/'+page)).rewrite,'https://tamir.rs/'+page)
- assert.equal(proxy(request('/en')).rewrite,'https://tamir.rs/')
+ assert.equal(en.next,true);assert.equal(en.rewrite,undefined);assert.equal(en.request.headers.get('x-tamir-locale'),'en')
+ for(const page of ['privacy','terms','cookies'])assert.equal(proxy(request('/en/'+page)).request.headers.get('x-tamir-locale'),'en')
+ assert.equal(proxy(request('/en')).next,true)
  assert.equal(proxy(request('/en/api/locale')).next,true)
 })
 test('localized navigation preserves filters, variants and fragments, leaving APIs and external links untouched',()=>{
@@ -84,7 +84,7 @@ function productPage(locale, ready=true) {
 }
 test('translated products resolve through normal scoped Store API with language-specific canonical and preserved variant redirects',async()=>{
  const page=productPage('en')
- const props={params:Promise.resolve({countryCode:'rs',handle:'burgundy-hat'}),searchParams:Promise.resolve({v_id:'variant_1'})}
+ const props={params:Promise.resolve({countryCode:'en',handle:'burgundy-hat'}),searchParams:Promise.resolve({v_id:'variant_1'})}
  const metadata=await page.generateMetadata(props)
  assert.equal(metadata.alternates.canonical,siteUrl('/en/products/burgundy-hat'));assert.equal(metadata.robots.index,true)
  const tree=await page.default(props);assert.equal(tree.props.countryCode,'rs');assert.equal(tree.props.languagePaths.sr,'/rs/products/bordo-kapa')
