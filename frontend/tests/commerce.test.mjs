@@ -39,9 +39,9 @@ test('gallery retains all product photos and prioritizes explicit variant photos
   process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL='http://178.104.108.200:9000'
   assert.equal(normalizeImageUrl('http://localhost:9000/static/a.jpg'),'http://178.104.108.200:9000/static/a.jpg')
 })
-test('category translations support metadata and existing English menu names',()=>{
+test('legacy text metadata is supported without hidden category translations',()=>{
   assert.equal(localizedText({metadata:{i18n:{sr:{name:'Košulje'}}}},'name','Shirts','sr'),'Košulje')
-  assert.equal(localizedText({},'name',' Turtleneck','sr'),'Rolka')
+  assert.equal(localizedText({},'name',' Turtleneck','sr'),' Turtleneck')
   assert.equal(localizedText({},'name','Custom','en'),'Custom')
 })
 test('EN/SR dictionaries have identical keys and no Montenegro',()=>{

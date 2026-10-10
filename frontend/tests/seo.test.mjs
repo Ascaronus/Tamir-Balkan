@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import { siteUrl, serializeJsonLd, languageAlternates } from "../src/lib/seo.ts"
-import { categoryPath, categoryRedirectPath } from "../src/lib/store/category-url.ts"
+import { categoryHandle, categoryPath, categoryRedirectPath } from "../src/lib/store/category-url.ts"
 import { queryText, normalizeCatalogQuery } from "../src/lib/store/search-params.ts"
 const { resolveRouteData } = createRequire(import.meta.url)("next/dist/build/webpack/loaders/metadata/resolve-route-data.js")
 
@@ -81,7 +81,7 @@ function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=
   '@/lib/reviews/server':{},'@/lib/store/search-params':{normalizeCatalogQuery,queryText},
   '@/lib/store/catalog':catalog,'@/lib/store/regions':{getRegionByCountry:async()=>null},
   '@/lib/store/categories':{getStoreProductCategoryById:async()=>category,getStoreProductCategoryByHandle:async()=>category,listStoreProductCategories:async()=>category?[category]:[]},
-  '@/lib/store/category-url':{categoryPath,categoryRedirectPath},
+  '@/lib/store/category-url':{categoryHandle,categoryPath,categoryRedirectPath},
   '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count})},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/components/store/CatalogClient':{CatalogClient:'CatalogClient'},
   '@/lib/i18n/server':{getTranslations:async()=>({locale:'sr',t:()=> 'Katalog'})},'@/lib/seo':{siteUrl,languageAlternates},
@@ -136,4 +136,16 @@ test('new category handles resolve to the internal category ID and keep the acti
 test('category handles are encoded as a single path segment and an ID query cannot override the path category',async()=>{
  assert.equal(categoryPath({id:'id',handle:'Šalovi & kape'}),'/rs/catalog/%C5%A0alovi%20%26%20kape')
  await assert.rejects(catalogPage().default({params:Promise.resolve({countryCode:'rs',categoryHandle:'hats'}),searchParams:Promise.resolve({category_id:'another',q:'cap'})}),error=>error.location==='/rs/catalog/hats?q=cap')
+})
+
+test('localized categories use distinct canonical URLs and redirect old handles without losing filters',async()=>{
+ const category={id:'hat',name:'Kape',handle:'hats',metadata:{category_handles:{sr:'kape',en:'hats'}}}
+ assert.equal(categoryPath(category,'sr'),'/rs/catalog/kape')
+ assert.equal(categoryPath(category,'en'),'/en/catalog/hats')
+ const page=catalogPage({category})
+ await assert.rejects(page.default({params:Promise.resolve({countryCode:'rs',categoryHandle:'hats'}),searchParams:Promise.resolve({size:['S','M'],page:'2'})}),error=>error.location==='/rs/catalog/kape?size=S&size=M&page=2')
+ const metadata=await page.generateMetadata({params:Promise.resolve({countryCode:'rs',categoryHandle:'kape'}),searchParams:Promise.resolve({page:'2',sort:'newest'})})
+ assert.equal(metadata.alternates.canonical,siteUrl('/rs/catalog/kape?page=2'))
+ assert.equal(metadata.alternates.languages.en,siteUrl('/en/catalog/hats?page=2'))
+ assert.equal(metadata.alternates.languages.sr,metadata.alternates.canonical)
 })
