@@ -33,6 +33,12 @@ try {
     assert.equal(new URL(res.headers.get('location'), `http://127.0.0.1:${port}`).search, '?q=hat')
     assert.match(res.headers.get('cache-control'), /no-store/)
   }
+  const publicEntry = await fetch(`http://127.0.0.1:${port}/?q=hat`, {
+    headers: { Host: 'tamir.rs', 'X-Forwarded-Proto': 'https', 'Accept-Language': 'en-US' }, redirect: 'manual',
+  })
+  assert.equal(publicEntry.status, 307)
+  assert.equal(new URL(publicEntry.headers.get('location'), 'https://tamir.rs').href, 'https://tamir.rs/en?q=hat')
+  console.log('PASS public redirect behind reverse proxy')
 } finally {
   server.kill('SIGTERM')
 }

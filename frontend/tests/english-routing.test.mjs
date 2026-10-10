@@ -31,6 +31,14 @@ test('explicit links override cookies and browser without rewriting away the lan
  assert.equal(proxy(request('/en')).next,true)
  assert.equal(proxy(request('/en/api/locale')).next,true)
 })
+test('entry redirect removes the reverse proxy internal port but preserves an explicit public port',()=>{
+ for (const host of ['tamir.rs','tamir.rs:8443']) {
+  const req=request('/?q=hat','en')
+  req.nextUrl=new URL('https://localhost:3000/?q=hat')
+  req.headers.set('host',host)
+  assert.equal(proxy(req).url,`https://${host}/en?q=hat`)
+ }
+})
 test('localized navigation preserves filters, variants and fragments, leaving APIs and external links untouched',()=>{
  assert.equal(paths.localizedPath('/rs/catalog/hats?size=42%2C5&page=2#list','en'),'/en/catalog/hats?size=42%2C5&page=2#list')
  assert.equal(paths.localizedPath('/en/account/login?next=checkout','sr'),'/rs/account/login?next=checkout')
