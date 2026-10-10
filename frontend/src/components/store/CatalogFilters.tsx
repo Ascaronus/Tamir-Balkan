@@ -1,6 +1,6 @@
 "use client"
 import { useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { catalogHref, catalogParams, colorSwatch, type CatalogResult, type CatalogSelection, type Facet } from "@/lib/store/catalog"
 import { CategoryNavigation } from "./CategoryNavigation"

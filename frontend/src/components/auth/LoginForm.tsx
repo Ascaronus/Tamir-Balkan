@@ -1,7 +1,7 @@
 "use client"
 
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import Link from "@/components/i18n/LocalizedLink"
+import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"

@@ -9,8 +9,8 @@ export default async function CartPage(props: {
   params: Promise<{ countryCode: string }>
 }) {
   const { countryCode } = await props.params
-  const cc = countryCode.toLowerCase()
-  if (cc !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
+  const cc = "rs"
 
   const { t } = await getTranslations()
 

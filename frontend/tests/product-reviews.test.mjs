@@ -65,7 +65,7 @@ test('CAPTCHA errors cannot bypass registration through partial-account recovery
 function ui(customer = null, response = {reviews:[],count:0,rating:0,has_review:false}, hash = '') {
  const h=hooks();let calls=0,posted=0,captchaCalls=0
  const component=load('frontend/src/components/reviews/ProductReviews.tsx',{
-  react:h.react,'next/link':'Link',
+  react:h.react,'@/components/i18n/LocalizedLink':'Link',
   '@/components/auth/AuthProvider':{useAuth:()=>({customer,isReady:true})},
   '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en',t:(key,args)=>key+(args?JSON.stringify(args):'')})},
   '@/components/security/Captcha':{useCaptcha:()=>({requestCaptcha:async()=>{captchaCalls++;return 'challenge-token'},captcha:null})},

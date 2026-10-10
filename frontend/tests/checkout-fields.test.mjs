@@ -16,7 +16,7 @@ function setup(customer=null){
  const refresh=async()=>{}, t=k=>k
  const api={listPaymentProviders:async()=>[{id:'pp_system_default'}],setCartAddresses:async p=>calls.push(['address',p]),listShippingOptions:async()=>[{id:'ship',name:'Dostava',amount:300}],setShippingMethod:async()=>({cart:{...cart,total:1800,shipping_total:300}}),initiatePaymentSession:async()=>calls.push(['payment']),completeCart:async()=>{calls.push(['complete']);return {type:'order',order:{id:'order_test'}}}}
  const {CheckoutPageClient}=load('frontend/src/components/checkout/CheckoutPageClient.tsx',{
- react:h.react,'next/link':{default:'a'},'next/navigation':{useRouter:()=>({push:url=>calls.push(['navigate',url])})},
+ react:h.react,'@/components/i18n/LocalizedLink':{default:'a'},'@/components/i18n/useLocalizedRouter':{useLocalizedRouter:()=>({push:url=>calls.push(['navigate',url])})},
  '@/components/auth/AuthProvider':{useAuth:()=>({customer,isReady:true,refresh})},'@/components/cart/CartProvider':{useCart:()=>({cart,isReady:true,isMutating:false})},
  '@/lib/checkout/apply-customer':account,'@/lib/checkout/checkout-client':api,'@/lib/format-money':{formatMoney:n=>String(n)},'@/lib/checkout/receipt':{saveReceipt:()=>{}},'@/lib/cart/cart-client':{clearCartId:()=>{}},'@/components/i18n/LocaleProvider':{useTranslations:()=>t},'@/lib/checkout/checkout-fields':validation,'@/lib/auth/registration-fields':phone,
  },{document:{getElementById:id=>({focus:()=>focused.push(id)})}})

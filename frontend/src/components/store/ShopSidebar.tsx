@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState, Suspense } from "react"
 import { useLocaleContext, useTranslations } from "@/components/i18n/LocaleProvider"

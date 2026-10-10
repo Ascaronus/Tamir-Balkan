@@ -63,7 +63,7 @@ test('blocked cookie storage cannot enable analytics',()=>{
 function ui(b){
  const h=hooks()
  const c=load('frontend/src/components/privacy/CookieConsent.tsx',{
-  react:h.react,'next/link':'Link','@/components/i18n/LocaleProvider':{useTranslations:()=>k=>k},'@/lib/privacy/consent':b.consent,
+  react:h.react,'@/components/i18n/LocalizedLink':'Link','@/components/i18n/LocaleProvider':{useTranslations:()=>k=>k},'@/lib/privacy/consent':b.consent,
  },b.globals)
  return {h,render:()=>h.render(()=>c.CookieConsent())}
 }

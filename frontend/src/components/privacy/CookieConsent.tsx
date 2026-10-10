@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { useEffect, useRef, useState } from "react"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { CONSENT_EVENT, CONSENT_SYNC, readConsent, saveConsent, startAnalytics, stopAnalytics, type Consent } from "@/lib/privacy/consent"

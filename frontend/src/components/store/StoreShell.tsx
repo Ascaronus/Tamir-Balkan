@@ -1,4 +1,6 @@
 "use client"
+import { LanguagePaths } from "@/components/i18n/LanguagePaths"
+import type { Locale } from "@/lib/i18n/config"
 import { useRef } from "react"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { ShopHeader } from "./ShopHeader"
@@ -9,10 +11,10 @@ import { CartProvider } from "@/components/cart/CartProvider"
 import { AuthProvider } from "@/components/auth/AuthProvider"
 import type { HttpTypes } from "@medusajs/types"
 
-export function StoreShell({ children, countryCode, initialCategories, activeCategoryId }: { children: React.ReactNode; countryCode?: "rs"; initialCategories?: HttpTypes.StoreProductCategory[]; activeCategoryId?: string }) {
+export function StoreShell({ children, countryCode, initialCategories, activeCategoryId, languagePaths = {} }: { children: React.ReactNode; countryCode?: "rs"; initialCategories?: HttpTypes.StoreProductCategory[]; activeCategoryId?: string; languagePaths?: Partial<Record<Locale, string>> }) {
   const menu = useRef<HTMLDialogElement>(null)
   const t = useTranslations()
-  return <AuthProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider initialCategories={initialCategories} activeCategoryId={activeCategoryId}>
+  return <LanguagePaths.Provider value={languagePaths}><AuthProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider initialCategories={initialCategories} activeCategoryId={activeCategoryId}>
     <div className="store-shell">
       <ShopHeader countryCode={countryCode} onOpenCatalog={() => menu.current?.showModal()} />
       <dialog ref={menu} id="store-sidebar" className="navigation-drawer" aria-label={t("header.catalog")} onClick={e => { if (e.target === e.currentTarget) menu.current?.close() }}>
@@ -22,5 +24,5 @@ export function StoreShell({ children, countryCode, initialCategories, activeCat
       <main id="main-content" className="store-main">{children}</main>
       <StoreFooter />
     </div>
-  </CategoryProvider></CartProvider></AuthProvider>
+  </CategoryProvider></CartProvider></AuthProvider></LanguagePaths.Provider>
 }

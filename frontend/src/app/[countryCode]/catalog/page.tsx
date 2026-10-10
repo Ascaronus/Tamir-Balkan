@@ -1,5 +1,6 @@
+import { localizedPath } from "@/lib/i18n/paths"
 import Image from "next/image"
-import Link from "next/link"
+import Link from "@/components/i18n/LocalizedLink"
 import { notFound, permanentRedirect } from "next/navigation"
 import { reviewSummaries } from "@/lib/reviews/server"
 import { normalizeCatalogQuery, queryText, type CatalogQuery } from "@/lib/store/search-params"
@@ -16,14 +17,14 @@ import type { Locale } from "@/lib/i18n/config"
 type CatalogRouteParams = { countryCode?: string; categoryHandle?: string }
 
 async function resolveCategory(route: CatalogRouteParams, query: CatalogQuery, locale: Locale) {
-  if (route.countryCode && route.countryCode.toLowerCase() !== "rs") notFound()
+  if (route.countryCode && !["rs", "en"].includes(route.countryCode.toLowerCase())) notFound()
   const categoryId = queryText(query.category_id)
   const category = route.categoryHandle
     ? await getStoreProductCategoryByHandle(route.categoryHandle, locale)
     : categoryId ? await getStoreProductCategoryById(categoryId, locale) : null
   if ((route.categoryHandle || categoryId) && !category) notFound()
   if (category?.handle && (!route.categoryHandle || query.category_id !== undefined)) {
-    permanentRedirect(categoryRedirectPath(category, query))
+    permanentRedirect(localizedPath(categoryRedirectPath(category, query), locale))
   }
   return category
 }
@@ -36,7 +37,7 @@ export default async function CatalogPage({ params, searchParams }: {
   const { t, locale } = await getTranslations()
   const category = await resolveCategory(route, query, locale)
   const selection = catalogSelection({ ...query, category_id: category?.id })
-  const basePath = category ? categoryPath(category) : "/rs/catalog"
+  const basePath = localizedPath(category ? categoryPath(category) : "/rs/catalog", locale)
   const [region, categories] = await Promise.all([
     getRegionByCountry("rs").catch(() => null),
     listStoreProductCategories(locale).catch(() => []),
@@ -50,7 +51,7 @@ export default async function CatalogPage({ params, searchParams }: {
 }
 
 import type { Metadata } from "next"
-import { siteUrl } from "@/lib/seo"
+import { siteUrl, languageAlternates } from "@/lib/seo"
 
 export async function generateMetadata({ searchParams, params }: {
   searchParams: Promise<CatalogQuery>; params?: Promise<CatalogRouteParams>
@@ -68,7 +69,7 @@ export async function generateMetadata({ searchParams, params }: {
     ? locale === "sr" ? `${category.name} — TAMIR kolekcija. Pogledajte modele, boje, veličine i cene. Dostava širom Srbije.` : `${category.name} — TAMIR collection. Browse styles, colors, sizes and prices. Delivery across Serbia.`
     : locale === "sr" ? "TAMIR muška odeća i aksesoari. Pogledajte kolekciju, boje, veličine i cene. Dostava širom Srbije." : "TAMIR men's clothing and accessories. Browse the collection, colors, sizes and prices. Delivery across Serbia."
   return { title: (category?.name || t("catalog.catalog")) + " | Tamir", description,
-    alternates: { canonical: canonical.href },
+    alternates: languageAlternates(canonical.pathname + canonical.search, locale),
     // Search results and empty categories have no useful standalone search landing page.
     // This is evaluated against published products on every request, so a populated category becomes indexable automatically.
     robots: { index: !query.q?.trim() && categoryCount !== 0, follow: true } }

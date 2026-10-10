@@ -1,7 +1,9 @@
+import * as paths from '../src/lib/i18n/paths.ts'
 import fs from 'node:fs'
 import vm from 'node:vm'
 import ts from 'typescript'
 export function load(path,mocks={},globals={}) {
+ mocks={'@/lib/i18n/paths':paths,...mocks}
  const exports={}
  const source=fs.readFileSync(new URL('../../'+path,import.meta.url),'utf8')
  const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText

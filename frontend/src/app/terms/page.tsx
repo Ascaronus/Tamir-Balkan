@@ -2,11 +2,11 @@ import type { Metadata } from "next"
 import { StoreShell } from "@/components/store/StoreShell"
 import { getTranslations } from "@/lib/i18n/server"
 import { terms } from "@/lib/legal/content"
-import { siteUrl } from "@/lib/seo"
+import { languageAlternates } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: terms[locale].title, alternates: { canonical: siteUrl("/terms") }, robots: { index: true, follow: true } }
+  return { title: terms[locale].title, alternates: languageAlternates("/terms", locale), robots: { index: true, follow: true } }
 }
 
 export default async function TermsPage() {

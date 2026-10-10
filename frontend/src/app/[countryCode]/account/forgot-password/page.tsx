@@ -4,6 +4,6 @@ import { PasswordResetForm } from "@/components/auth/PasswordResetForm"
 export const dynamic = "force-dynamic"
 export default async function PasswordResetPage({ params }: { params: Promise<{ countryCode: string }> }) {
   const { countryCode } = await params
-  if (countryCode.toLowerCase() !== "rs") notFound()
+  if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
   return <StoreShell countryCode="rs"><div className="auth-content"><PasswordResetForm countryCode="rs" /></div></StoreShell>
 }

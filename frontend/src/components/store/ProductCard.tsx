@@ -1,6 +1,7 @@
 "use client"
 
-import Link from "next/link"
+import { productPath } from "@/lib/i18n/paths"
+import Link from "@/components/i18n/LocalizedLink"
 import { useState } from "react"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { Stars, ReviewIcon } from "@/components/reviews/Stars"
@@ -22,7 +23,7 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
   const [selection, setSelection] = useState<{ context: string; id: string } | null>(null)
   const chosen = selection?.context === context ? variants.find(v => v.id === selection.id) : undefined
   const current = chosen ?? variants.find(v => v.id === initialId) ?? variants.find(canPurchase) ?? variants[0]
-  const href = `/rs/products/${encodeURIComponent(product.handle)}${current && variants.length > 1 ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
+  const href = `${productPath(product, locale)}${current && variants.length > 1 ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
   const image = current?.images?.length ? getImagesForVariant(product, current.id)[0]?.url : getStoreProductImageUrl(product)
   const price = chosen ? variantAmount(chosen.calculated_price) : product.catalog.price
   const colors = (product.options ?? []).filter(o => isColorOption(o.title)).flatMap(option =>

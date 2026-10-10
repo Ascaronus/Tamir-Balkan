@@ -42,7 +42,7 @@ test('payment method request can be retried after failure',async()=>{
  const validation=load('frontend/src/lib/checkout/checkout-fields.ts',{'@/lib/auth/registration-fields':fields})
  const c=load('frontend/src/components/checkout/CheckoutPageClient.tsx',{
   '@/lib/auth/registration-fields':fields,'@/lib/checkout/checkout-fields':validation,
-  react:h.react,'next/link':'Link','next/navigation':{useRouter:()=>({push(){}})},
+  react:h.react,'@/components/i18n/LocalizedLink':'Link','@/components/i18n/useLocalizedRouter':{useLocalizedRouter:()=>({push(){}})},
   '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true,refresh:async()=>{}})},
   '@/components/cart/CartProvider':{useCart:()=>({cart:{id:'cart',region_id:'region',items:[{id:'i',quantity:1}]},isReady:true,isMutating:false})},
   '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/cart/cart-client':{},
@@ -69,7 +69,7 @@ test('variant URL and language changes refresh selection while preserving reques
  const h=hooks();let id='m',locale='sr'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
- react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'next/link':{},
+ react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},
  '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/auth/auth-storage':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
  })
  const props={product:{id:'p'},initialVariantId:'m'}
