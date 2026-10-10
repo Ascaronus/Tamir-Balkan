@@ -38,7 +38,7 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
       <ReviewIcon />
       {summary ? <>
         <Stars compact rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} />
-        <span>· {summary.count}</span>
+        {summary.count > 0 && <span>· {summary.count}</span>}
       </> : t("reviews.title")}
     </Link>
     {colors.length > 0 && <div className="product-card-colors">

@@ -31,13 +31,16 @@ function categoryPath(id: string, categories: ImportPreview["categories"]) {
 export default function RozetkaImportPage() {
   const [sourceMode, setSourceMode] = useState<"url" | "file">("url")
   const [sourceUrl, setSourceUrl] = useState(DEFAULT_XML_URL)
+  const [savedSourceUrl, setSavedSourceUrl] = useState(DEFAULT_XML_URL)
+  const [sourceSettingsLoading, setSourceSettingsLoading] = useState(true)
+  const [savingSource, setSavingSource] = useState(false)
   const [sourceFile, setSourceFile] = useState<Extract<ImportSource, { type: "file" }> | null>(null)
   const [loadedSource, setLoadedSource] = useState<ImportSource | null>(null)
   const [fileReading, setFileReading] = useState(false)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [drafts, setDrafts] = useState<Record<string, ImportDraft>>({})
   const [selected, setSelected] = useState<string[]>([])
-  const [settings, setSettings] = useState<ImportSettings>({ stock_location_id: "", sales_channel_id: "", shipping_profile_id: "", image_mode: "remote" })
+  const [settings, setSettings] = useState<ImportSettings>({ stock_location_id: "", sales_channel_id: "", shipping_profile_id: "", image_mode: "copy" })
   const [loading, setLoading] = useState(false), [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(""), [notice, setNotice] = useState("")
   const [search, setSearch] = useState(""), [category, setCategory] = useState("")
@@ -50,6 +53,24 @@ export default function RozetkaImportPage() {
   const [translating, setTranslating] = useState(false)
   const busy = useRef(false), stop = useRef(false), mounted = useRef(true)
   const modal = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    let active = true
+    request<{ source_url: string }>("/admin/rozetka/settings").then(data => {
+      if (active) { setSourceUrl(data.source_url); setSavedSourceUrl(data.source_url) }
+    }).catch(() => { if (active) setError("Не удалось прочитать сохранённый адрес XML. Можно указать адрес вручную.") })
+      .finally(() => { if (active) setSourceSettingsLoading(false) })
+    return () => { active = false }
+  }, [])
+  async function saveSourceUrl() {
+    if (savingSource) return
+    setSavingSource(true); setError("")
+    try {
+      const data = await request<{ source_url: string }>("/admin/rozetka/settings", { source_url: sourceUrl.trim() })
+      setSourceUrl(data.source_url); setSavedSourceUrl(data.source_url)
+      setNotice("Адрес XML сохранён для магазина. Он будет доступен при следующем входе с любого устройства.")
+    } catch (e) { setError(e instanceof Error ? e.message : "Не удалось сохранить адрес XML") }
+    finally { setSavingSource(false) }
+  }
   useEffect(() => {
     mounted.current = true
     try {
@@ -229,9 +250,9 @@ export default function RozetkaImportPage() {
         <button aria-pressed={sourceMode === "file"} className={sourceMode === "file" ? "active" : ""} onClick={() => setSourceMode("file")}>XML-файл</button>
       </div>
       <div className="rz-source-input">
-        {sourceMode === "url" ? <label>Адрес XML<input type="url" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} placeholder={DEFAULT_XML_URL} /><span className="rz-help">HTTPS-ссылка tamir.ua. Можно изменить язык или путь к выгрузке.</span></label>
+        {sourceMode === "url" ? <div className="rz-source-url"><label>Адрес XML<input type="url" value={sourceUrl} disabled={sourceSettingsLoading || savingSource} onChange={e => setSourceUrl(e.target.value)} placeholder={DEFAULT_XML_URL} /><span className="rz-help">HTTPS-ссылка tamir.ua. Можно изменить язык или путь к выгрузке.</span></label><button type="button" disabled={sourceSettingsLoading || savingSource || !sourceUrl.trim() || sourceUrl.trim() === savedSourceUrl} onClick={() => void saveSourceUrl()}>{savingSource ? "Сохранение…" : "Сохранить адрес"}</button></div>
           : <label>Файл XML<input type="file" accept=".xml,application/xml,text/xml" onChange={e => void chooseFile(e.target.files?.[0])} /><span className="rz-help">{fileReading ? "Читаем файл…" : sourceFile ? `${sourceFile.name} · ${(new Blob([sourceFile.xml]).size / 1024).toFixed(0)} КБ` : "XML/YML в UTF-8, до 10 МБ. После выбора нажмите «Загрузить товары»."}</span></label>}
-        <button className="rz-primary" disabled={sourceMode === "file" && !sourceFile} onClick={() => void load()}>{loading ? "Загружаем…" : "Загрузить товары"}</button>
+        <button className="rz-primary" disabled={(sourceMode === "file" && !sourceFile) || (sourceMode === "url" && (sourceSettingsLoading || savingSource))} onClick={() => void load()}>{loading ? "Загружаем…" : "Загрузить товары"}</button>
       </div>
       {preview && loadedSource && <p className="rz-loaded-source">Загружен {loadedSource.type === "file" ? "файл" : "адрес"}: <strong>{preview.source}</strong> · {preview.products.length} товаров · {preview.products.reduce((n, p) => n + p.variants.length, 0)} вариантов · {new Date(preview.fetched_at).toLocaleString("ru-RU")}</p>}
       <p className="rz-help">Загрузка открывает предпросмотр. Изменение адреса или выбор другого файла применится после нажатия «Загрузить товары».</p>

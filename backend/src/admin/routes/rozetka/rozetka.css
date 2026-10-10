@@ -26,8 +26,8 @@
 .rz-source-modes{display:flex;gap:4px;padding:4px;width:fit-content;background:var(--bg-subtle);border:1px solid var(--border-base);border-radius:8px;margin-bottom:16px;clear:both}
 .rz-page .rz-source-modes button{border:0;background:transparent;color:var(--fg-subtle)}
 .rz-page .rz-source-modes button.active{background:var(--bg-base);color:var(--fg-base);box-shadow:var(--elevation-card-rest)}
-.rz-source-input{display:flex;align-items:flex-start;gap:12px}.rz-source-input>label{flex:1;min-width:0}.rz-source-input>.rz-primary{margin-top:23px;min-height:36px}
+.rz-source-input{display:flex;align-items:flex-start;gap:12px}.rz-source-input>label,.rz-source-url{flex:1;min-width:0}.rz-source-url>button{margin-top:8px}.rz-source-input>.rz-primary{margin-top:23px;min-height:36px}
 .rz-source-picker .rz-loaded-source{border-top:1px solid var(--rz-border);padding-top:12px;margin-top:16px;font-size:12px;overflow-wrap:anywhere}
 .rz-source-picker>.rz-help{margin-top:12px}
 .rz-page input[type=file]::file-selector-button{background:var(--button-neutral);color:var(--fg-base);border:1px solid var(--border-base);border-radius:4px;padding:3px 9px;margin-right:10px;cursor:pointer}
-@media(max-width:760px){.rz-source-input{flex-direction:column}.rz-source-input>label{width:100%}.rz-source-input>.rz-primary{margin-top:0;width:100%}}
+@media(max-width:760px){.rz-source-input{flex-direction:column}.rz-source-input>label,.rz-source-url{width:100%}.rz-source-input>.rz-primary{margin-top:0;width:100%}}

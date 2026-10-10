@@ -1,4 +1,4 @@
-import { localizedText } from "@/lib/i18n/content"
+import { matchesCategoryHandle } from "./category-url"
 import { sdk } from "@/lib/medusa"
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import type { HttpTypes } from "@medusajs/types"
@@ -25,8 +25,7 @@ export async function listStoreProductCategories(
     offset += result.product_categories.length
     if (offset >= result.count || result.product_categories.length === 0) break
   }
-  const translate = (cat: HttpTypes.StoreProductCategory): HttpTypes.StoreProductCategory => ({ ...cat, name: localizedText(cat, "name", cat.name, locale ?? "sr"), category_children: cat.category_children?.map(translate) })
-  return all.map(translate)
+  return all
 }
 
 async function getStoreProductCategory(
@@ -47,13 +46,14 @@ async function getStoreProductCategory(
   })
 
   const category = product_categories?.[0]
-  return category ? { ...category, name: localizedText(category, "name", category.name, locale ?? "sr") } : null
+  return category ?? null
 }
 
 export function getStoreProductCategoryById(id: string, locale?: Locale) {
   return getStoreProductCategory({ id: [id] }, locale)
 }
 
-export function getStoreProductCategoryByHandle(handle: string, locale?: Locale) {
-  return getStoreProductCategory({ handle: [handle] }, locale)
+export async function getStoreProductCategoryByHandle(handle: string, locale?: Locale) {
+  const categories = await listStoreProductCategories(locale)
+  return categories.find(category => matchesCategoryHandle(category, handle)) ?? null
 }
