@@ -1,76 +1,38 @@
-<p align="center">
-  <a href="https://www.medusajs.com">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/59018053/229103275-b5e482bb-4601-46e6-8142-244f531cebdb.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    <img alt="Medusa logo" src="https://user-images.githubusercontent.com/59018053/229103726-e5b529a3-9b3f-4970-8a1f-c6af37f087bf.svg">
-    </picture>
-  </a>
-</p>
-<h1 align="center">
-  Medusa
-</h1>
+# TAMIR backend
 
-<h4 align="center">
-  <a href="https://docs.medusajs.com">Documentation</a> |
-  <a href="https://www.medusajs.com">Website</a>
-</h4>
+Medusa **2.13.1**, PostgreSQL, Redis, TypeScript. Backend обслуживает обе языковые версии одной витрины; отдельной EN-базы или магазина нет.
 
-<p align="center">
-  Building blocks for digital commerce
-</p>
-<p align="center">
-  <a href="https://github.com/medusajs/medusa/blob/master/CONTRIBUTING.md">
-    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat" alt="PRs welcome!" />
-  </a>
-    <a href="https://www.producthunt.com/posts/medusa"><img src="https://img.shields.io/badge/Product%20Hunt-%231%20Product%20of%20the%20Day-%23DA552E" alt="Product Hunt"></a>
-  <a href="https://discord.gg/xpCwq3Kfn8">
-    <img src="https://img.shields.io/badge/chat-on%20discord-7289DA.svg" alt="Discord Chat" />
-  </a>
-  <a href="https://twitter.com/intent/follow?screen_name=medusajs">
-    <img src="https://img.shields.io/twitter/follow/medusajs.svg?label=Follow%20@medusajs" alt="Follow @medusajs" />
-  </a>
-</p>
+## Локальная подготовка
 
-## Compatibility
+Настройте [backend/.env](../docs/ENVIRONMENT.md), установите зависимости и запустите PostgreSQL/Redis из корня репозитория.
 
-This starter is compatible with versions >= 2 of `@medusajs/medusa`. 
+```bash
+# Из backend/
+npm ci
+npx medusa db:migrate
+npm run store-locales
+npx medusa exec ./src/scripts/setup-reviews.ts
+npx medusa exec ./src/scripts/setup-decimal-attributes.ts
+npm run dev
+```
 
-## Getting Started
+Админка — `/app`, проверка доступности — `/health`. Для создания администратора используйте `npx medusa user --help` и значения своего локального аккаунта. До покупки настройте регион Сербия/RSD, канал и publishable key, склад, остатки, доставку и payment provider. `seed` и скрипт демонстрационных RSD-цен не предназначены для рабочего ассортимента.
 
-Visit the [Quickstart Guide](https://docs.medusajs.com/learn/installation) to set up a server.
+## Production
 
-Visit the [Docs](https://docs.medusajs.com/learn/installation#get-started) to learn more about our system requirements.
+`npm run build` создаёт `.medusa/server`, затем postbuild устанавливает runtime-зависимости и копирует окружение. `npm start` запускает собранный сервер именно из `.medusa/server`, вместе с admin build. Не запускайте `medusa start` из произвольного каталога вместо обёртки. На рабочем сервере оба приложения переключает [deploy-vps.sh](../scripts/deploy-vps.sh); порядок и ограничения — в [DEPLOY.md](../DEPLOY.md).
 
-## What is Medusa
+## Расширения проекта
 
-Medusa is a set of commerce modules and tools that allow you to build rich, reliable, and performant commerce applications without reinventing core commerce logic. The modules can be customized and used to build advanced ecommerce stores, marketplaces, or any product that needs foundational commerce primitives. All modules are open-source and freely available on npm.
+- [API](src/api/README.md): каталог, отзывы, регистрация/восстановление, админский импорт, переводы и адреса.
+- [Админка](src/admin/README.md): Rozetka, модерация, переводы опций, статус перевода, английский адрес товара.
+- [Скрипты](src/scripts/README.md): подготовка схемы/локалей, импорт, нормализация, диагностика SMTP.
+- [Subscribers](src/subscribers/README.md): welcome email и синхронизация URL после изменений.
+- `src/utils/` и `src/shared/`: валидация, импорт, SEO/переводы, дробные значения, email/CAPTCHA.
+- `tests/`: основной набор регрессий Node; [integration-tests/http](integration-tests/http/README.md): отдельный Jest health smoke test.
 
-Learn more about [Medusa’s architecture](https://docs.medusajs.com/learn/introduction/architecture) and [commerce modules](https://docs.medusajs.com/learn/fundamentals/modules/commerce-modules) in the Docs.
+`medusa-config.ts` подключает стандартные translation/file/fulfillment modules. Фото по умолчанию обслуживает local file provider с публичным адресом `MEDUSA_PUBLIC_BACKEND_URL`; production fallback — `https://api.tamir.rs/static`. Translation feature включена. Исправления Dashboard применяются Vite-преобразованием при сборке, а не ручным изменением `node_modules`.
 
-## Build with AI Agents
+Конфигурация cookie сейчас явно задаёт `sameSite: lax`, `secure: false` для совместимости прежнего HTTP-доступа. Эта документация не меняет настройки аутентификации; публичные рабочие адреса используют HTTPS.
 
-### Claude Code Plugin
-
-If you use AI agents like Claude Code, check out the [medusa-dev Claude Code plugin](https://github.com/medusajs/medusa-claude-plugins).
-
-### Other Agents
-
-If you use AI agents other than Claude Code, copy the [skills directory](https://github.com/medusajs/medusa-claude-plugins/tree/main/plugins/medusa-dev/skills) into your agent's relevant `skills` directory.
-
-### MCP Server
-
-You can also add the MCP server `https://docs.medusajs.com/mcp` to your AI agents to answer questions related to Medusa. The `medusa-dev` Claude Code plugin includes this MCP server by default.
-
-## Community & Contributions
-
-The community and core team are available in [GitHub Discussions](https://github.com/medusajs/medusa/discussions), where you can ask for support, discuss roadmap, and share ideas.
-
-Join our [Discord server](https://discord.com/invite/medusajs) to meet other community members.
-
-## Other channels
-
-- [GitHub Issues](https://github.com/medusajs/medusa/issues)
-- [Twitter](https://twitter.com/medusajs)
-- [LinkedIn](https://www.linkedin.com/company/medusajs)
-- [Medusa Blog](https://medusajs.com/blog/)
+[Импорт](../docs/ROZETKA-ADMIN-IMPORT.md) · [Переводы](../docs/LOCALIZATION.md) · [Тесты](../docs/TESTING.md) · [Окружение](../docs/ENVIRONMENT.md).

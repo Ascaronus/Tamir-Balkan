@@ -1,4 +1,18 @@
-# Product structured data
+# Product URLs and structured data
+
+Reviewed against the code on 2026-10-11.
+
+## Localized URLs
+
+SR product pages use `/rs/products/<product.handle>`; EN pages use `/en/products/<metadata.en_handle>`. Admin Rozetka imports generate readable handles from prepared content. Completed older imports can be normalized with `normalize-rozetka-products.ts`; the default is dry run. Old imported handles are retained as aliases so existing links can redirect. See [LOCALIZATION.md](LOCALIZATION.md) for native translations, stable URL rules and the admin URL widget.
+
+A title edit does not automatically change an established English URL. A managed URL change reserves the old alias. Query parameter `v_id` selects a variant, while canonical identifies the product without the query. Links can therefore preserve variant selection without creating one canonical page per size/color.
+
+EN readiness requires nonempty native English title and description without Cyrillic characters. Incomplete EN content stays `noindex` and is omitted from the EN sitemap. SR/EN alternate links are emitted only where the target content is ready. Categories use native translated names and per-language handles. Both languages serve the same Serbia/RSD market and share stock, checkout and customer accounts.
+
+See [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md) for home/account/cart routes and [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md) for sitemap inclusion and expected index exclusions.
+
+## Structured data
 
 Product pages generate JSON-LD from the same public product prices and published
 reviews shown to visitors. No authentication is forwarded for this server fetch.

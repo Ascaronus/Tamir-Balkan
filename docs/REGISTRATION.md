@@ -1,5 +1,8 @@
 # Registration with email verification
 
+Reviewed against the code on 2026-10-11. Forms: `/rs/nalog/registracija` and
+`/en/account/register`. Legacy `/rs/account/register` redirects to the SR route.
+
 New customer registration is a two-step flow:
 
 1. POST `/store/registration/start` with email and a valid `register` Turnstile token. The server sends a six-digit code through the configured SMTP account. It creates no customer or auth identity at this stage.
@@ -20,7 +23,7 @@ Both `/auth/customer/:provider/register` and POST `/store/customers` reject publ
 
 ## Deleted and existing accounts
 
-After successful code verification, the exact Medusa 2.13.1 tombstone `{ "customer_id": null }` may be cleared when a deleted registered customer exists and no active account exists. Active customers and identities containing admin/custom actor metadata or other providers are never released. A deleted user registers as a new customer; old orders and addresses are not restored.
+After successful code verification, a customer-only email/password identity may be reclaimed if its `customer_id` is null, points to a soft-deleted customer, or points to a missing customer. A live customer with the same email or linked ID, another actor (including admin), or an identity shared with an OAuth provider prevents cleanup. Legacy uppercase email identifiers are normalized without merging unrelated identities. A deleted user registers as a new customer; old orders and addresses are not restored. See [ACCOUNT-RECOVERY.md](ACCOUNT-RECOVERY.md).
 
 Existing active accounts are not reset by the code flow. They receive ACCOUNT_EXISTS and should use login/password recovery. Older active accounts are not forced through retroactive verification.
 
@@ -31,6 +34,7 @@ Configure SMTP_USER and SMTP_PASSWORD (Gmail app password) in the source backend
 Run the PostgreSQL regression tests against an isolated test database:
 
 ```bash
+cd backend
 TEST_REVIEWS_DB_URL=... node --test tests/registration-code.integration.cjs tests/deleted-customer-registration.integration.cjs
 ```
 

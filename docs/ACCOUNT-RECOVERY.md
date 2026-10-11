@@ -1,5 +1,7 @@
 # Account recovery and guest checkout
 
+Reviewed against the code on 2026-10-11. [Route table](BROWSER-LANGUAGE.md).
+
 ## Registration after deletion
 
 The verified registration route can reclaim a customer-only email/password identity
@@ -11,7 +13,9 @@ upper-case email identifiers are normalized without merging unrelated identities
 
 ## Password recovery
 
-The login page links to `/rs/account/forgot-password`, available in Serbian and English.
+The login page links to `/rs/nalog/zaboravljena-lozinka` in Serbian and
+`/en/account/forgot-password` in English. Old `/rs/account/forgot-password`
+links redirect permanently to the Serbian route, preserving the query string.
 The customer passes CAPTCHA and requests a six-digit code, then enters the code
 and a new password twice. A prominent notice asks them to check spam.
 
@@ -43,11 +47,13 @@ Browser scenarios use an isolated API fixture and simulated CAPTCHA. They do not
 send real emails or create production accounts/orders. PostgreSQL integration tests
 cover identity reclamation and real Medusa password hashing/authentication.
 
-## Responsive browser checks
+## Historical responsive browser checks
 
-63 page/viewport combinations were checked in Chromium: catalog, product, cart,
+The original account-recovery release recorded 63 page/viewport combinations in Chromium: catalog, product, cart,
 checkout, registration, login and password recovery at 1920×1080, 2560×1440,
 320×568, 360×780, 375×667, 390×844, 412×915, 430×932 and 768×1024.
 Mobile contexts emulate touch and device pixel density. These are browser
 emulations, not tests on physical phones or Safari/WebKit. No horizontal overflow,
-broken images or page runtime errors were observed in this matrix.
+broken images or page runtime errors were observed in that matrix. These are
+historical results, not a fresh run for this documentation update. Current commands
+and test scope are in [TESTING.md](TESTING.md).

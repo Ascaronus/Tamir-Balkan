@@ -1,29 +1,13 @@
-# Integration Tests
+# HTTP integration tests
 
-The `medusa-test-utils` package provides utility functions to create integration tests for your API routes and workflows.
+Reviewed on 2026-10-11. This directory currently contains `health.spec.ts`: it uses `medusaIntegrationTestRunner` from `@medusajs/test-utils`, starts the application and checks that GET `/health` returns 200. It is a Jest test, distinct from the Node test suites in `backend/tests/`.
 
-For example:
+From `backend/`, with dependencies installed and a dedicated test database/configuration:
 
-```ts
-import { medusaIntegrationTestRunner } from "medusa-test-utils"
-
-medusaIntegrationTestRunner({
-  testSuite: ({ api, getContainer }) => {
-    describe("Custom endpoints", () => {
-      describe("GET /store/custom", () => {
-        it("returns correct message", async () => {
-          const response = await api.get(
-            `/store/custom`
-          )
-  
-          expect(response.status).toEqual(200)
-          expect(response.data).toHaveProperty("message")
-          expect(response.data.message).toEqual("Hello, World!")
-        })
-      })
-    })
-  }
-})
+```bash
+npm run test:integration:http
 ```
 
-Learn more in [this documentation](https://docs.medusajs.com/learn/debugging-and-testing/testing-tools/integration-tests).
+The package script sets `TEST_TYPE=integration:http`; `jest.config.js` selects these files. Do not point integration test setup at production data. A successful health test does not verify imports, email delivery, checkout or all business rules.
+
+The main GitHub CI runs explicit frontend and `backend/tests/*.cjs` regressions plus builds; it does not use this single health test as their replacement. See [TESTING.md](../../../docs/TESTING.md) and [verify.yml](../../../.github/workflows/verify.yml).

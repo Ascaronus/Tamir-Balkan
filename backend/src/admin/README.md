@@ -1,33 +1,31 @@
-# Admin Customizations
+# Расширения админки TAMIR
 
-You can extend the Medusa Admin to add widgets and new pages. Your customizations interact with API routes to provide merchants with custom functionalities.
+Сверено с кодом 11 октября 2026. Medusa Dashboard 2.13.1 собирается вместе с backend; рабочий адрес — `/app`.
 
-> Learn more about Admin Extensions in [this documentation](https://docs.medusajs.com/learn/fundamentals/admin).
+## Страницы
 
-## Example: Create a Widget
+| Код | URL | Назначение |
+| --- | --- | --- |
+| `routes/rozetka/page.tsx` | `/app/rozetka` | XML URL/файл, предпросмотр и выбор товаров, редактор, импорт и сохранение URL источника |
+| `routes/reviews/page.tsx` | `/app/reviews` | Модерация отзывов; сервер допускает только настроенного в коде модератора |
 
-A widget is a React component that can be injected into an existing page in the admin dashboard.
+Страница импорта использует семантические цвета Medusa, включая редактор и поля в тёмной теме. Стиль находится рядом со страницей. Фото по умолчанию копируются в файловый провайдер магазина. [Инструкция администратора](../../../docs/ROZETKA-ADMIN-IMPORT.md).
 
-For example, create the file `src/admin/widgets/product-widget.tsx` with the following content:
+## Виджеты товара
 
-```tsx title="src/admin/widgets/product-widget.tsx"
-import { defineWidgetConfig } from "@medusajs/admin-sdk"
+- `widgets/product-option-translations.tsx`: native SR/EN-переводы названий опций и значений, ручное сохранение и автоперевод пустых полей.
+- `widgets/product-option-translation-status.tsx`: индикатор неполных переводов опций в списке товаров.
+- `widgets/product-localized-url.tsx`: готовность английского контента, просмотр/изменение EN URL, обработка конфликтов и aliases.
+- `lib/option-translations.ts`: общий слой чтения/записи переводов для виджетов.
 
-// The widget
-const ProductWidget = () => {
-  return (
-    <div>
-      <h2>Product Widget</h2>
-    </div>
-  )
-}
+Переводы категорий редактируются штатным **Manage translations**; отдельного скрытого словаря витрины нет. [Локализация](../../../docs/LOCALIZATION.md).
 
-// The widget's configurations
-export const config = defineWidgetConfig({
-  zone: "product.details.after",
-})
+## Дробные значения
 
-export default ProductWidget
-```
+`decimal/currency-input.tsx` и `decimal/number.ts` поддерживают запятую и точку. Встроенные формы Dashboard адаптируются Vite-преобразованием из `../utils/admin-decimal-vite.ts`; `node_modules` вручную не правится. Версия Medusa закреплена, несовместимые места замены останавливают сборку. [Подробности](../../../docs/ADMIN-DECIMALS.md).
 
-This inserts a widget with the text “Product Widget” at the end of a product’s details page.
+## Проверка
+
+Из `backend/`: `npm run build`. Дополнительно проверяйте светлую/тёмную темы, native переводы, ошибки API и права доступа; скрытая кнопка не заменяет серверную авторизацию. [Общие проверки](../../../docs/TESTING.md).
+
+[API](../api/README.md) · [I18n интерфейса](i18n/README.md).

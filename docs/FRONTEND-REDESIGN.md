@@ -1,9 +1,15 @@
-# TAMIR storefront redesign — release notes
+# TAMIR storefront redesign — historical release notes
+
+Reviewed on 2026-10-11. This document records the original redesign scope and
+its checks; later routes/localization/gallery changes are documented in
+[BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md), [LOCALIZATION.md](LOCALIZATION.md)
+and [RESPONSIVE-V2.md](RESPONSIVE-V2.md). Current test commands: [TESTING.md](TESTING.md).
 
 The existing Next.js storefront now uses the approved TAMIR Figma concept:
 white, black, gray and dark fuchsia (#842154). The supplied TAMIR logo remains
 unchanged; Next Image delivers appropriately sized versions while preserving
-its 2048:1613 aspect ratio (108px desktop / 76px mobile).
+its 2048:1613 aspect ratio using object-contain. The current logo box is
+120 px wide on desktop and 94 px on mobile.
 
 ## Included
 
@@ -34,7 +40,7 @@ Illustrative product photos and demo reviews are not shipped as product data.
 No backend schema changes, new environment variables or migrations are required
 by this frontend release. Existing Medusa and Turnstile configuration is required.
 
-## Validation
+## Validation recorded for the original redesign
 
 - Frontend TypeScript, ESLint and production build.
 - 82 automated tests, including the registration bypass regression, OTP,
@@ -47,18 +53,9 @@ by this frontend release. Existing Medusa and Turnstile configuration is require
   The browser fixture replaces CAPTCHA and email delivery; it does not send
   real email, create production accounts or place production orders.
 
-## Deploy on the existing VPS
+## Current deployment
 
-Use the existing guarded deployment script, which builds an isolated release
-before switching the running processes:
-
-```bash
-cd /root/tamir_balkan &&
-git pull --ff-only &&
-bash scripts/deploy-vps.sh
-```
-
-Do not deploy local `.next` output or test fixtures. The VPS builds using its own
-existing environment, including the real public Turnstile key. After activation,
-check a real product, filters, cart, checkout delivery totals and email-code
-registration with the actual Store API and email service.
+Follow [DEPLOY.md](../DEPLOY.md). Do not deploy local `.next` output or test
+fixtures. The VPS builds with its own environment, including the public
+Turnstile key. Later backend features require their own setup steps; the
+original frontend-only scope above does not waive those requirements.
