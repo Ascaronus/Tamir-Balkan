@@ -30,27 +30,36 @@ export async function syncCategoryLocalization(container: MedusaContainer, id: s
     }
   }
   const rows = await service.listTranslations({ reference: "product_category", reference_id: id }, { take: 100 })
-  // Reserve slugs across both languages and original handles, including deleted categories.
+  // Keep localized aliases reserved, but soft-deleted base handles may already have
+  // been reused by Medusa and must not displace a live category's original URL.
   // Stable metadata means renaming a display name does not break an indexed URL.
   await db.transaction(async trx => {
     await trx.raw("SELECT pg_advisory_xact_lock(67195053, 1)")
     const fresh = await trx("product_category").where({ id }).whereNull("deleted_at").forUpdate().first()
     if (!fresh) return
-    const all = await trx("product_category").select("id", "handle", "metadata")
-    const occupied = new Set<string>(all.filter(c => c.id !== id).flatMap(c => [c.handle, ...Object.values(c.metadata?.category_handles ?? {}), ...(c.metadata?.category_handle_aliases ?? [])]).filter((v): v is string => typeof v === "string"))
+    const all = await trx("product_category").select("id", "handle", "metadata", "deleted_at")
+    const occupied = new Set<string>(all.filter(c => c.id !== id).flatMap(c => [c.deleted_at ? undefined : c.handle, ...Object.values(c.metadata?.category_handles ?? {}), ...(c.metadata?.category_handle_aliases ?? [])]).filter((v): v is string => typeof v === "string"))
     const handles = { ...fresh.metadata?.category_handles }
+    const aliases = new Set<string>([...(fresh.metadata?.category_handle_aliases ?? []), fresh.handle].filter(Boolean))
     for (const locale of ["sr", "en"] as const) {
-      if (handles[locale]) continue
       const name = rows.find(r => r.locale_code === (locale === "sr" ? "sr-RS" : "en"))?.translations?.name
       if (typeof name !== "string" || !name.trim()) continue
       const base = productSlug(name)
       if (!base) continue
+      // Repair only a numeric EN suffix introduced by the old deleted-handle check.
+      // Display-name edits and unrelated/custom addresses remain stable.
+      if (handles[locale]) {
+        const suffix = String(handles[locale]).slice(base.length)
+        const restoreOriginal = locale === "en" && base === productSlug(fresh.handle) &&
+          String(handles[locale]).startsWith(base) && /^-[2-9][0-9]*$/.test(suffix) && !occupied.has(base)
+        if (!restoreOriginal) continue
+        aliases.add(handles[locale])
+      }
       let handle = base
       for (let n = 2; occupied.has(handle); n++) handle = `${base}-${n}`
       handles[locale] = handle
     }
-    const aliases = [...new Set([...(fresh.metadata?.category_handle_aliases ?? []), fresh.handle].filter(Boolean))]
-    await trx("product_category").where({ id }).update({ metadata: { ...fresh.metadata, category_handles: handles, category_handle_aliases: aliases } })
+    await trx("product_category").where({ id }).update({ metadata: { ...fresh.metadata, category_handles: handles, category_handle_aliases: [...aliases] } })
   })
 }
 
