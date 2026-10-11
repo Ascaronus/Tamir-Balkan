@@ -54,3 +54,15 @@ test('parallel category updates reserve unique localized addresses',async()=>{
   assert.equal(new Set(categories.map(c=>c.metadata.category_handles.sr)).size,2)
   assert.equal(new Set(categories.map(c=>c.metadata.category_handles.en)).size,2)
 })
+test('soft-deleted base handles do not force extra suffixes; original English links and temporary aliases survive',async()=>{
+ await db('product_category').insert({id:'old-scarves',name:'Scarves',handle:'scarves',deleted_at:new Date()})
+ await db('product_category').insert({id:'scarves',name:'Scarves',handle:'Scarves',metadata:{category_handles:{sr:'salovi',en:'scarves-2'}}})
+ await syncCategoryLocalization(container,'scarves',true)
+ const category=await db('product_category').where({id:'scarves'}).first()
+ assert.equal(category.metadata.category_handles.en,'scarves')
+ assert.equal(category.metadata.category_handles.sr,'salovi')
+ assert.ok(category.metadata.category_handle_aliases.includes('scarves-2'))
+ rows.find(r=>r.reference_id==='scarves'&&r.locale_code==='en').translations.name='Winter scarves'
+ await syncCategoryLocalization(container,'scarves')
+ assert.equal((await db('product_category').where({id:'scarves'}).first()).metadata.category_handles.en,'scarves')
+})
