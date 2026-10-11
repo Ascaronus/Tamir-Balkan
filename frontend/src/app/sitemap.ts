@@ -13,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const languages = { sr: siteUrl(srPath), en: siteUrl(enPath) }
     for (const url of [languages.sr, languages.en]) entries.push({ url, alternates: { languages }, ...(lastModified ? { lastModified } : {}) })
   }
-  for (const path of ["/", "/cookies", "/privacy", "/terms"]) pair(path)
+  for (const path of ["/rs", "/cookies", "/privacy", "/terms"]) pair(path)
   const seen = new Set<string>()
   let totalProducts = 0
   for (let offset = 0; ; offset += 100) {

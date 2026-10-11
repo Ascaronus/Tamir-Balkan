@@ -10,7 +10,7 @@ const response = {
  rewrite: (url, options) => ({rewrite:String(url),...options}),
  next: options => ({next:true,...options}),
 }
-const {proxy}=load('frontend/src/proxy.ts',{'next/server':{NextResponse:response},'./lib/i18n/config':config},{Headers})
+const {proxy}=load('frontend/src/proxy.ts',{'next/server':{NextResponse:response},'./lib/i18n/config':config,'./lib/i18n/paths':paths},{Headers})
 function request(path, language, cookie) {
  const url=new URL(path,'https://tamir.rs');url.clone=()=>{const copy=new URL(url);copy.clone=url.clone;return copy}
  return {nextUrl:url,headers:new Headers({'accept-language':language||'', 'x-tamir-locale':'en'}),cookies:{get:()=>cookie?{value:cookie}:undefined}}
@@ -19,8 +19,8 @@ test('only an unqualified entry selects browser/saved language, using temporary 
  for(const browser of ['en','en-GB,en;q=0.8','en-US']) {
   const result=proxy(request('/?q=hat',browser));assert.equal(result.status,307);assert.equal(result.url,'https://tamir.rs/en?q=hat');assert.match(result.headers.get('cache-control'),/no-store/)
  }
- for(const browser of ['ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS',''])assert.equal(proxy(request('/',browser)).next,true)
- assert.equal(proxy(request('/','en','sr')).next,true)
+ for(const browser of ['ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS',''])assert.equal(proxy(request('/',browser)).url,'https://tamir.rs/rs')
+ assert.equal(proxy(request('/','en','sr')).url,'https://tamir.rs/rs')
  assert.equal(proxy(request('/','ru','en')).status,307)
 })
 test('explicit links override cookies and browser without rewriting away the language',()=>{
@@ -41,8 +41,8 @@ test('entry redirect removes the reverse proxy internal port but preserves an ex
 })
 test('localized navigation preserves filters, variants and fragments, leaving APIs and external links untouched',()=>{
  assert.equal(paths.localizedPath('/rs/catalog/hats?size=42%2C5&page=2#list','en'),'/en/catalog/hats?size=42%2C5&page=2#list')
- assert.equal(paths.localizedPath('/en/account/login?next=checkout','sr'),'/rs/account/login?next=checkout')
- assert.equal(paths.localizedPath('/en','sr'),'/rs/catalog')
+ assert.equal(paths.localizedPath('/en/account/login?next=checkout','sr'),'/rs/nalog/prijava?next=checkout')
+ assert.equal(paths.localizedPath('/en','sr'),'/rs')
  for(const url of ['/api/locale','//example.org','https://example.org','#reviews','mailto:help@tamir.rs'])assert.equal(paths.localizedPath(url,'en'),url)
  const product={handle:'bordo-kapa',metadata:{en_handle:'burgundy-hat',en_content_ready:true}}
  assert.equal(paths.productPath(product,'sr'),'/rs/products/bordo-kapa');assert.equal(paths.productPath(product,'en'),'/en/products/burgundy-hat')
@@ -99,4 +99,18 @@ test('translated products resolve through normal scoped Store API with language-
  await assert.rejects(page.default({...props,params:Promise.resolve({countryCode:'rs',handle:'bordo-kapa'})}),error=>error.location==='/en/products/burgundy-hat?v_id=variant_1')
  await assert.rejects(productPage('sr').default(props),error=>error.location==='/rs/products/bordo-kapa?v_id=variant_1')
  assert.equal((await productPage('en',false).generateMetadata(props)).robots.index,false)
+})
+
+test('Serbian service URLs round-trip to English while preserving query and fragment',()=>{
+ for(const [en,sr] of [['cart','korpa'],['account','nalog'],['account/login','nalog/prijava'],['account/register','nalog/registracija'],['account/forgot-password','nalog/zaboravljena-lozinka']]) {
+  assert.equal(paths.localizedPath(`/en/${en}?next=checkout#form`,'sr'),`/rs/${sr}?next=checkout#form`)
+  assert.equal(paths.localizedPath(`/rs/${sr}?next=checkout#form`,'en'),`/en/${en}?next=checkout#form`)
+  const legacy=proxy(request(`/rs/${en}?next=checkout`,'en','en'))
+  assert.equal(legacy.status,308)
+  assert.equal(legacy.url,`https://tamir.rs/rs/${sr}?next=checkout`)
+  const current=proxy(request(`/rs/${sr}?next=checkout`,'en','en'))
+  assert.equal(current.next,true)
+  assert.equal(current.request.headers.get('x-tamir-locale'),'sr')
+ }
+ for(const path of ['/rs','/en']) assert.equal(proxy(request(path)).next,true)
 })
