@@ -1,63 +1,37 @@
-# Custom CLI Script
+# Скрипты обслуживания TAMIR
 
-A custom CLI script is a function to execute through Medusa's CLI tool. This is useful when creating custom Medusa tooling to run as a CLI tool.
+Сверено с кодом 11 октября 2026. Рабочий каталог — `backend/` соответствующего окружения/релиза. Обычный формат запуска: `npx medusa exec ./src/scripts/<file>.ts`. Он загружает конфигурацию приложения и может менять реальную БД; сам по себе `exec` не означает dry run.
 
-> Learn more about custom CLI scripts in [this documentation](https://docs.medusajs.com/learn/fundamentals/custom-cli-scripts).
+## Поддерживаемые операции
 
-## How to Create a Custom CLI Script?
+| Файл | Действие / условия |
+| --- | --- |
+| `add-store-locales.ts` | Создаёт отсутствующие Translation locales и объединяет локали магазина; по умолчанию `en,sr,sr-RS`, переопределение `STORE_LOCALE_CODES`; npm script `store-locales` |
+| `setup-reviews.ts` | Повторяемое создание review/vote/audit/rate, registration-code, password-reset и product-URL таблиц/indexes в транзакции |
+| `setup-decimal-attributes.ts` | Расширение размеров/веса variant/inventory до double precision; сохраняет данные, не откатывает тип к integer |
+| `check-email.ts` | Проверка SMTP-соединения/авторизации, без отправки письма |
+| `import-rozetka-xml.ts` | Пакетный XML-импорт; цены, остатки и товары изменяются. [Режимы](../../../docs/IMPORT-MODES.md) |
+| `normalize-rozetka-products.ts` | Нормализация завершённых старых admin-импортов: базовый SR-текст и читаемый URL, сохранение исходного текста/старого alias. По умолчанию dry run; запись только при `ROZETKA_NORMALIZE_APPLY=true` |
+| `prepare-english-store.ts` | Запись недостающих переводов категорий/EN-товаров/опций и синхронизация URL; может вызвать Google и исправить EN-текст с кириллицей; dry run нет |
 
-To create a custom CLI script, create a TypeScript or JavaScript file under the `src/scripts` directory. The file must default export a function.
+`setup-reviews.ts` сохранил историческое название, но требуется также для регистрации, восстановления и локализованных URL. Это не замена `medusa db:migrate` для штатной схемы Medusa.
 
-For example, create the file `src/scripts/my-script.ts` with the following content:
-
-```ts title="src/scripts/my-script.ts"
-import { 
-  ExecArgs,
-} from "@medusajs/framework/types"
-
-export default async function myScript ({
-  container
-}: ExecArgs) {
-  const productModuleService = container.resolve("product")
-
-  const [, count] = await productModuleService.listAndCountProducts()
-
-  console.log(`You have ${count} product(s)`)
-}
-```
-
-The function receives as a parameter an object having a `container` property, which is an instance of the Medusa Container. Use it to resolve resources in your Medusa application.
-
----
-
-## How to Run Custom CLI Script?
-
-To run the custom CLI script, run the `exec` command:
+Пример **просмотра** плана нормализации без записи:
 
 ```bash
-npx medusa exec ./src/scripts/my-script.ts
+ROZETKA_NORMALIZE_APPLY=false npx medusa exec ./src/scripts/normalize-rozetka-products.ts
 ```
 
----
+Перед записью проверьте резервную копию и результат dry run. Не запускайте нормализацию, импорт и deploy параллельно. Текущий deploy выполняет setup и SMTP check до активации, а normalize/apply и prepare-English — после неё; [порядок и откат](../../../DEPLOY.md).
 
-## Custom CLI Script Arguments
+## Демо и первоначальная настройка
 
-Your script can accept arguments from the command line. Arguments are passed to the function's object parameter in the `args` property.
+| Файл | Ограничение |
+| --- | --- |
+| `seed.ts` | Демо-магазин/товары/настройки; `npm run seed`. Только отдельная учебная база, не регулярное обновление production |
+| `add-balkan-regions.ts` | Создание предопределённых регионов; сначала изучите валюты и существующие настройки, не добавляйте новые рынки для EN-версии Сербии |
+| `add-rsd-prices-to-variants.ts` | Демо-массовая установка RSD-цены **1200** вариантам первых 500 товаров; не применять как конвертацию рабочих цен |
+| `link-stub-fulfillment-to-locations.ts` | Связь stub provider `test_test` со складами (до 200); это не подключение реального перевозчика |
+| `test-fulfillment-provider.ts` | Экспорт ModuleProvider, подключённый конфигурацией. Несмотря на каталог, это не CLI-функция для `medusa exec` |
 
-For example:
-
-```ts
-import { ExecArgs } from "@medusajs/framework/types"
-
-export default async function myScript ({
-  args
-}: ExecArgs) {
-  console.log(`The arguments you passed: ${args}`)
-}
-```
-
-Then, pass the arguments in the `exec` command after the file path:
-
-```bash
-npx medusa exec ./src/scripts/my-script.ts arg1 arg2
-```
+[Окружение](../../../docs/ENVIRONMENT.md) · [Тесты](../../../docs/TESTING.md) · [Локализация](../../../docs/LOCALIZATION.md).

@@ -1,26 +1,9 @@
-# Module Links
+# Пользовательские связи модулей
 
-A module link forms an association between two data models of different modules, while maintaining module isolation.
+Сверено с кодом 11 октября 2026.
 
-> Learn more about links in [this documentation](https://docs.medusajs.com/learn/fundamentals/module-links)
+В этом каталоге нет определений custom links: только README. Commerce-связи продукта, вариантов, склада, канала и fulfillment создаются штатными workflows/Link API Medusa в импорте и скриптах. Отсутствие файлов здесь не означает отсутствие этих связей в БД. Не добавляйте демонстрационный blog link ради запуска приложения.
 
-For example:
+Если здесь появится реализация, обновите этот файл её назначением, регистрацией, миграциями и проверками. Используйте API установленной Medusa 2.13.1 и проверяйте совместимость при обновлении зависимостей.
 
-```ts
-import BlogModule from "../modules/blog"
-import ProductModule from "@medusajs/medusa/product"
-import { defineLink } from "@medusajs/framework/utils"
-
-export default defineLink(
-  ProductModule.linkable.product,
-  BlogModule.linkable.post
-)
-```
-
-This defines a link between the Product Module's `product` data model and the Blog Module (custom module)'s `post` data model.
-
-Then, in the Medusa application, run the following command to sync the links to the database:
-
-```bash
-npx medusa db:migrate
-```
+[Backend](../../README.md) · [API](../api/README.md) · [Скрипты](../scripts/README.md) · [Тестирование](../../../docs/TESTING.md).

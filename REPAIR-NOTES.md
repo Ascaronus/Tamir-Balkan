@@ -1,68 +1,27 @@
-# Store repair — 14 September 2026
+# История изменений TAMIR
 
-The storefront previously showed only one image, used API response order for cart rows, allowed attempts to buy unavailable variants, omitted translated category metadata, and stopped after the first 24 products. Checkout could clear a cart even when completion did not return an order. The XML importer used product-module calls that did not consistently create cross-module pricing and inventory links.
+Этот файл описывает завершённые этапы. Текущие инструкции: [README](README.md), [DEPLOY](DEPLOY.md), [указатель docs](docs/README.md). Актуализация — 11 октября 2026.
 
-Changes:
-- Serbia-only storefront and address forms, with redirects from old `/me/` links and bare `/rs` or `/me` addresses.
-- English and Serbian Latin interface, persistent switcher, category and product metadata translations, existing English category-name fallbacks.
-- Complete image gallery, thumbnails, hover enlargement and keyboard-accessible large-photo dialog. Variant-specific photos have priority; remaining product photos remain accessible.
-- Size/color options, stock-aware purchase controls, quantity selection and cart feedback. Backend inventory checks remain authoritative.
-- Stable cart ordering, serialized cart requests, duplicate cart-creation prevention, error display, and preservation of an existing cart on transient network failures.
-- Search and pagination; locale-aware prices using Medusa v2 major currency units.
-- Address confirmation before shipping lookup. Only the implemented payment method is offered. Cart storage is cleared only after an order is returned.
-- Importer: all offer photos, Ukrainian/Russian/English size names, explicit stock handling, RSD prices, channel/warehouse/profile links and repairs for missing variant pricing/inventory links. Unknown quantity remains zero. Ambiguous duplicate sizes fail before writes.
+## Сентябрь 2026
 
-## Validation
+Исправлены галерея, ограничения остатков, стабильный порядок корзины, сериализация cart-запросов, пагинация и цены Medusa в основных единицах валюты. Корзина очищается только после успешного получения заказа. XML-импорт переведён на commerce workflows с корректными связями цен, inventory, склада и канала.
 
-Both applications built successfully locally. TypeScript and frontend ESLint passed. The store API accepted the expanded product fields and returned all photos and options. A local production SSR request returned HTTP 200 against the existing backend. Automated regression tests cover stock limits, cart ordering, invalid quantities, major-unit prices, image selection/URLs, category translations, dictionary parity and feed parsing.
+Добавлены отзывы/модерация/CAPTCHA, подтверждение регистрации кодом по email, восстановление пароля, обработка удалённых аккаунтов, гостевое оформление, дробные атрибуты админки, API фильтров/популярности и адаптивный редизайн.
 
-Run tests with Node 22.18+ or Node 24:
+Старые сведения этого файла о невозможности GitHub-записи, отсутствии деплоя и необходимости экспортированного patch больше не описывают текущую поставку. Исторические версии доступны в Git; применять старый repair patch к текущему `main` не нужно.
 
-```sh
-node --test frontend/tests/commerce.test.mjs
-```
+## Октябрь 2026
 
-## Deployment
+- Импорт Rozetka через админку: URL/XML-файл, предварительное редактирование и выбор товаров, native SR/EN переводы, фото и категории, восстановление после сбоя.
+- Полноценные SR/EN маршруты одного сербского магазина, английские URL товаров и aliases, локализация корзины и опций, sitemap/hreflang.
+- Native-переводы категорий в Manage translations и отдельные slugs, например `kape` / `hats`. Ручные переводы сохраняются.
+- Фото при админском импорте по умолчанию копируются на сервер; адрес XML сохраняется на уровне магазина.
+- Без отзывов скрыт нулевой счётчик, но оставлены пустые звёзды. При остатке ≤1 отключены ввод количества и кнопки ±.
+- Главные `/rs` и `/en` открываются без перехода в каталог. Корень `/` выбирает язык браузера либо сохранённый выбор.
+- Сербские адреса корзины и кабинета: `/rs/korpa`, `/rs/nalog`, подстраницы входа/регистрации/восстановления. Старые ссылки перенаправляются.
 
-SSH was unavailable from the repair session (`Network is unreachable`). The GitHub connector also rejected writes with `403 Resource not accessible by integration`. Changes are preserved in a local commit and an exported patch, not in upstream main. No server deployment or PM2 restart is claimed. After obtaining this revision, run on the VPS:
+## Подтверждённая проверка последнего изменения маршрутов
 
-```sh
-cd /root/tamir_balkan
-git fetch origin main
-git show origin/main:scripts/deploy-vps.sh > /tmp/tamir-deploy.sh
-bash /tmp/tamir-deploy.sh
-```
+141 frontend-тест, lint, production build и production-server route checks прошли; CI проверил Node 20.20.2 и 24. Изменения маршрутов выпущены через PR #10 (merge `8f65dcf`). Проверены рабочие SR/EN главные, выбор языка, canonical/hreflang, sitemap, служебные маршруты и переходы в браузере. Эти проверки не создавали production-заказов и не подтверждают заново полный checkout/SMTP-сценарий.
 
-The script checks local tracked changes, backs up PostgreSQL and server files, builds both applications, restarts the existing PM2 processes and checks both HTTP endpoints. It needs `pg_dump` installed. On a build failure it stops with a backup path instead of starting a broken build. `DEPLOY.md`, passwords, SSH keys and authentication settings were not changed.
-
-## Import
-
-The source feed returned HTTP 403 from this session, so an end-to-end live import was not verified. Before importing, choose the actual warehouse and confirm the intended UAH/RSD rate. Existing translations can be supplied in `metadata.i18n.en` / `metadata.i18n.sr` or through Medusa translations. Without a translation API key, arbitrary source product descriptions are not automatically translated.
-
-```sh
-cd backend
-ROZETKA_DRY_RUN=true ROZETKA_STOCK_LOCATION_ID=YOUR_WAREHOUSE_ID ROZETKA_UAH_TO_RSD=YOUR_RATE npx medusa exec ./src/scripts/import-rozetka-xml.ts
-```
-
-After reviewing the dry run, run the same command without `ROZETKA_DRY_RUN=true`. Do not run the demo seed or demo RSD-price script on a real catalog. Confirm shipping prices, warehouse linkage, actual quantities and a test checkout before accepting customer orders.
-
-## Applying the exported patch when GitHub writes are unavailable
-
-Copy `Tamir-Balkan-repair.patch` from the delivered archive to the VPS using your normal SSH/SFTP client. From a clean checkout of the original commit `0dce8168dcb6e8190a5f931d20e9d71d82fcb53b`:
-
-```sh
-cd /root/tamir_balkan
-git apply --check /path/to/Tamir-Balkan-repair.patch
-git am /path/to/Tamir-Balkan-repair.patch
-bash scripts/deploy-vps.sh
-```
-
-If the check reports conflicts, stop and reconcile server changes; do not force or overwrite them. No SSH key, password, session token or environment file is included in the patch.
-
-## Remaining validation limits
-
-Production browser interaction and end-to-end checkout against a deployed repaired build were not verified: server code could not be deployed. Production-mode local HTTP checks passed for EN/SR catalog, cart, checkout and the Montenegro-to-Serbia redirect. The live importer source returned HTTP 403, so only importer parsing/unit checks and compilation were verified.
-
-## Live 404 diagnosis
-
-The live root `/` and `/rs/catalog` returned HTTP 200; bare `/rs` and `/me` returned HTTP 404 because they had no page or redirect. The patch adds redirects to `/rs/catalog`. Removed product URLs can still correctly return 404. These redirect changes require deployment.
+Актуальный набор команд и границы проверок: [TESTING.md](docs/TESTING.md).
