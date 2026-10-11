@@ -40,8 +40,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const { category, count } of populated) {
     if (!count) continue
     const path = categoryPath(category)
-    pair(path)
-    for (let page = 2; page <= Math.ceil(count / 24); page++) pair(`${path}${path.includes("?") ? "&" : "?"}page=${page}`)
+    const enPath = categoryPath(category, "en")
+    pair(path, enPath)
+    for (let page = 2; page <= Math.ceil(count / 24); page++) pair(`${path}${path.includes("?") ? "&" : "?"}page=${page}`, `${enPath}${enPath.includes("?") ? "&" : "?"}page=${page}`)
   }
   // Next 16 interpolates both <loc> and alternate href directly into XML.
   const xml = (value: string) => value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")

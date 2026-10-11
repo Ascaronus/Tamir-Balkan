@@ -50,7 +50,7 @@ export function ProductReviews({ productId, initial, initialReviews = null }: { 
     <div className="reviews-main"><div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <ReviewIcon />
-        {summary ? <><Stars rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} /><span className="text-xs text-[var(--store-text-muted)]">· {t("reviews.count", { n: summary.count })}</span></> : <span className="text-sm">{t("reviews.title")}</span>}
+        {summary ? <><Stars rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} />{summary.count > 0 && <span className="text-xs text-[var(--store-text-muted)]">· {t("reviews.count", { n: summary.count })}</span>}</> : <span className="text-sm">{t("reviews.title")}</span>}
       </div>
       <button type="button" aria-expanded={open} aria-controls="product-review-content" className="min-h-10 text-sm underline underline-offset-4" onClick={() => setOpen(v => !v)}>{t(open ? "reviews.collapse" : "reviews.show")}</button>
     </div>

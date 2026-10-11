@@ -273,3 +273,25 @@ test('Rozetka translation outage does not fail product import and missing config
   assert.match((await executeImport(c,body,'admin')).warnings[0],/не настроен/)
  } finally {global.fetch=oldFetch;if(oldKey===undefined)delete process.env.GOOGLE_TRANSLATE_API_KEY;else process.env.GOOGLE_TRANSLATE_API_KEY=oldKey}
 })
+
+test('omitted photo mode copies media while explicit remote links remain supported',()=>{
+ const body=valid();delete body.settings.image_mode
+ assert.equal(validateImport(body,source).settings.image_mode,'copy')
+ body.settings.image_mode='remote'
+ assert.equal(validateImport(body,source).settings.image_mode,'remote')
+})
+test('saved XML address survives new requests and invalid destinations cannot change it',async()=>{
+ const route=require('../src/api/admin/rozetka/settings/route')
+ const store={id:'store',metadata:{unrelated:'keep'}}
+ const scope={resolve:key=>{assert.equal(key,Modules.STORE);return {listStores:async()=>[store],updateStores:async(id,data)=>Object.assign(store,data)}}}
+ const response=()=>({code:200,status(code){this.code=code;return this},setHeader(){},json(body){this.body=body;return this}})
+ const auth_context={actor_type:'user',actor_id:'admin'}
+ let res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://tamir.ua/ua/rozetka/')
+ res=response();await route.POST({scope,auth_context,body:{source_url:'https://tamir.ua/rozetka/'}},res);assert.equal(res.code,200)
+ res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://tamir.ua/rozetka/');assert.equal(store.metadata.unrelated,'keep')
+ for(const url of ['http://127.0.0.1/feed','https://evil.test/xml','https://user:pass@tamir.ua/rozetka/']) {
+  res=response();await route.POST({scope,auth_context,body:{source_url:url}},res);assert.equal(res.code,400)
+ }
+ res=response();await route.POST({scope,body:{source_url:'https://tamir.ua/ua/rozetka/'}},res);assert.equal(res.code,401)
+ assert.equal(store.metadata.rozetka_source_url,'https://tamir.ua/rozetka/')
+})

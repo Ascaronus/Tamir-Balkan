@@ -3,12 +3,14 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { googleTranslate, translationConfigured } from "../utils/google-translate"
 import { syncProductUrl } from "../utils/product-urls"
 import { fillProductOptionTranslations } from "../utils/option-auto-translate"
+import { prepareCategoryLocalizations } from "../utils/category-localization"
 
 /** Idempotent backfill. Keep reviewed translations and stable addresses; never change commerce data. */
 export default async function prepareEnglishStore({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const service = container.resolve(Modules.TRANSLATION)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  await prepareCategoryLocalizations(container)
   let ready = 0, missing = 0, changed = 0
   for (const reference of ["product", "product_category"] as const) {
     for (let skip = 0; ; skip += 100) {

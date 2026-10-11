@@ -23,7 +23,7 @@ export const importRequestSchema = z.object({
     weight: z.string().max(20), material: short, origin_country: z.string().trim().max(2),
     mode: z.enum(["create", "update"]), existing_id: short.optional(), existing_updated_at: z.string().max(64).optional(),
   }).strict(),
-  settings: z.object({ stock_location_id: short.min(1), sales_channel_id: short.min(1), shipping_profile_id: short.min(1).optional(), image_mode: z.enum(["remote", "copy"]) }).strict(),
+  settings: z.object({ stock_location_id: short.min(1), sales_channel_id: short.min(1), shipping_profile_id: short.min(1).optional(), image_mode: z.enum(["remote", "copy"]).default("copy") }).strict(),
 }).strict()
 export function validateImport(body: unknown, source: SourceProduct) {
   const parsed = importRequestSchema.safeParse(body)
