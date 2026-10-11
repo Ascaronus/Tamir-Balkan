@@ -40,9 +40,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: frontendRoot,
   async redirects() {
     return [
-      { source: "/rs", destination: "/rs/catalog", permanent: true },
-      { source: "/me", destination: "/rs/catalog", permanent: true },
+      { source: "/me", destination: "/rs", permanent: true },
       { source: "/me/:path*", destination: "/rs/:path*", permanent: true },
+    ]
+  },
+  async rewrites() {
+    // Internal aliases retain the public Serbian URL and the locale header from Proxy.
+    return [
+      { source: "/rs/korpa", destination: "/rs/cart" },
+      { source: "/rs/nalog", destination: "/rs/account" },
+      { source: "/rs/nalog/prijava", destination: "/rs/account/login" },
+      { source: "/rs/nalog/registracija", destination: "/rs/account/register" },
+      { source: "/rs/nalog/zaboravljena-lozinka", destination: "/rs/account/forgot-password" },
     ]
   },
   images: {

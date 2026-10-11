@@ -61,7 +61,7 @@ export async function generateMetadata({ searchParams, params }: {
   const { locale, t } = await getTranslations()
   const category = await resolveCategory(await params ?? {}, rawQuery, locale)
   const categoryCount = category ? (await listProductsByCountry({ countryCode: "rs", categoryId: category.id, limit: 1, locale })).count : null
-  const canonical = new URL(siteUrl(category ? categoryPath(category) : "/"))
+  const canonical = new URL(siteUrl(category ? categoryPath(category) : "/rs"))
   const page = Math.max(1, Math.min(100000, Number.parseInt(query.page || "1", 10) || 1))
   if (!category && page > 1) canonical.pathname = "/rs/catalog"
   if (page > 1) canonical.searchParams.set("page", String(page))

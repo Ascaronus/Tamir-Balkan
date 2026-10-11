@@ -52,7 +52,7 @@ test('sitemap includes public legal pages and products but no private routes',as
   '@/lib/store/category-url':{categoryPath},
  }).default
  const entries=await sitemap()
- assert.deepEqual(Array.from(entries,e=>e.url),['/','/en','/cookies','/en/cookies','/privacy','/en/privacy','/terms','/en/terms','/rs/products/test-tie'].map(p=>siteUrl(p)))
+ assert.deepEqual(Array.from(entries,e=>e.url),['/rs','/en','/cookies','/en/cookies','/privacy','/en/privacy','/terms','/en/terms','/rs/products/test-tie'].map(p=>siteUrl(p)))
 })
 
 
@@ -97,7 +97,7 @@ test('catalog metadata indexes populated categories and preserves the canonical 
  result=await page.generateMetadata({params,searchParams:Promise.resolve({page:'2'})})
  assert.equal(result.alternates.canonical,siteUrl('/rs/catalog/hats?page=2'))
  result=await page.generateMetadata({searchParams:Promise.resolve({sort:'newest'})})
- assert.equal(result.robots.index,true);assert.equal(result.alternates.canonical,siteUrl('/'))
+ assert.equal(result.robots.index,true);assert.equal(result.alternates.canonical,siteUrl('/rs'))
 })
 test('empty categories and internal search stay noindex, populated categories become indexable, and unknown categories are 404',async()=>{
  const empty=await catalogPage({count:0}).generateMetadata({params:Promise.resolve({categoryHandle:'hats'}),searchParams:Promise.resolve({})})

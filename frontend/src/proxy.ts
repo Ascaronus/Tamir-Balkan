@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { detectBrowserLocale, isLocale, LOCALE_COOKIE, locales } from "./lib/i18n/config"
+import { localizedPath } from "./lib/i18n/paths"
 
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
@@ -14,12 +15,17 @@ export function proxy(request: NextRequest) {
   if (path === "/") {
     const saved = request.cookies.get(LOCALE_COOKIE)?.value
     const locale = isLocale(saved) ? saved : detectBrowserLocale(request.headers.get("accept-language"), locales, "sr")
-    if (locale === "en") {
-      const url = new URL(publicUrl); url.pathname = "/en"
-      const response = NextResponse.redirect(url, 307)
-      response.headers.set("Cache-Control", "private, no-store")
-      response.headers.set("Vary", "Accept-Language, Cookie")
-      return response
+    const url = new URL(publicUrl); url.pathname = locale === "en" ? "/en" : "/rs"
+    const response = NextResponse.redirect(url, 307)
+    response.headers.set("Cache-Control", "private, no-store")
+    response.headers.set("Vary", "Accept-Language, Cookie")
+    return response
+  }
+  if (path.startsWith("/rs/")) {
+    const canonical = localizedPath(path, "sr")
+    if (canonical !== path) {
+      const url = new URL(publicUrl); url.pathname = canonical
+      return NextResponse.redirect(url, 308)
     }
   }
   return NextResponse.next({ request: { headers } })
