@@ -10,7 +10,7 @@ import { productJsonLd } from "@/lib/seo/product"
 import { siteUrl, serializeJsonLd, languageAlternates } from "@/lib/seo"
 import type { Locale } from "@/lib/i18n/config"
 import Link from "@/components/i18n/LocalizedLink"
-import { notFound, permanentRedirect } from "next/navigation"
+import { notFound } from "next/navigation"
 import { sdk } from "@/lib/medusa"
 import { listProductsByCountry } from "@/lib/store/products"
 import { StoreShell } from "@/components/store/StoreShell"
@@ -20,12 +20,14 @@ import { ProductDetails } from "@/components/product/ProductDetails"
 
 const getProduct = cache(async (handle: string, locale: Locale) => {
   const { products } = await listProductsByCountry({ countryCode: "rs", handle, limit: 1, locale })
-  if (products[0]) return products[0]
+  if (products[0]) return productHandle(products[0], locale) === handle ? products[0] : undefined
   const alias = await sdk.client.fetch<{ handle: string }>(`/store/product-redirects/${encodeURIComponent(handle)}`, { cache: "no-store" })
     .catch((error: { status?: number }) => { if (error.status === 404) return null; throw error })
   if (!alias?.handle || alias.handle === handle) return undefined
   // The normal Store query still enforces publication and sales-channel access.
-  return (await listProductsByCountry({ countryCode: "rs", handle: alias.handle, limit: 1, locale })).products[0]
+  const product = (await listProductsByCountry({ countryCode: "rs", handle: alias.handle, limit: 1, locale })).products[0]
+  // Only the current address for the requested language is a public product URL.
+  return product && productHandle(product, locale) === handle ? product : undefined
 })
 
 export async function generateMetadata({ params }: {
@@ -56,11 +58,6 @@ export default async function ProductPage({ params, searchParams }: {
   if (!["rs", "en"].includes(countryCode.toLowerCase())) notFound()
   const product = await getProduct(handle, locale)
   if (!product) notFound()
-  if (productHandle(product, locale) !== handle) {
-    const variant = (await searchParams).v_id
-    const suffix = variant && product.variants?.some(v => v.id === variant) ? `?v_id=${encodeURIComponent(variant)}` : ""
-    permanentRedirect(`${productPath(product, locale)}${suffix}`)
-  }
   const url = siteUrl(productPath(product, locale))
   const reviews = await productReviews(product.id)
   const reviewSummary = reviews ? { count: reviews.count, rating: reviews.rating } : null

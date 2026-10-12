@@ -1,22 +1,16 @@
 import type { MedusaRequest, MedusaResponse } from '@medusajs/framework/http'
 import { ContainerRegistrationKeys } from '@medusajs/framework/utils'
-import { legacyRozetkaHandle } from '../../../../utils/rozetka-product-text'
-import { resolveReimportedProductHandle } from '../../../../utils/reimported-product-urls'
 
-// English addresses and old importer-generated handles resolve to the same product. Data is fetched
-// through /store/products, which enforces the publishable key's sales channels.
+// Resolve only a live product's current English address. Historical aliases and
+// deleted imports are not replacements. The subsequent Store products query
+// still enforces the publishable key's sales channels.
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   res.setHeader('Cache-Control', 'no-store')
   const handle = req.params.handle
   if (handle.length > 255) return res.status(404).json({ handle: null })
   const db = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
   const localized = await db('tamir_product_url as u').join('product as p', 'p.id', 'u.product_id')
-    .where('u.handle', handle).whereNull('p.deleted_at').where('p.status', 'published').select('p.handle').first()
-  if (localized) return res.json({ handle: localized.handle })
-  const product = legacyRozetkaHandle(handle) ? await db('product').select('handle').whereNull('deleted_at').where('status', 'published')
-    .whereRaw("metadata->>'rozetka_legacy_handle' = ?", [handle]).first()
-    : null
-  if (product) return res.json({ handle: product.handle })
-  const replacement = await resolveReimportedProductHandle(db, handle)
-  return replacement ? res.json({ handle: replacement }) : res.status(404).json({ handle: null })
+    .where('u.handle', handle).where('u.is_current', true)
+    .whereNull('p.deleted_at').where('p.status', 'published').select('p.handle').first()
+  return localized ? res.json({ handle: localized.handle }) : res.status(404).json({ handle: null })
 }
