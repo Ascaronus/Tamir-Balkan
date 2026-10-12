@@ -23,7 +23,10 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
   const [selection, setSelection] = useState<{ context: string; id: string } | null>(null)
   const chosen = selection?.context === context ? variants.find(v => v.id === selection.id) : undefined
   const current = chosen ?? variants.find(v => v.id === initialId) ?? variants.find(canPurchase) ?? variants[0]
-  const href = `${productPath(product, locale)}${current && variants.length > 1 ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
+  const defaultVariant = variants.find(canPurchase) ?? variants[0]
+  // Preserve explicit/filter-selected variants, but link the normal default to its canonical.
+  const needsVariant = Boolean(chosen || (current && current.id !== defaultVariant?.id))
+  const href = `${productPath(product, locale)}${current && variants.length > 1 && needsVariant ? `?v_id=${encodeURIComponent(current.id)}` : ""}`
   const image = current?.images?.length ? getImagesForVariant(product, current.id)[0]?.url : getStoreProductImageUrl(product)
   const price = chosen ? variantAmount(chosen.calculated_price) : product.catalog.price
   const colors = (product.options ?? []).filter(o => isColorOption(o.title)).flatMap(option =>

@@ -26,7 +26,7 @@ test('real offers use catalog amount and availability without invented ratings o
   assert.equal(data.offers[0].price, 1500)
   assert.equal(data.offers[0].priceCurrency, 'RSD')
   assert.equal(data.offers[0].availability, 'https://schema.org/InStock')
-  assert.equal(data.offers[0].url, url + '?v_id=v1')
+  assert.equal(data.offers[0].url, url)
   assert.equal(data.description, 'Wool suit')
   for (const field of ['review', 'aggregateRating', 'gtin13']) assert.equal(field in data, false)
   assert.equal('hasMerchantReturnPolicy' in data.offers[0], false)
@@ -84,4 +84,10 @@ test('confirmed Serbia shipping is emitted only for RSD offers', () => {
   assert.equal('handlingTime' in shipping.deliveryTime, false)
   const other = productJsonLd(product({ calculated_amount: 15, currency_code: 'eur' }), 'en', url, null)
   assert.equal('shippingDetails' in other.offers[0], false)
+})
+
+test('multiple variant offers retain distinct selectable URLs',()=>{
+ const p=product();p.variants.push({...p.variants[0],id:'v2',sku:'T-0002'})
+ const data=productJsonLd(p,'sr',url,null)
+ assert.deepEqual(Array.from(data.offers,o=>o.url),[url+'?v_id=v1',url+'?v_id=v2'])
 })

@@ -43,6 +43,9 @@ export default async function CatalogPage({ params, searchParams }: {
     listStoreProductCategories(locale).catch(() => []),
   ])
   const initial = region ? await fetchCatalog(selection, region.id, locale).catch(() => null) : null
+  // Retired pagination URLs must not remain indexable empty 200 pages.
+  // A backend outage is not evidence that a page was removed.
+  if (initial && selection.page > 1 && (selection.page - 1) * 24 >= initial.count) notFound()
   const summaries = initial ? await reviewSummaries(initial.products.map(p => p.id)) : null
   return <StoreShell countryCode="rs" initialCategories={categories} activeCategoryId={selection.category_id} languagePaths={category ? { sr: categoryPath(category, "sr"), en: categoryPath(category, "en") } : {}}><div className="store-container catalog-page">
     {!selection.category_id && !selection.q && <section className="collection-banner" aria-label={t("design.heroTitle")}><div className="collection-copy"><h2>{t("design.heroTitle")}</h2><p>{t("design.heroSubtitle")}</p><Link href="#catalog-products" className="button-secondary">{t("design.heroAction")}</Link></div><div className="collection-image"><Image src="/design/tamir-family-winter.webp" alt={t("design.heroAlt")} fill sizes="100vw" unoptimized preload /></div></section>}

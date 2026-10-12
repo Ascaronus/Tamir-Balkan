@@ -292,7 +292,7 @@ function ShopSidebarInner({
           </p>
           <div className="mt-2 flex flex-col gap-1">
             <Link
-              href="/rs/catalog"
+              href="/rs"
               onClick={onNavigate}
               className={`text-sm ${countryCode === "rs" ? "text-[var(--store-accent)]" : "text-white/75 hover:text-white"}`}
             >

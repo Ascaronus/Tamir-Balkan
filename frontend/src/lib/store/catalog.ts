@@ -24,9 +24,12 @@ export function catalogParams(selection: CatalogSelection) {
 export function catalogHref(selection: CatalogSelection, basePath = "/rs/catalog") {
   const path = basePath.split("?")[0]
   const params = catalogParams(selection)
-  if (path !== "/rs/catalog") params.delete("category_id")
+  const allProducts = /^\/(rs|en)\/catalog$/.test(path)
+  if (!allProducts) params.delete("category_id")
   if (selection.sort === "newest") params.delete("sort")
   const query = params.toString()
+  // The unfiltered first page is served at the language home and uses its canonical.
+  if (allProducts && !query) return path.replace(/\/catalog$/, "")
   return path + (query ? `?${query}` : "")
 }
 export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { token?: string | null; signal?: AbortSignal; limit?: number }): Promise<CatalogResult> {
