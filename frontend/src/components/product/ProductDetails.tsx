@@ -135,7 +135,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       <details className="product-policy"><summary>{t("design.delivery")} / {t("design.returns")}</summary><p className="text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
       <p className="mt-1 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.defectReturnTerms")}</p>
       <Link href="/terms" className="product-details-link mt-3">{t("design.delivery")} / {t("design.returns")} →</Link></details>
-      <Link href="/rs/catalog" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>
+      <Link href="/rs" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>
     </div>
   </div>
 }

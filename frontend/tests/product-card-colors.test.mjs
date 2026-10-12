@@ -51,11 +51,23 @@ test('variant without price or photo uses price-on-request and product photo, no
 test('fresh catalog preference or another product supersedes the local selection',()=>{
  const p=product([variant('black-m','M','Black'),variant('black-l','L','Black'),variant('custom-l','L','Custom')]);const instance=card(p)
  color(instance.render(),'Black').props.onClick();assert.equal(href(instance.render()),'/rs/products/shirt?v_id=black-l')
- assert.equal(href(instance.render({...p,catalog:{...p.catalog,preferred_variant_id:'black-m'}})),'/rs/products/shirt?v_id=black-m')
+ assert.equal(href(instance.render({...p,catalog:{...p.catalog,preferred_variant_id:'black-m'}})),'/rs/products/shirt')
  assert.equal(href(instance.render({...p,id:'another'})),'/rs/products/shirt?v_id=custom-l')
 })
 
 test('single-variant product links are clean while multi-variant selections remain addressable',()=>{
  const p=product([variant('one','One Size','Black')])
  assert.equal(href(card(p).render()),'/rs/products/shirt')
+})
+
+test('default product links are canonical while a filter-preferred variant stays selected',()=>{
+ const black=variant('black-m','M','Black'),other=variant('custom-l','L','Custom')
+ const p=product([black,other]);p.catalog.preferred_variant_id=black.id
+ const instance=card(p);let tree=instance.render()
+ assert.equal(href(tree),'/rs/products/shirt')
+ assert.equal(find(tree,n=>n.props?.className==='product-card-rating').props.href,'/rs/products/shirt#reviews')
+ color(tree,'Custom').props.onClick();tree=instance.render()
+ assert.equal(href(tree),'/rs/products/shirt?v_id=custom-l')
+ const filtered=card({...p,catalog:{...p.catalog,preferred_variant_id:other.id}}).render()
+ assert.equal(href(filtered),'/rs/products/shirt?v_id=custom-l')
 })

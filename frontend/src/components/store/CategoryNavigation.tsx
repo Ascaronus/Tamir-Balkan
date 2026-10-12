@@ -30,7 +30,7 @@ export function CategoryNavigation({ activeId, horizontal = false, onNavigate }:
   const selectedId = activeId ?? activeCategoryId
   const { t, locale } = useLocaleContext()
   return <nav aria-label={t("sidebar.title")} className={horizontal ? "category-nav-horizontal" : "category-nav"}>
-    <Link href="/rs/catalog" aria-current={!selectedId ? "page" : undefined} onClick={onNavigate}>{t("sidebar.allProducts")}</Link>
+    <Link href="/rs" aria-current={!selectedId ? "page" : undefined} onClick={onNavigate}>{t("sidebar.allProducts")}</Link>
     {categories.filter(cat => !horizontal || !cat.parent_category_id).map(cat => <Link key={cat.id} href={categoryPath(cat, locale)} onClick={onNavigate} aria-current={cat.id === selectedId ? "page" : undefined} className={!horizontal && cat.parent_category_id ? "pl-3" : undefined}>{cat.name}</Link>)}
     {failed && !horizontal && <p role="status" className="text-xs text-[var(--store-text-muted)]">{t("sidebar.categoriesError")}</p>}
   </nav>

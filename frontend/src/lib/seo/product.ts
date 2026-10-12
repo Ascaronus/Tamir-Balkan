@@ -31,7 +31,7 @@ export function productJsonLd(product: HttpTypes.StoreProduct, locale: Locale, u
     const amount = variantAmount(price)
     if (!price || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !price.currency_code || !/^[a-z]{3}$/i.test(price.currency_code)) return []
     return [{ "@type": "Offer", price: amount, priceCurrency: price.currency_code.toUpperCase(),
-      url: url + "?v_id=" + encodeURIComponent(variant.id), sku: variant.sku || undefined,
+      url: variants.length > 1 ? url + "?v_id=" + encodeURIComponent(variant.id) : url, sku: variant.sku || undefined,
       ...(price.currency_code.toUpperCase() === "RSD" ? { shippingDetails: {
         "@type": "OfferShippingDetails",
         shippingDestination: { "@type": "DefinedRegion", addressCountry: "RS" },

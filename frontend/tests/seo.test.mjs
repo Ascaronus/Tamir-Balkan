@@ -75,16 +75,16 @@ test('sitemap includes populated categories and pagination with canonical URLs, 
  for(const path of ['/rs/catalog?page=2','/rs/catalog/hats','/rs/catalog/hats?page=2','/rs/catalog/Scarves'])assert.ok(urls.includes(siteUrl(path)))
  assert.ok(!urls.some(url=>/empty|v_id|rozetka-|robots|sitemap|woff|account|sort=|category_id=/.test(url)))
 })
-function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27}={}) {
+function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27,initial=undefined,locale='sr'}={}) {
  return load('frontend/src/app/[countryCode]/catalog/page.tsx',{
   'next/image':{},'@/components/i18n/LocalizedLink':{},'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
-  '@/lib/reviews/server':{},'@/lib/store/search-params':{normalizeCatalogQuery,queryText},
-  '@/lib/store/catalog':catalog,'@/lib/store/regions':{getRegionByCountry:async()=>null},
+  '@/lib/reviews/server':{reviewSummaries:async()=>({})},'@/lib/store/search-params':{normalizeCatalogQuery,queryText},
+  '@/lib/store/catalog':{...catalog,fetchCatalog:async()=>initial},'@/lib/store/regions':{getRegionByCountry:async()=>initial===undefined?null:{id:'reg_rs'}},
   '@/lib/store/categories':{getStoreProductCategoryById:async()=>category,getStoreProductCategoryByHandle:async()=>category,listStoreProductCategories:async()=>category?[category]:[]},
   '@/lib/store/category-url':{categoryHandle,categoryPath,categoryRedirectPath},
   '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count})},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/components/store/CatalogClient':{CatalogClient:'CatalogClient'},
-  '@/lib/i18n/server':{getTranslations:async()=>({locale:'sr',t:()=> 'Katalog'})},'@/lib/seo':{siteUrl,languageAlternates},
+  '@/lib/i18n/server':{getTranslations:async()=>({locale,t:()=> 'Katalog'})},'@/lib/seo':{siteUrl,languageAlternates},
  })
 }
 test('catalog metadata indexes populated categories and preserves the canonical without variant, sort and filter parameters',async()=>{
@@ -148,4 +148,19 @@ test('localized categories use distinct canonical URLs and redirect old handles 
  assert.equal(metadata.alternates.canonical,siteUrl('/rs/catalog/kape?page=2'))
  assert.equal(metadata.alternates.languages.en,siteUrl('/en/catalog/hats?page=2'))
  assert.equal(metadata.alternates.languages.sr,metadata.alternates.canonical)
+})
+
+test('pagination beyond available results is not found, without treating API failures or an empty first page as removal',async()=>{
+ const props=(locale,page)=>({params:Promise.resolve({countryCode:locale==='sr'?'rs':'en'}),searchParams:Promise.resolve({page:String(page)})})
+ for(const locale of ['sr','en']) {
+  for(const count of [0,23,24]) {
+   const page=catalogPage({locale,initial:{count,products:[]}})
+   await assert.rejects(page.default(props(locale,2)),/NOT_FOUND/)
+  }
+  const page=catalogPage({locale,initial:{count:25,products:[{id:'last'}]}})
+  const tree=await page.default(props(locale,2))
+  assert.equal(find(tree,n=>n.type==='CatalogClient').props.initial.count,25)
+  await catalogPage({locale,initial:{count:0,products:[]}}).default(props(locale,1))
+  await catalogPage({locale,initial:null}).default(props(locale,2))
+ }
 })

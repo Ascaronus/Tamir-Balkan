@@ -67,3 +67,9 @@ deployment time; Google must crawl the new page.
 References:
 - https://developers.google.com/search/docs/appearance/structured-data/product-snippet
 - https://developers.google.com/search/docs/appearance/structured-data/merchant-listing
+
+## Internal links and product retirement (2026-10-12)
+
+Default product-card links omit `v_id` when opening the page without it selects the same variant; deliberate color/filter selections remain addressable. A single-variant Offer uses the clean product URL. Multiple-variant Offers keep variant-specific URLs under one product canonical. General catalog navigation links to the canonical language home.
+
+For discontinued stock, replacement products and URL changes, follow the decision table in [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md). Do not reuse a product identity for an unrelated replacement or redirect every missing product to the homepage. No historical redirect or canonical should be removed solely to clear a Search Console exclusion.

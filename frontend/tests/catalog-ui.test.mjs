@@ -46,7 +46,7 @@ test('readable category URLs retain filters and page while API queries retain th
  assert.equal(url.searchParams.get('sort'),'price_desc')
  assert.equal(catalog.catalogParams(selection).get('category_id'),'pcat_hats')
  assert.equal(catalog.catalogHref(catalog.catalogSelection({category_id:'pcat_hats'}),'/rs/catalog/hats'),'/rs/catalog/hats')
- assert.equal(catalog.catalogHref(catalog.catalogSelection({})), '/rs/catalog')
+ assert.equal(catalog.catalogHref(catalog.catalogSelection({})), '/rs')
 })
 test('product price matches tax-inclusive catalog values and preserves zero or fractional amounts',()=>{
  const commerce=load('frontend/src/lib/store/commerce.ts')
@@ -57,4 +57,16 @@ test('product price matches tax-inclusive catalog values and preserves zero or f
  const {formatMoney}=load('frontend/src/lib/format-money.ts')
  assert.match(formatMoney(18900,'rsd'),/18.900,00/)
  assert.match(formatMoney(0.5,'rsd'),/0,50/)
+})
+
+test('all-products links use home canonicals in both languages without losing filters or pagination',()=>{
+ for(const locale of ['rs','en']) {
+  const base=`/${locale}/catalog`
+  assert.equal(catalog.catalogHref(catalog.catalogSelection({sort:'newest',page:'1'}),base),`/${locale}`)
+  assert.equal(catalog.catalogHref(catalog.catalogSelection({sort:'newest',page:'2'}),base),`${base}?page=2`)
+  const filtered=new URL(catalog.catalogHref(catalog.catalogSelection({category_id:'hats',size:'42,5',sort:'price_asc'}),base),'https://tamir.rs')
+  assert.equal(filtered.searchParams.get('category_id'),'hats')
+  assert.equal(filtered.searchParams.get('size'),'42,5')
+  assert.equal(filtered.searchParams.get('sort'),'price_asc')
+ }
 })

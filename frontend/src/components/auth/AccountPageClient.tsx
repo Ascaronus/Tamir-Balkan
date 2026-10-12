@@ -127,7 +127,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
         </div>
       </div>
 
-      <nav className="account-nav" aria-label={t("account.title")}><button type="button" aria-pressed={panel === "orders"} className={panel === "orders" ? "button-primary" : "button-quiet"} onClick={() => setPanel("orders")}>{t("account.orders")}</button><button type="button" aria-pressed={panel === "profile"} className={panel === "profile" ? "button-primary" : "button-quiet"} onClick={() => setPanel("profile")}>{t("account.profileSection")}</button><Link className="button-quiet" href="/rs/catalog">{t("product.backToCatalog")}</Link></nav>
+      <nav className="account-nav" aria-label={t("account.title")}><button type="button" aria-pressed={panel === "orders"} className={panel === "orders" ? "button-primary" : "button-quiet"} onClick={() => setPanel("orders")}>{t("account.orders")}</button><button type="button" aria-pressed={panel === "profile"} className={panel === "profile" ? "button-primary" : "button-quiet"} onClick={() => setPanel("profile")}>{t("account.profileSection")}</button><Link className="button-quiet" href="/rs">{t("product.backToCatalog")}</Link></nav>
       <div className="account-body"><div hidden={panel !== "profile"} id="account-profile"><AccountProfileForm key={customer.id} countryCode={countryCode} /></div>
       {panel === "orders" && <div className="rounded bg-[var(--store-bg-muted)] p-6"><h2 className="text-2xl font-semibold">{t("account.profileSection")}</h2><p className="mt-4 break-words">{customer.first_name} {customer.last_name} · {customer.email}</p><p className="mt-4 text-xs text-[var(--store-text-muted)]">{t("design.reviewPrivacy", { name: customer.first_name || "" })}</p></div>}
 
