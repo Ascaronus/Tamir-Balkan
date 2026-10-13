@@ -9,7 +9,7 @@
 | Метод и путь | Назначение и ограничения |
 | --- | --- |
 | GET `/store/catalog/products` | Каталог, фильтры, цены/остатки, сортировки и поиск переводов; контекст региона и канала обязателен |
-| GET `/store/product-redirects/:handle` | Разрешение локализованного/старого адреса, включая повторный импорт той же модели из soft-deleted карточки; последующая загрузка через Store products проверяет доступность каналу |
+| GET `/store/product-redirects/:handle` | Разрешение только текущего EN-адреса опубликованного неудалённого товара; старые aliases и повторные импорты не сопоставляются; Store products проверяет доступность каналу |
 | POST `/store/auth/phone-login` | Вход покупателя по телефону и паролю |
 | POST `/store/registration/start` | CAPTCHA `register`, отправка кода; пока не создаёт аккаунт |
 | POST `/store/registration/verify` | Проверка кода и создание аккаунта; защищённое восстановление оставшейся auth identity |
@@ -32,7 +32,7 @@
 | GET/POST `/admin/rozetka/settings` | Общий сохранённый URL источника в metadata магазина |
 | POST `/admin/rozetka/translate` | Перевод подготовленного текста через серверный Google key |
 | POST `/admin/rozetka/import` | Один подготовленный товар, выбранные варианты, настройки и идентификатор источника |
-| GET/POST `/admin/products/:id/localized-url` | Просмотр/изменение EN URL с сохранением aliases |
+| GET/POST `/admin/products/:id/localized-url` | Просмотр/изменение EN URL; история резервирует адреса, но не создаёт перенаправления |
 | POST `/admin/products/:id/option-translations/translate` | Автоперевод опций для редактора |
 | GET `/admin/reviews` | Список отзывов для модератора |
 | POST `/admin/reviews/:id` | Модерация с проверкой версии и audit |
