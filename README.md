@@ -33,10 +33,9 @@
 ```bash
 npm ci
 npm run deps
-npm run infra:up
 ```
 
-Создайте `backend/.env` и `frontend/.env.local` по инструкции, затем в **локальной** базе выполните:
+Создайте корневой `.env`, `backend/.env` и `frontend/.env.local` из соответствующих `.env.example` и заполните их по [инструкции хранения секретов](docs/SECRETS.md). Затем запустите `npm run infra:up` и в **локальной** базе выполните:
 
 ```bash
 cd backend

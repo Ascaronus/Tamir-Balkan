@@ -105,7 +105,13 @@ JS
 trap 'echo "Build/preparation failed. Existing PM2 processes were not stopped. Backup: $backup_dir" >&2' ERR
 (cd "$release_dir/backend" && npm ci --no-audit --no-fund)
 node "$release_dir/scripts/check-review-config.cjs"
-(cd "$release_dir/backend" && npm run build)
+node <<'JS'
+const path=require('node:path'), {spawnSync}=require('node:child_process')
+const config=require(path.join(process.env.TAMIR_RELEASE,'ecosystem.config.cjs'))
+const app=config.apps.find(app=>app.name==='tamir-backend')
+const r=spawnSync('npm',['run','build'],{cwd:app.cwd,env:{...process.env,...app.env},stdio:'inherit'})
+if(r.status!==0) process.exit(r.status || 1)
+JS
 (cd "$release_dir/frontend" && npm ci --no-audit --no-fund && npm run lint -- --quiet)
 node <<'JS'
 const fs=require('node:fs'), path=require('node:path'), {spawnSync}=require('node:child_process')
