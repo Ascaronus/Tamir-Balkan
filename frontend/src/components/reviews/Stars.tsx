@@ -3,20 +3,20 @@ import { displayRating, starFill } from "@/lib/reviews/rating"
 export function Stars({ rating, count, emptyLabel, compact = false }: { rating: number; count?: number; emptyLabel: string; compact?: boolean }) {
   const value = count === 0 ? 0 : displayRating(rating)
   return <span className={`rating${compact ? " rating-compact" : ""}`}>
-    {compact && <span aria-hidden="true" className="rating-compact-icon" style={{ opacity: value ? 1 : 0.3 }}><Star className="h-4 w-4" /></span>}
-    <span aria-hidden="true" className="rating-stars inline-flex gap-0.5">
-      {[0, 1, 2, 3, 4].map(index => <span key={index} className="relative inline-block h-3.5 w-3.5">
-        <Star className="absolute inset-0 h-full w-full text-stone-200" />
-        <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${starFill(value, index)}%` }}>
-          <Star className="h-3.5 w-3.5 max-w-none text-[var(--store-text-muted)]" />
+    {compact && <span aria-hidden="true" className={`rating-compact-icon${value ? "" : " rating-empty"}`}><Star /></span>}
+    <span aria-hidden="true" className="rating-stars">
+      {[0, 1, 2, 3, 4].map(index => <span key={index} className="rating-star-slot">
+        <Star className="rating-empty" />
+        <span className="rating-star-fill" style={{ width: `${starFill(value, index)}%` }}>
+          <Star />
         </span>
       </span>)}
     </span>
     <span>{value ? `${value}/5` : emptyLabel}</span>
   </span>
 }
-function Star({ className }: { className: string }) {
-  return <svg viewBox="0 0 24 24" fill="currentColor" className={className}><path d="m12 2.5 2.93 5.94 6.56.95-4.75 4.63 1.12 6.54L12 17.47l-5.86 3.09 1.12-6.54L2.51 9.39l6.56-.95Z" /></svg>
+function Star({ className = "" }: { className?: string }) {
+  return <span className={`rating-star ${className}`} />
 }
 export function ReviewIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 3v-3H3V6a2 2 0 0 1 2-2Z" /><path d="M7 8h10M7 12h7" /></svg>
