@@ -45,6 +45,15 @@ jobs:
           cache-dependency-path: |
             frontend/package-lock.json
             backend/package-lock.json
+      - name: Generate disposable build secrets
+        run: |
+          node - <<'NODE'
+          const { randomBytes } = require('node:crypto')
+          const { appendFileSync } = require('node:fs')
+          for (const name of ['JWT_SECRET', 'COOKIE_SECRET']) {
+            appendFileSync(process.env.GITHUB_ENV, `${name}=${randomBytes(32).toString('hex')}\n`)
+          }
+          NODE
       - run: npm ci --no-audit --no-fund
         working-directory: frontend
       - run: npm test
@@ -57,7 +66,7 @@ jobs:
         working-directory: frontend
       - run: npm ci --no-audit --no-fund
         working-directory: backend
-      - run: node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs
+      - run: node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs tests/auth-secrets.test.cjs
         working-directory: backend
       - run: node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/admin-decimals.test.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/category-localization.integration.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/catalog-popularity.integration.cjs
         working-directory: backend

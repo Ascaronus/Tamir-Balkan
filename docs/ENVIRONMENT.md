@@ -2,10 +2,12 @@
 
 Значения ниже — примеры для разработки. Реальные `.env`, ключи, пароли и дампы нельзя добавлять в Git. Оба приложения получают собственное окружение; `NEXT_PUBLIC_*` становится доступным браузеру.
 
+Правила хранения, резервного копирования и замены значений: [SECRETS.md](SECRETS.md). В Git хранятся только пустые `.env.example`. Для Compose нужен отдельный корневой `.env` с `POSTGRES_PASSWORD`; он не загружается автоматически в backend.
+
 ## Backend: `backend/.env`
 
 ```dotenv
-DATABASE_URL=postgres://medusa:medusa@localhost:5432/medusa-v2
+DATABASE_URL=postgres://medusa:REPLACE_WITH_URL_ENCODED_DATABASE_PASSWORD@127.0.0.1:5432/medusa-v2
 REDIS_URL=redis://localhost:6379
 STORE_CORS=http://localhost:3000
 ADMIN_CORS=http://localhost:9000
@@ -15,7 +17,7 @@ COOKIE_SECRET=REPLACE_WITH_ANOTHER_LOCAL_RANDOM_SECRET
 MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 ```
 
-Пара БД `medusa/medusa` соответствует локальному Compose, не является production-рекомендацией. Секреты для новой установки генерируются отдельно; существующие production-секреты не заменяйте при обычном обновлении.
+Пароль в `DATABASE_URL` должен соответствовать паролю роли БД. JWT и cookie требуют отдельных случайных значений длиной не менее 32 символов; пустые и шаблонные значения останавливают запуск и сборку. Секреты для новой установки генерируются отдельно; существующие production-секреты заменяются согласованно, а не случайно при обычном обновлении. Изменение `POSTGRES_PASSWORD` в Compose не меняет пароль уже созданной роли БД.
 
 | Переменная | Назначение |
 | --- | --- |

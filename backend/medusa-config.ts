@@ -4,6 +4,15 @@ import { decimalAdminConfig } from "./src/utils/admin-decimal-vite"
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
+// No shared fallback: development and builds also need explicit local secrets.
+function authSecret(name: "JWT_SECRET" | "COOKIE_SECRET"): string {
+  const value = process.env[name]
+  if (!value || value.trim().length < 32 || /replace|changeme|supersecret|placeholder/i.test(value)) {
+    throw new Error(`${name}: set a private random value of at least 32 characters in the runtime environment`)
+  }
+  return value
+}
+
 /** Абсолютный путь от `medusa-config.js`: и dev (`backend/`), и prod (`.medusa/server/`). */
 const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfillment-provider")
 
@@ -53,8 +62,8 @@ module.exports = defineConfig({
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
       authCors: process.env.AUTH_CORS!,
-      jwtSecret: process.env.JWT_SECRET || "supersecret",
-      cookieSecret: process.env.COOKIE_SECRET || "supersecret",
+      jwtSecret: authSecret("JWT_SECRET"),
+      cookieSecret: authSecret("COOKIE_SECRET"),
     },
     // HTTP + IP: default Secure cookies break admin session; use HTTPS in real prod.
     cookieOptions: {
