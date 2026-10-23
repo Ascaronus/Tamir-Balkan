@@ -55,8 +55,20 @@
 - `PORT` нет в `backend/.env.example`, поэтому в проде значение по умолчанию — `9000`.
 
 Что делать (PR #22): middleware ограничения частоты по IP+телефону для
-`/store/auth/*`, обязательная проверка Turnstile на этом маршруте
-(`backend/src/utils/captcha.ts` уже умеет), добавить `PORT` в `backend/.env.example`.
+`/store/auth/*`, обязательная проверка Turnstile на этом маршруте, добавить
+`PORT` в `backend/.env.example`. Уточнения после перечитки кода:
+
+- rate-limit/429 нет ни в одном роуте `backend/src/api` (проверено grep'ом);
+- `backend/src/utils/captcha.ts` умеет `verifyCaptcha(token, action)`, но union
+  action'ов — `"register" | "review" | "password_reset"`; для логина нужно
+  добавить `"phone_login"` и завести action в облачном Turnstile;
+- токен приходит в теле запроса (не в заголовке `X-Turnstile-Token`, как
+  утверждал внешний QA-отчёт — в коде таких заголовков нет);
+- фронтенд: компонент `src/components/security/Captcha.tsx` уже есть и используется
+  в `RegisterForm`, `PasswordResetForm` и `ProductReviews`; в `LoginForm.tsx` его
+  **нет** — в PR #22 нужно подключить его к форме логина и передать токен в
+  запрос phone-login.
+
 Тест: интеграционный тест на 429 и на отказ без токена CAPTCHA.
 
 ### H2. Деплой берёт HEAD `origin/main`, а не проверенный коммит (гонка)
@@ -119,14 +131,18 @@ PR #25: убрать `test_test` из прод-конфига + guard на seed.
 
 ### M3. Фантомные зависимости в backend
 
-`backend/package.json` (см. `:25-32`):
+Перепроверено на `main` (`git grep` + чтение `backend/package.json`):
 
-- `zod` используется в рантайме минимум в 5 файлах (в том числе
-  `src/utils/rozetka-*.ts`) — в зависимостях его **нет**;
-- `knex` импортируется по типам в 3 файлах — тоже отсутствует.
+- `zod` импортируется в 5 файлах (`src/admin/decimal/number.ts`, два админ-роута
+  `translate`, `src/utils/rozetka-admin.ts`, `src/utils/rozetka-preview.ts`) —
+  в `dependencies` его **нет**;
+- `knex` импортируется **только по типам** (`import type { Knex }`) в 3 файлах
+  (`catalog-popularity.ts`, `password-reset.ts`, `registration-code.ts`) — тоже
+  отсутствует в зависимостях.
 
-Сейчас работает только за счёт транзитивной установки. PR #26: добавить `zod` в
-`dependencies`, `knex` в `devDependencies` (или убрать импорт типов).
+Сейчас работает только за счёт транзитивной установки из `@medusajs/*`. PR #26:
+добавить `zod` в `dependencies`, `knex` в `devDependencies` (или убрать импорт
+типов), и зафиксировать версии.
 
 ### M4. Неатомарный cutover и простой
 
@@ -140,8 +156,13 @@ PR: менять порядок (активация → затем ff-merge), р
 
 ### M5. Публичный IP VPS в репозитории и в клиентском бандле
 
-Места: `DEPLOY.md` и `frontend/src/lib/product-image.ts:9`
-(значение `178.104.108.200` попадает в браузерный бандл).
+Места (перепроверено grep'ом по `main`): `DEPLOY.md:36` (`ssh root@178.104.108.200`),
+`frontend/src/lib/product-image.ts:9` (значение `178.104.108.200` попадает в
+браузерный бандл), `frontend/tests/commerce.test.mjs:39-40,76` (тот же IP в
+тестовых моках).
+
+Внешний QA-отчёт называл другой адрес (`188.121.137.67`) — в коде его нет;
+видимо, это устаревший/сторонний адрес. Актуальный — `178.104.108.200`.
 
 PR #27: вынести в переменную окружения / заменить на список «локальные хосты» без
 публичного адреса; в `DEPLOY.md` — плейсхолдер вместо IP.
@@ -156,10 +177,11 @@ PR #28: добавить `backend/static/` и `backend/private-static/`.
 
 ### M7. Тесты разъезжаются с CI
 
-- `CI` запускает два явных списка `node --test` (`.github/workflows/verify.yml:69,71`);
-  в них **нет** `backend/tests/registration-email.test.cjs`;
-- `backend/jest.config.js` указывает на несуществующий `__tests__`;
-- в `backend/package.json` нет скрипта `test`.
+Перепроверено на `main`: в `backend/tests/` 15 `.cjs`-тестов, `verify.yml` явными
+списками запускает 14 — **`registration-email.test.cjs` не запускается никогда**;
+- `backend/jest.config.js` указывает на `__tests__`-каталоги, которых в `backend/src`
+  нет ни одного (grep пуст);
+- в `backend/package.json` нет скрипта `test` (только jest-скрипты Medusa).
 
 PR #29: сделать glob-список (или единый скрипт `npm test` в backend) и добавить
 пропущенный тест; обновить `docs/TESTING.md`.
@@ -178,12 +200,24 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 
 - `DEPLOY.md`: дата «11 октября», публичный IP, `root@` в командах;
 - `docs/SECRETS.md:43` ссылается на **не смерженный** PR #15;
-- `docs/DOCKER-EXIT-PLAN.md` исходит из «любой push в main деплоит» — после #18 неверно;
+- `docs/DOCKER-EXIT-PLAN.md` существует только в открытой ветке PR #15 (в `main`
+  файла нет) и исходит из «любой push в main деплоит» — после #18 неверно;
 - `HostKeyAlias=tamir-vps` (`.github/workflows/deploy.yml:63`) — генерацию записи
   known_hosts для алиаса нигде не описали;
 - `TAMIR_PRIVACY_EMAIL` используется в `src/app/privacy/page.tsx:17`, но его нет в
   `frontend/.env.example`;
 - `admin@tamir.local` зашит в `backend/src/utils/review-validation.ts:28`.
+
+### M10. `sr.json` (кириллическая локаль) содержит латиничные строки
+
+`frontend/src/messages/sr.json`: `checkout.emptyCart` = «Vaša korpa je prazna.»,
+`header.cart` = «Korpa», `header.catalog` = «Katalog» и др. — для кириллического
+`sr` должны быть «Ваша корпа је празна.», «Корпа», «Каталог» (латиница уже живёт
+в `sr-LAT.json`). Это объясняет половину претензий внешнего QA про «смешанные
+алфавиты» в SR.
+
+PR: пройтись по `sr.json` и перевести латиничные значения в кириллицу; тест —
+проверка, что все значения `sr.json` содержат кириллицу (кроме чисел/URL/брендов).
 
 ---
 
@@ -202,8 +236,9 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 - Мёртвые ассеты: `frontend/public/{vercel,next,file,window,globe}.svg`,
   `frontend/public/tamir-logo.png`, `frontend/design/collection.jpg`.
 - `@medusajs/types` в `dependencies` фронтенда, используется только как типы → `devDependencies`.
-- ID GA `G-0L34ZN3ZB6` захардкожен в `frontend/src/lib/privacy/consent.ts`.
-  ⚠ Пункт пришёл из суб-агента, **лично не перепроверен** — проверить перед правкой.
+- ID GA `G-0L34ZN3ZB6` захардкожен в `frontend/src/lib/privacy/consent.ts:5`
+  (перепроверено 23.10 — также упомянут в `src/lib/legal/content.ts:85,91`).
+  Не секрет, но выносился бы в env при переезде на другой аккаунт аналитики.
 - Гостевая receipt формируется из `sessionStorage` (`src/lib/checkout/receipt.ts`) —
   пользователь может показать сам себе любые данные заказа; LOW UX, не уязвимость.
 - `frontend/AGENTS.md` в репозитории — это намеренное предупреждение про Next 16
@@ -223,6 +258,35 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 - Лок-файлы валидны, `npm ci` в CI проходит.
 - `[countryCode]`-страницы валидируют локаль; JSON-LD экранирован.
 
+### Внешний QA-отчёт: что из него не подтвердилось
+
+Внешний отчёт (P0/P1/P2/SR-LAT/EN) сверен с кодом `main` — половина пунктов уже
+учтена выше (#22–#24), остальные разобраны:
+
+- «Пользователь `test_test` — админ с доступом к управлению» — **неверно**.
+  `test_test` — fulfillment-провайдер-заглушка (`test-fulfillment-provider.ts`,
+  `provider_id: "test"`), а не юзер; претензия уже учтена в M1. Реальный админ —
+  `igordemin86@gmail.com` (создан вручную).
+- «Turnstile токен уходит заголовком `X-Turnstile-Token`» — в коде таких
+  заголовков нет, токен в теле запроса.
+- IP `188.121.137.67` — в репозитории такого адреса нет (см. M5, там `178.104.108.200`).
+- «Конфликт версий Node: `engines: 22.22.0` vs CI 20.20.2/24» — **конфликта нет**:
+  `backend/package.json` объявляет `engines.node: ">=20"`, CI-матрица 20.20.2/24 ей
+  удовлетворяет. `22.22.0` — это версия Node на VPS (устанавливает `deploy-vps.sh`),
+  а не ограничение пакетов. Файла `.node-version` в `main` нет.
+- «Add to Cart показывается как Dodaj u korpu» — в `frontend/src/messages/*`
+  латиничных строк для EN-локали нет («Dodaj u korpu» grep не нашёл). Возможная
+  причина жалобы — подмена `sr-LAT`/`sr` в браузере: проверить в живом браузере
+  (браузер-чеклист), кода-дефекта нет.
+- «В каталоге не хватает звёзд рейтинга/бейджей/второго фото» — `ProductCard`
+  берёт локализованный `title`/`title_snapshot` и изображения; дефекта в коде нет —
+  это вопрос к наполнению конкретных товаров в проде, проверяется браузером.
+- «checkout показывает пустую корзину при бейдже =1» — строка пустой корзины одна
+  (`checkout.emptyCart`, `CheckoutPageClient.tsx:157`), код корректен; жалоба SR-LAT
+  правдоподобна из-за M10 (смешение алфавитов) или гонки корзины — проверить в
+  браузере, кода-дефекта не найдено.
+- «Каталог: `PRODUCT_PAGINATION` в seed» — в seed на `main` такого маркера нет.
+
 ---
 
 ## Порядок PR
@@ -240,6 +304,7 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 | #27 | Убрать публичный IP из `DEPLOY.md` и бандла | MED |
 | #28 | `.gitignore`: `backend/static/`, `backend/private-static/` | MED |
 | #29 | Тесты: glob/единый скрипт + пропущенный тест + `docs/TESTING.md` | MED |
+| — | `sr.json`: латиничные строки → кириллица (M10) + браузер-проверка алфавитов | MED |
 | — | Пакет фронтенда: таймауты, `no-store`, баннер, `next/font` | MED |
 | — | Документация: `DEPLOY.md`, `SECRETS.md`, `DOCKER-EXIT-PLAN.md`, `.env.example` | MED |
 | — | LOW-микроправки (теги actions, `.gitattributes`, бэкапы, мёртвые ассеты) | LOW |
