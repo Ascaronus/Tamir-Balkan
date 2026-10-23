@@ -57,3 +57,18 @@ test('configuration errors name the variable without disclosing its value', () =
     return true
   })
 })
+
+test('auth cookies are marked Secure in production and opt-out works for plain HTTP', () => {
+  // Production defaults to Secure: the storefront and admin run on HTTPS.
+  assert.equal(config({ ...secrets(), NODE_ENV: 'production' }).projectConfig.cookieOptions.secure, true)
+  assert.equal(config({ ...secrets(), NODE_ENV: 'development' }).projectConfig.cookieOptions.secure, false)
+  for (const truthy of ['true', 'TRUE', '1', 'yes']) {
+    assert.equal(config({ ...secrets(), NODE_ENV: 'development', COOKIE_SECURE: truthy }).projectConfig.cookieOptions.secure, true)
+  }
+  // Only an explicit false disables the flag in production, so a missing value stays safe.
+  for (const falsy of ['false', 'False', '0', 'no']) {
+    assert.equal(config({ ...secrets(), NODE_ENV: 'production', COOKIE_SECURE: falsy }).projectConfig.cookieOptions.secure, false)
+  }
+  assert.equal(config({ ...secrets(), NODE_ENV: 'production', COOKIE_SECURE: '' }).projectConfig.cookieOptions.secure, true)
+  assert.equal(config({ ...secrets(), NODE_ENV: 'production' }).projectConfig.cookieOptions.sameSite, 'lax')
+})

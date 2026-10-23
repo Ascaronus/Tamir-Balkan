@@ -16,6 +16,18 @@ function authSecret(name: "JWT_SECRET" | "COOKIE_SECRET"): string {
 /** Абсолютный путь от `medusa-config.js`: и dev (`backend/`), и prod (`.medusa/server/`). */
 const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfillment-provider")
 
+/**
+ * Флаг `Secure` для auth cookie. В production витрина и админка работают по HTTPS
+ * (`https://tamir.rs`, `https://api.tamir.rs`), поэтому флаг включён по умолчанию.
+ * `COOKIE_SECURE=false` — только для локального хоста без HTTPS.
+ */
+function cookieSecure(): boolean {
+  const flag = (process.env.COOKIE_SECURE || "").trim().toLowerCase()
+  if (["1", "true", "yes"].includes(flag)) return true
+  if (["0", "false", "no"].includes(flag)) return false
+  return process.env.NODE_ENV === "production"
+}
+
 module.exports = defineConfig({
   admin: { vite: () => decimalAdminConfig(__dirname) },
   modules: [
@@ -65,10 +77,10 @@ module.exports = defineConfig({
       jwtSecret: authSecret("JWT_SECRET"),
       cookieSecret: authSecret("COOKIE_SECRET"),
     },
-    // HTTP + IP: default Secure cookies break admin session; use HTTPS in real prod.
+    // HTTPS в production: cookie с флагом Secure. Для локального HTTP включите COOKIE_SECURE=false.
     cookieOptions: {
       sameSite: "lax",
-      secure: false,
+      secure: cookieSecure(),
     },
   },
 })
