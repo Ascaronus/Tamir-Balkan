@@ -33,6 +33,7 @@
 - [Адреса и структурированные данные товаров](PRODUCT-SEO.md).
 - [Sitemap, robots и Google Search Console](GOOGLE-SEARCH-CONSOLE.md).
 - [HTTP-аудит ссылок Search Console: 12 октября 2026](SEO-AUDIT-2026-10-12.md).
+- [Аудит кода и CI/CD: 23 октября 2026](CODE-AUDIT-2026-10-23.md) — рабочий список исправлений.
 - [Редизайн: история релиза](FRONTEND-REDESIGN.md).
 - [Адаптивная витрина и текущая галерея](RESPONSIVE-V2.md).
 
