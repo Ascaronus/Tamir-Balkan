@@ -25,6 +25,7 @@ MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 | `STORE_CORS`, `ADMIN_CORS`, `AUTH_CORS` | Разрешённые origin витрины, админки и auth |
 | `JWT_SECRET`, `COOKIE_SECRET` | Секреты существующей аутентификации |
 | `MEDUSA_PUBLIC_BACKEND_URL` | Публичный origin для local file provider, production `https://api.tamir.rs` |
+| `COOKIE_SECURE` | Флаг `Secure` у auth cookie. По умолчанию включён при `NODE_ENV=production` (`https://tamir.rs`, `https://api.tamir.rs`) и выключен в остальных средах. `false` допустим только для локального хоста без HTTPS |
 | `GOOGLE_TRANSLATE_API_KEY` | Необязательный серверный ключ перевода товаров, опций и категорий |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Почта: код регистрации/сброса и welcome email; порты 587 или 465 |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_HOSTNAMES` | Серверная проверка CAPTCHA; рабочие домены витрины |
