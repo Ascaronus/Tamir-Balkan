@@ -1,15 +1,14 @@
 {
   "name": "backend",
   "version": "0.0.1",
-  "description": "A starter for Medusa projects.",
-  "author": "Medusa (https://medusajs.com)",
-  "license": "MIT",
+  "private": true,
+  "description": "TAMIR Balkan storefront backend: Medusa v2 API, Rozetka XML import and SR/EN localization for https://tamir.rs.",
+  "author": "TAMIR (https://tamir.rs)",
+  "license": "UNLICENSED",
   "keywords": [
-    "sqlite",
     "postgres",
     "typescript",
     "ecommerce",
-    "headless",
     "medusa"
   ],
   "scripts": {
@@ -37,7 +36,6 @@
     "@swc/jest": "^0.2.36",
     "@types/jest": "^29.5.13",
     "@types/node": "^20.12.11",
-    "@types/nodemailer": "^8.0.2",
     "@types/react": "^18.3.2",
     "@types/react-dom": "^18.2.25",
     "jest": "^29.7.0",
