@@ -54,7 +54,7 @@
   (`route.ts:42-57`), то есть защита «по IP» на уровне маршрута отсутствует.
 - `PORT` нет в `backend/.env.example`, поэтому в проде значение по умолчанию — `9000`.
 
-Что делать (PR #21): middleware ограничения частоты по IP+телефону для
+Что делать (PR #22): middleware ограничения частоты по IP+телефону для
 `/store/auth/*`, обязательная проверка Turnstile на этом маршруте
 (`backend/src/utils/captcha.ts` уже умеет), добавить `PORT` в `backend/.env.example`.
 Тест: интеграционный тест на 429 и на отказ без токена CAPTCHA.
@@ -68,7 +68,7 @@
   то есть свежий HEAD `main`. Если между `Verify` и `Deploy` в `main` попал второй
   push — на прод уедет непроверенный коммит.
 
-Что делать (PR #22): `workflow_run.head_sha` → `GITHUB_SHA` →
+Что делать (PR #23): `workflow_run.head_sha` → `GITHUB_SHA` →
 `bash scripts/deploy-vps.sh "$SHA"` (или отдельный аргумент), плюс в скрипте
 жёсткая проверка, что SHA существует на `origin/main` и что это тот самый коммит,
 который прошёл `Verify`.
@@ -82,7 +82,7 @@
 - Job'ы без `environment: production`, поэтому правила окружения и отдельный
   approval не работают.
 
-Что делать (PR #23): добавить `environment: production` и условие на `refs/heads/main`
+Что делать (PR #24): добавить `environment: production` и условие на `refs/heads/main`
 для `workflow_dispatch`; при dispatch — брать HEAD `main`, а не HEAD ветки запуска.
 
 ### H4. Токен покупателя в `localStorage` (XSS = угон аккаунта)
@@ -115,7 +115,7 @@
 случайно (`npm run seed` — `backend/package.json:17`). Нужен явный guard по
 `NODE_ENV`/переменной окружения.
 
-PR #24: убрать `test_test` из прод-конфига + guard на seed.
+PR #25: убрать `test_test` из прод-конфига + guard на seed.
 
 ### M3. Фантомные зависимости в backend
 
@@ -125,7 +125,7 @@ PR #24: убрать `test_test` из прод-конфига + guard на seed.
   `src/utils/rozetka-*.ts`) — в зависимостях его **нет**;
 - `knex` импортируется по типам в 3 файлах — тоже отсутствует.
 
-Сейчас работает только за счёт транзитивной установки. PR #25: добавить `zod` в
+Сейчас работает только за счёт транзитивной установки. PR #26: добавить `zod` в
 `dependencies`, `knex` в `devDependencies` (или убрать импорт типов).
 
 ### M4. Неатомарный cutover и простой
@@ -143,7 +143,7 @@ PR: менять порядок (активация → затем ff-merge), р
 Места: `DEPLOY.md` и `frontend/src/lib/product-image.ts:9`
 (значение `178.104.108.200` попадает в браузерный бандл).
 
-PR #26: вынести в переменную окружения / заменить на список «локальные хосты» без
+PR #27: вынести в переменную окружения / заменить на список «локальные хосты» без
 публичного адреса; в `DEPLOY.md` — плейсхолдер вместо IP.
 
 ### M6. `.gitignore` не закрывает загруженные медиа
@@ -152,7 +152,7 @@ PR #26: вынести в переменную окружения / замени
 медиа — `backend/static/` и `backend/private-static/` (см.
 `scripts/deploy-vps.sh:77-87`, `backend/medusa-config.ts:41`).
 
-PR #27: добавить `backend/static/` и `backend/private-static/`.
+PR #28: добавить `backend/static/` и `backend/private-static/`.
 
 ### M7. Тесты разъезжаются с CI
 
@@ -161,7 +161,7 @@ PR #27: добавить `backend/static/` и `backend/private-static/`.
 - `backend/jest.config.js` указывает на несуществующий `__tests__`;
 - в `backend/package.json` нет скрипта `test`.
 
-PR #28: сделать glob-список (или единый скрипт `npm test` в backend) и добавить
+PR #29: сделать glob-список (или единый скрипт `npm test` в backend) и добавить
 пропущенный тест; обновить `docs/TESTING.md`.
 
 ### M8. Фронтенд: лишние сетевые запросы и build-зависимость от сети
@@ -227,16 +227,19 @@ PR #28: сделать glob-список (или единый скрипт `npm 
 
 ## Порядок PR
 
+Номера плановые (фактические появятся при создании PR). Этот аудит-PR занял **#21**,
+поэтому отсчёт исправлений начинается с #22.
+
 | PR | Предмет | Приоритет |
 |----|---------|-----------|
-| #21 | phone-login: rate-limit + CAPTCHA + `PORT` в `.env.example` | HIGH |
-| #22 | Деплой по проверенному SHA (`workflow_run.head_sha`) | HIGH |
-| #23 | Guard `workflow_dispatch` + `environment: production` | HIGH |
-| #24 | Убрать `test_test` из прод-конфига + guard на `seed.ts` | MED |
-| #25 | Зависимости `zod` / `knex` в `backend/package.json` | MED |
-| #26 | Убрать публичный IP из `DEPLOY.md` и бандла | MED |
-| #27 | `.gitignore`: `backend/static/`, `backend/private-static/` | MED |
-| #28 | Тесты: glob/единый скрипт + пропущенный тест + `docs/TESTING.md` | MED |
+| #22 | phone-login: rate-limit + CAPTCHA + `PORT` в `.env.example` | HIGH |
+| #23 | Деплой по проверенному SHA (`workflow_run.head_sha`) | HIGH |
+| #24 | Guard `workflow_dispatch` + `environment: production` | HIGH |
+| #25 | Убрать `test_test` из прод-конфига + guard на `seed.ts` | MED |
+| #26 | Зависимости `zod` / `knex` в `backend/package.json` | MED |
+| #27 | Убрать публичный IP из `DEPLOY.md` и бандла | MED |
+| #28 | `.gitignore`: `backend/static/`, `backend/private-static/` | MED |
+| #29 | Тесты: glob/единый скрипт + пропущенный тест + `docs/TESTING.md` | MED |
 | — | Пакет фронтенда: таймауты, `no-store`, баннер, `next/font` | MED |
 | — | Документация: `DEPLOY.md`, `SECRETS.md`, `DOCKER-EXIT-PLAN.md`, `.env.example` | MED |
 | — | LOW-микроправки (теги actions, `.gitattributes`, бэкапы, мёртвые ассеты) | LOW |
