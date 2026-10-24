@@ -14,7 +14,20 @@ flock -n 9 || { echo "Another deployment is running." >&2; exit 1; }
   exit 1
 }
 git fetch origin main
-target=$(git rev-parse --verify "${1:-origin/main}^{commit}")
+# The release must be the exact commit that passed CI; a bare branch head is refused,
+# because origin/main can move between the verified run and the start of this deploy.
+if [[ $# -ne 1 || ! $1 =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Usage: deploy-vps.sh <40-hex commit SHA that passed CI>. Refusing to deploy an unpinned origin/main head." >&2
+  exit 1
+fi
+target=$(git rev-parse --verify "$1^{commit}" 2>/dev/null) || {
+  echo "Verified commit $1 is unknown to this repository; it may have been replaced by a force-push." >&2
+  exit 1
+}
+git merge-base --is-ancestor "$target" origin/main || {
+  echo "Verified commit $target is not part of the current origin/main." >&2
+  exit 1
+}
 git merge-base --is-ancestor HEAD "$target" || {
   echo "Target does not include the source checkout's current commit." >&2
   exit 1
