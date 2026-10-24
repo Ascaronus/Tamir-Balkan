@@ -7,6 +7,8 @@ import { registrationSchema } from "../utils/registration-code"
 
 import { passwordResetSchema } from "../utils/password-reset"
 
+import { loginRateSchema } from "../utils/login-rate-limit"
+
 export default async function setupReviews({ container }: ExecArgs) {
   const db = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
   await db.transaction(async trx => {
@@ -15,6 +17,7 @@ export default async function setupReviews({ container }: ExecArgs) {
     await trx.raw(productUrlSchema)
     await trx.raw(registrationSchema)
     await trx.raw(passwordResetSchema)
+    await trx.raw(loginRateSchema)
   })
   container.resolve("logger").info("Review schema ready")
 }

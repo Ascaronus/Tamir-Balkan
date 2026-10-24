@@ -24,12 +24,6 @@ test('profile saves reuse created address and send explicit note deletion',async
  for(let i=0;i<2;i++){tree=render();await find(tree,n=>n.type==='form').props.onSubmit({preventDefault(){}});render();await h.flush()}
  assert.equal(creates,1);assert.equal(saved.metadata.notes,null)
 })
-test('phone login ignores attacker-controlled Host and rejects redirect forwarding',async()=>{
- let sent
- const route=load('backend/src/api/store/auth/phone-login/route.ts',{}, {process:{env:{}},fetch:async(url,init)=>{sent={url,...init};return {ok:false}}})
- await route.POST({body:{phone:'+381123',password:'dummy'},protocol:'https',get:()=> 'attacker.invalid',scope:{resolve:()=>({graph:async()=>({data:[{email:'dummy@example.test'}]})})}},{status(){return this},json(){}})
- assert.equal(sent.url,'http://127.0.0.1:9000/auth/customer/emailpass');assert.equal(sent.redirect,'error')
-})
 test('missing customer profile fails login explicitly',async()=>{
  const h=hooks()
  const auth=load('frontend/src/components/auth/AuthProvider.tsx',{react:h.react,'@/lib/auth/auth-storage':{getAuthToken:()=>null},'@/lib/auth/auth-client':{login:async()=> 'token',retrieveCustomer:async()=>null}})

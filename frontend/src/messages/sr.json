@@ -92,6 +92,7 @@
       "email": "Email",
       "password": "Lozinka",
       "failed": "Neuspela prijava",
+      "tooMany": "Previše neuspešnih pokušaja prijave. Pokušajte ponovo kasnije.",
       "signingIn": "Prijavljivanje…",
       "signIn": "Prijavi se",
       "noAccount": "Nemate nalog?",

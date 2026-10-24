@@ -10,7 +10,6 @@
 | --- | --- |
 | GET `/store/catalog/products` | Каталог, фильтры, цены/остатки, сортировки и поиск переводов; контекст региона и канала обязателен |
 | GET `/store/product-redirects/:handle` | Разрешение только текущего EN-адреса опубликованного неудалённого товара; старые aliases и повторные импорты не сопоставляются; Store products проверяет доступность каналу |
-| POST `/store/auth/phone-login` | Вход покупателя по телефону и паролю |
 | POST `/store/registration/start` | CAPTCHA `register`, отправка кода; пока не создаёт аккаунт |
 | POST `/store/registration/verify` | Проверка кода и создание аккаунта; защищённое восстановление оставшейся auth identity |
 | POST `/store/password-reset/start` | CAPTCHA `password_reset`, отправка кода; одинаковый публичный ответ для неизвестного email |
