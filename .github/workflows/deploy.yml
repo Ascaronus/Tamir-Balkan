@@ -41,7 +41,7 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
           VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          VERIFIED_RUN: ${{ github.event.workflow_run.run_id }}
+          VERIFIED_RUN: ${{ github.event.workflow_run.id }}
         run: |
           set -Eeuo pipefail
 
