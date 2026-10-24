@@ -4,7 +4,6 @@ import Link from "@/components/i18n/LocalizedLink"
 import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { catalogHref, catalogSorts, fetchCatalog, type CatalogResult, type CatalogSelection } from "@/lib/store/catalog"
 import { reviewSummaries } from "@/lib/reviews/server"
 import type { Summary } from "@/lib/reviews/client"
@@ -28,7 +27,7 @@ export function CatalogClient({ initial, selection, regionId, title, basePath = 
     Promise.resolve().then(() => {
       if (abort.signal.aborted) return
       setLoading(true); setError(false)
-      return fetchCatalog(selection, regionId, locale, { token: getAuthToken(), signal: abort.signal })
+      return fetchCatalog(selection, regionId, locale, { signal: abort.signal })
     }).then(async next => {
       if (!next || abort.signal.aborted) return
       const ratings = await reviewSummaries(next.products.map(p => p.id))

@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
 import { sdk } from "@/lib/medusa"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { readReceipt, type OrderReceipt } from "@/lib/checkout/receipt"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
@@ -19,11 +18,9 @@ export function OrderConfirmation({ id }: { id: string }) {
       setOrder(null)
       const receipt = readReceipt(id)
       if (receipt) { if (!cancelled) setOrder(receipt); return }
-      const token = getAuthToken()
-      if (!token) return
       // The authenticated list endpoint scopes results to the current customer.
       const result = await sdk.client.fetch<{ orders: OrderReceipt[] }>("/store/orders", {
-        method: "GET", query: { id, limit: 1 }, headers: { authorization: `Bearer ${token}` }, cache: "no-store",
+        method: "GET", query: { id, limit: 1 }, cache: "no-store",
       })
       if (!cancelled) setOrder(result.orders.find(order => order.id === id) ?? null)
     })().catch(() => undefined).finally(() => { if (!cancelled) setLoading(false) })

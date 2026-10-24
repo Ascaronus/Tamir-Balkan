@@ -15,7 +15,7 @@ import {
   retrieveCustomer as retrieveCustomerApi,
   signup as signupApi,
 } from "@/lib/auth/auth-client"
-import { getAuthToken } from "@/lib/auth/auth-storage"
+import { clearAuthToken } from "@/lib/auth/auth-storage"
 
 type AuthContextValue = {
   customer: HttpTypes.StoreCustomer | null
@@ -41,15 +41,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // H4: токен теперь в httpOnly-куке, его больше не держат в браузере.
+    // Чистим ключи старых версий, чтобы в localStorage не оставался JWT.
+    clearAuthToken()
     let cancelled = false
     ;(async () => {
       try {
-        if (getAuthToken()) {
-          const next = await retrieveCustomerApi()
-          if (!cancelled) setCustomer(next)
-        }
+        // Кука может и не быть — запрос анонимный, 401 даёт null.
+        const next = await retrieveCustomerApi()
+        if (!cancelled) setCustomer(next)
       } catch {
-        // Keep the stored token on transient backend/network errors.
+        // Временный сбой бэкенда/сети: сессию (куку) не трогаем, ошибку не показываем.
       } finally {
         if (!cancelled) setIsReady(true)
       }

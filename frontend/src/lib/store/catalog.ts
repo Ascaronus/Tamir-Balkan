@@ -32,13 +32,13 @@ export function catalogHref(selection: CatalogSelection, basePath = "/rs/catalog
   if (allProducts && !query) return path.replace(/\/catalog$/, "")
   return path + (query ? `?${query}` : "")
 }
-export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { token?: string | null; signal?: AbortSignal; limit?: number }): Promise<CatalogResult> {
+export async function fetchCatalog(selection: CatalogSelection, regionId: string, locale: Locale, options?: { signal?: AbortSignal; limit?: number }): Promise<CatalogResult> {
   const limit = Math.max(1, Math.min(24, Math.floor(options?.limit ?? 24)))
   const query = catalogParams(selection)
   query.delete("page")
   query.set("region_id", regionId); query.set("country_code", "rs"); query.set("limit", String(limit)); query.set("offset", String((selection.page - 1) * limit))
   // Repeated size/color parameters deliberately preserve decimal sizes such as 42,5.
-  return sdk.client.fetch<CatalogResult>(`/store/catalog/products?${query}`, { method: "GET", cache: "no-store", signal: options?.signal, headers: { "x-medusa-locale": medusaStoreLocale(locale), ...(options?.token ? { authorization: `Bearer ${options.token}` } : {}) } })
+  return sdk.client.fetch<CatalogResult>(`/store/catalog/products?${query}`, { method: "GET", cache: "no-store", signal: options?.signal, headers: { "x-medusa-locale": medusaStoreLocale(locale) } })
 }
 export function colorSwatch(value: string): string | undefined {
   const colors: Record<string, string> = { black: "#0a0a0a", crna: "#0a0a0a", черный: "#0a0a0a", white: "#ffffff", bela: "#ffffff", белый: "#ffffff", navy: "#1b2b44", tamnoplava: "#1b2b44", blue: "#335d8a", plava: "#335d8a", gray: "#777777", grey: "#777777", siva: "#777777", beige: "#bba88a", bež: "#bba88a", bez: "#bba88a", brown: "#72513d", braon: "#72513d", green: "#546748", zelena: "#546748", red: "#9c3333", crvena: "#9c3333" }

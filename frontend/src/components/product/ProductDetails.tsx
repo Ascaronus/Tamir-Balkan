@@ -3,7 +3,6 @@
 import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
 import { useAuth } from "@/components/auth/AuthProvider"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { listProductsByCountry } from "@/lib/store/products"
 import { useEffect, useRef, useState } from "react"
 import Link from "@/components/i18n/LocalizedLink"
@@ -32,7 +31,7 @@ export function ProductDetails(props: { product: HttpTypes.StoreProduct; initial
     Promise.resolve().then(async () => {
       if (abort.signal.aborted) return
       setPriceError(false)
-      const { products } = await listProductsByCountry({ countryCode: "rs", handle: props.product.handle, limit: 1, locale, token: getAuthToken(), signal: abort.signal })
+      const { products } = await listProductsByCountry({ countryCode: "rs", handle: props.product.handle, limit: 1, locale, signal: abort.signal })
       if (!abort.signal.aborted) {
         if (!products[0]) throw new Error("PRODUCT_UNAVAILABLE")
         setPriced({ context: pricingContext, product: products[0] })
