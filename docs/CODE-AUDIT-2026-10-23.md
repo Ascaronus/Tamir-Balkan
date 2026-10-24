@@ -512,7 +512,8 @@ PR #33: сделать glob-список (или единый скрипт `npm 
 
 ## Примечание: Figma MCP
 
-Официальный remote `https://mcp.figma.com/mcp` работает по OAuth на бесплатном
-тарифе (seat View), но лимит ~20 read-вызовов в месяц — беречь. Запасной вариант
-(не настроен): `npx figma-developer-mcp --stdio` + read-only PAT
-(~5000 REST-запросов/мес).
+Настроены оба варианта (в `~/.config/opencode/opencode.json`): официальный remote
+`figma` (`https://mcp.figma.com/mcp`, OAuth, бесплатный тариф seat View, лимит
+~20 read-вызовов в месяц — беречь) и запасной `figma-rest`
+(`npx -y figma-developer-mcp --stdio` + PAT в `FIGMA_API_KEY`,
+~5000 REST-запросов/мес). Массовое чтение гонять через `figma-rest`, remote беречь.
