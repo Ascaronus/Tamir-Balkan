@@ -12,14 +12,14 @@
 2. После merge workflow **Deploy TAMIR** запускается только когда `Verify storefront and backend` для этого коммита `main` завершится успешно. Для повторного запуска доступен `workflow_dispatch` на `main`.
 3. Проверить завершение deploy и публичные страницы.
 
-Workflow использует ограниченный SSH-доступ `tamir-deploy` и команду `deploy`, secrets `VPS_HOST`, `VPS_PORT`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, проверку host key. Конкурентные выпуски сериализованы. Deploy запускается по событию `workflow_run` после успешно пройденной проверки, поэтому упавший CI не выпускает релиз; при изменении только документации проверка всё равно должна пройти. Deploy берёт актуальный `origin/main`, поэтому проверяйте SHA в имени активированного релиза.
+Workflow использует ограниченный SSH-доступ `tamir-deploy` и команду `deploy`, secrets `VPS_HOST`, `VPS_PORT`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, проверку host key. Конкурентные выпуски сериализованы. Deploy запускается по событию `workflow_run` после успешно пройденной проверки, поэтому упавший CI не выпускает релиз; при изменении только документации проверка всё равно должна пройти. Deploy выпускает ровно тот коммит, на котором `Verify` прошёл (`workflow_run.head_sha`), а не `origin/main` на момент старта деплоя: SHA проверяется на формат из 40 hex-символов и передаётся команде `deploy` обязательным аргументом; `deploy-vps.sh` без него отказывается запускаться. Обёртка `deploy` на VPS обязана пробрасывать аргументы (`"$@"`) в `scripts/deploy-vps.sh`. Всё равно проверяйте SHA в имени активированного релиза.
 
 ## Что делает скрипт
 
 `scripts/deploy-vps.sh`:
 
 1. Проверяет утилиты, отсутствие локальных изменений tracked-файлов и блокировку `/root/tamir-deploy.lock`.
-2. Получает `origin/main`, проверяет допустимый fast-forward, создаёт `/root/tamir-releases/<UTC>-<SHA>`.
+2. Требует обязательным аргументом точный 40-hex SHA провёриваемого коммита (при отсутствии, неверном формате, неизвестном объекте или отсутствии коммита в `origin/main` выпуск прекращается), получает `origin/main`, проверяет допустимый fast-forward, создаёт `/root/tamir-releases/<UTC>-<SHA>`.
 3. Сохраняет в `/root/tamir-backups/<UTC>-<SHA>` PostgreSQL custom dump, env, прежнюю PM2-конфигурацию и архивы public/private media.
 4. Устанавливает зависимости и собирает backend/frontend в новом каталоге; выполняет frontend lint/tests и конфигурационный preflight CAPTCHA/SMTP.
 5. Сохраняет доступ к существующим media через symlink. Выполняет `setup-reviews.ts`, проверку SMTP без отправки письма и `setup-decimal-attributes.ts`.
@@ -37,8 +37,10 @@ ssh root@178.104.108.200
 cd /root/tamir_balkan
 git fetch origin main
 git show origin/main:scripts/deploy-vps.sh > /tmp/tamir-deploy.sh
-bash /tmp/tamir-deploy.sh
+bash /tmp/tamir-deploy.sh "$(git rev-parse origin/main)"
 ```
+
+Ручной выпуск закрепляет SHA явно: без аргумента из 40 hex-символов скрипт остановится. Здесь оператор сознательно выбирает текущий `origin/main` сам; автоматический выпуск берёт коммит успешно прошедшего `Verify`.
 
 Скрипт сам переносит checkout к выбранному commit. Не используйте `scp` поверх активного релиза, удаление работающего `.next`, `fuser -k` или ручной `npm start` как штатный способ выпуска.
 

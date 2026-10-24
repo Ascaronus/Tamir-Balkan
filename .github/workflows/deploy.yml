@@ -2,6 +2,7 @@ name: Deploy TAMIR
 
 # Выпуск начинается только после успешного завершения Verify на ветке main.
 # Push в main по-прежнему запускает Verify; Deploy ожидает его итог, а не стартует параллельно.
+# Выпускается ровно тот коммит, который прошёл Verify (workflow_run.head_sha), а не HEAD main на момент старта деплоя.
 on:
   workflow_dispatch:
   workflow_run:
@@ -27,18 +28,15 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Record the verified commit
-        if: github.event_name == 'workflow_run'
-        shell: bash
-        run: echo "Verified by run ${{ github.event.workflow_run.run_id }} at ${{ github.event.workflow_run.head_sha }}"
-
-      - name: Deploy latest main to VPS
+      - name: Deploy the verified commit to VPS
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          VERIFIED_RUN: ${{ github.event.workflow_run.run_id }}
         run: |
           set -Eeuo pipefail
 
@@ -47,6 +45,14 @@ jobs:
           : "${VPS_SSH_KEY:?Missing VPS_SSH_KEY}"
           : "${VPS_KNOWN_HOSTS:?Missing VPS_KNOWN_HOSTS}"
 
+          # Pin the release to the exact commit Verify ran on: workflow_run carries its head_sha;
+          # a manual re-run pins the main head as it was when the dispatch was created (github.sha).
+          if [[ ! "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing to deploy: the event context has no verified commit SHA ('${VERIFIED_SHA}')." >&2
+            exit 1
+          fi
+          echo "Deploying ${VERIFIED_SHA}, verified by ${VERIFIED_RUN:-this manual dispatch}."
+
           umask 077
           deploy_dir="$(mktemp -d)"
           trap 'rm -rf "$deploy_dir"' EXIT
@@ -54,6 +60,9 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > "$deploy_dir/key"
           printf '%s\n' "$VPS_KNOWN_HOSTS" > "$deploy_dir/known_hosts"
 
+          # The pinned SHA is validated as 40 hex characters above, so it is safe as a remote argument.
+          # The remote `deploy` wrapper must forward "$@" to scripts/deploy-vps.sh,
+          # which refuses to release anything except this exact SHA from origin/main.
           ssh -T \
             -p "$VPS_PORT" \
             -i "$deploy_dir/key" \
@@ -65,4 +74,4 @@ jobs:
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=6 \
-            "tamir-deploy@$VPS_HOST" deploy
+            "tamir-deploy@$VPS_HOST" deploy "$VERIFIED_SHA"
