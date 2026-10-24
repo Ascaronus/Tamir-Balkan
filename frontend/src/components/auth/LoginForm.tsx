@@ -32,7 +32,10 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
             await login(email.trim(), password)
             router.push(`/${countryCode}/${next}`)
           } catch (e: unknown) {
-            setError(e instanceof Error && e.message === "CUSTOMER_PROFILE_MISSING" ? t("auth.login.profileMissing") : e instanceof Error ? e.message : t("auth.login.failed"))
+            const message = e instanceof Error ? e.message : ""
+            if (message === "CUSTOMER_PROFILE_MISSING") setError(t("auth.login.profileMissing"))
+            else if (message.includes("TOO_MANY_REQUESTS")) setError(t("auth.login.tooMany"))
+            else setError(t("auth.login.failed"))
           }
         }}
       >

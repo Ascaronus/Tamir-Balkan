@@ -92,6 +92,7 @@
       "email": "Email",
       "password": "Password",
       "failed": "Login failed",
+      "tooMany": "Too many failed sign-in attempts. Please try again later.",
       "signingIn": "Signing in…",
       "signIn": "Sign in",
       "noAccount": "No account?",
