@@ -15,17 +15,17 @@ test('localized khaki and burgundy retain the same swatches as English in every 
  assert.equal(catalog.colorSwatch('Custom shade'),undefined)
  assert.equal(catalog.colorSwatch('#123abc'),'#123abc')
 })
-test('catalog sends repeated decimal sizes, comma prices, zero, regional pricing and customer authorization',async()=>{
+test('catalog sends repeated decimal sizes, comma prices, zero, regional pricing without a bearer token',async()=>{
  const selection=catalog.catalogSelection({size:['42,5','50'],color:[' Crna ','siva'],min_price:'0',max_price:'9999,5',sort:'price_asc',page:'2'})
  const controller=new AbortController()
- await catalog.fetchCatalog(selection,'reg-rs','sr',{token:'customer-test',signal:controller.signal})
+ await catalog.fetchCatalog(selection,'reg-rs','sr',{signal:controller.signal})
  const request=requests.at(-1),url=new URL(request.path,'https://example.test')
  assert.deepEqual(url.searchParams.getAll('size'),['42,5','50'])
  assert.deepEqual(url.searchParams.getAll('color'),['crna','siva'])
  assert.equal(url.searchParams.get('min_price'),'0');assert.equal(url.searchParams.get('max_price'),'9999,5')
  assert.equal(url.searchParams.get('region_id'),'reg-rs');assert.equal(url.searchParams.get('country_code'),'rs')
  assert.equal(url.searchParams.get('offset'),'24');assert.equal(url.searchParams.has('page'),false)
- assert.equal(request.options.headers.authorization,'Bearer customer-test');assert.equal(request.options.signal,controller.signal)
+ assert.equal(request.options.headers.authorization,undefined);assert.equal(request.options.signal,controller.signal)
  assert.equal(request.options.cache,'no-store')
 })
 test('changing catalog page preserves all filters and sort without comma splitting',()=>{

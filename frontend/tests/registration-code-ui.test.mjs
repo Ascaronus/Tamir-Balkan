@@ -30,15 +30,17 @@ test('signup waits for code, shows prominent spam reminder and cooldown, then ac
  assert.equal(signups,1);assert.equal(submitted.code,'123456');assert.equal(submitted.challenge_id,'challenge')
  assert.equal(redirect,'/rs/account')
 })
-test('client does not login or persist credentials until server verifies code',async()=>{
- const calls=[];let verified=false
+test('signup logs in through the cookie route only after the server verifies the code',async()=>{
+ const calls=[];const sent=[];let verified=false
  const client=load('frontend/src/lib/auth/auth-client.ts',{
-  '@/lib/medusa':{sdk:{client:{fetch:async(path)=>{calls.push(path);if(path.endsWith('/verify')){if(!verified)throw Error('CODE_INVALID');return {verified:true}};return {customer:{id:'c'}}}},auth:{login:async()=>{calls.push('login');return 'jwt'}}}},
-  './auth-storage':{setAuthToken:()=>calls.push('save')},'@/lib/cart/cart-storage':{},
- })
- const params={email:'test@example.test',password:'test-password',code:'123456',challenge_id:'opaque'}
+  '@/lib/medusa':{sdk:{client:{fetch:async(path)=>{calls.push(path);if(path==='/store/registration/verify'){if(!verified)throw Error('CODE_INVALID');return {verified:true}};return {customer:{id:'c'}}}}}},
+  '@/lib/cart/cart-storage':{},
+ },{fetch:async(path,init)=>{calls.push(path);sent.push(JSON.parse(init.body));return {ok:true}}}
+ )
+ const params={email:'TEST@example.test',password:'test-password',code:'123456',challenge_id:'opaque'}
  await assert.rejects(client.signup(params),/CODE_INVALID/)
- assert.deepEqual(calls,['/store/registration/verify'])
- verified=true;await client.signup(params)
- assert.deepEqual(calls.slice(1),['/store/registration/verify','login','save','/store/customers/me'])
+ assert.deepEqual(calls,['/store/registration/verify'],'a bad code must never reach the login route')
+ verified=true;assert.deepEqual((await client.signup(params)).id,'c')
+ assert.deepEqual(calls.slice(1),['/store/registration/verify','/api/auth/login','/store/customers/me'])
+ assert.deepEqual(sent,[{email:'test@example.test',password:'test-password'}])
 })

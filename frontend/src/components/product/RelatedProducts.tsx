@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { ProductCard } from "@/components/store/ProductCard"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { catalogSelection, fetchCatalog, type CatalogProduct } from "@/lib/store/catalog"
 import { getRegionByCountry } from "@/lib/store/regions"
 import { reviewSummaries } from "@/lib/reviews/server"
@@ -32,7 +31,7 @@ export function RelatedProducts({ productId }: { productId: string }) {
     async function load() {
       const region = await getRegionByCountry("rs")
       if (!region || abort.signal.aborted) return
-      const result = await fetchCatalog(catalogSelection({}), region.id, locale, { token: getAuthToken(), signal: abort.signal, limit: 6 })
+      const result = await fetchCatalog(catalogSelection({}), region.id, locale, { signal: abort.signal, limit: 6 })
       const products = result.products.filter(product => product.id !== productId).slice(0, 5)
       const summaries = await reviewSummaries(products.map(product => product.id))
       if (!abort.signal.aborted) setData({ key, products, summaries })

@@ -8,15 +8,9 @@ import type { HttpTypes } from "@medusajs/types"
 import { applyReorder, reorderTargets } from "@/lib/cart/reorder"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { sdk } from "@/lib/medusa"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { useCart } from "@/components/cart/CartProvider"
 import { AccountProfileForm } from "@/components/auth/AccountProfileForm"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
-
-function authHeaders() {
-  const token = getAuthToken()
-  return token ? { authorization: `Bearer ${token}` } : undefined
-}
 
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
   const { t, locale } = useLocaleContext()
@@ -47,7 +41,6 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           orders: HttpTypes.StoreOrder[]
         }>("/store/orders", {
           method: "GET",
-          headers: authHeaders(),
           query: { limit: 50, offset, order: "-created_at" },
           cache: "no-store",
         })
@@ -174,7 +167,6 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
                           order: { items?: { variant_id?: string; quantity: number }[] }
                         }>(`/store/orders/${o.id}`, {
                           method: "GET",
-                          headers: authHeaders(),
                           cache: "no-store",
                         })
                         const items = order?.items ?? []

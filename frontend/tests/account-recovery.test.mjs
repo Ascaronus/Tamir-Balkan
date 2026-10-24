@@ -3,20 +3,24 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {load,hooks,find} from '../test-support/component-harness.mjs'
 
-test('SDK and UI use one token key, and logout clears legacy token too',()=>{
+test('customer JWT lives only in an httpOnly cookie and legacy localStorage tokens are purged',()=>{
  const values=new Map([['tb_customer_token','old'],['medusa_auth_token','legacy']])
  const storage=load('frontend/src/lib/auth/auth-storage.ts',{}, {window:{localStorage:{getItem:key=>values.get(key),removeItem:key=>values.delete(key)}}})
  storage.clearAuthToken();assert.equal(values.size,0)
- assert.match(fs.readFileSync(new URL('../src/lib/medusa.ts',import.meta.url),'utf8'),/jwtTokenStorageKey: "tb_customer_token"/)
+ const medusa=fs.readFileSync(new URL('../src/lib/medusa.ts',import.meta.url),'utf8')
+ assert.match(medusa,/auth: \{ type: "session" \}/)
+ assert.doesNotMatch(medusa,/jwtTokenStorageKey/)
+ assert.match(fs.readFileSync(new URL('../src/lib/auth/session.ts',import.meta.url),'utf8'),/httpOnly: true/)
 })
-for(const status of [401,404,503])test(`customer lookup ${status} ${status===503?'preserves':'clears'} token`,async()=>{
- let token='old',cleared=0
+for(const status of [401,404,503])test(`customer lookup ${status} ${status===503?'rethrows':'becomes anonymous'}`,async()=>{
+ let cleared=0
  const client=load('frontend/src/lib/auth/auth-client.ts',{
   '@/lib/medusa':{sdk:{client:{fetch:async()=>{throw Object.assign(Error('response'),{status})},clearToken:async()=>{cleared++}}}},
-  './auth-storage':{getAuthToken:()=>token,clearAuthToken:()=>{token=null}},'@/lib/cart/cart-storage':{}
+  '@/lib/cart/cart-storage':{}
  })
- if(status===503){await assert.rejects(client.retrieveCustomer());assert.equal(token,'old');assert.equal(cleared,0)}
- else {assert.equal(await client.retrieveCustomer(),null);assert.equal(token,null);assert.equal(cleared,1)}
+ if(status===503)await assert.rejects(client.retrieveCustomer(),/response/)
+ else assert.equal(await client.retrieveCustomer(),null)
+ assert.equal(cleared,0)
 })
 test('password recovery keeps code and passwords out of URLs and does not log in automatically',async()=>{
  const calls=[]

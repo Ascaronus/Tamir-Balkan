@@ -19,10 +19,22 @@ const MEDUSA_BACKEND_URL = assertAsciiUrl(
   process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? "http://localhost:9000"
 )
 
+/**
+ * Аутентификация покупателя (H4) — тип "session": js-sdk сам не хранит и не
+ * подставляет JWT (в браузере токена больше нет), но шлёт `credentials:
+ * "include"`, поэтому httpOnly-кука `tb_customer_session` приходит на наш
+ * прокси `/api/medusa/*`, а сервер уже подставляет `authorization: Bearer`.
+ *
+ * Из браузера SDK ходит на свой же origin (путь `/api/medusa`): SDK собирает URL
+ * как `new URL(baseUrl.pathname + path, baseUrl.origin)`, поэтому запрос
+ * `/store/products` уходит в `/api/medusa/store/products`. На сервере (SSR и
+ * сборка) окна нет, и анонимные серверные запросы идут в бэкенд напрямую, как раньше.
+ */
 export const sdk = new Medusa({
-  baseUrl: MEDUSA_BACKEND_URL,
+  baseUrl: typeof window === "undefined"
+    ? MEDUSA_BACKEND_URL
+    : `${window.location.origin}/api/medusa`,
   debug: process.env.NODE_ENV === "development",
-  auth: { type: "jwt", jwtTokenStorageKey: "tb_customer_token" },
+  auth: { type: "session" },
   publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
 })
-

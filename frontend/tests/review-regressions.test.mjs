@@ -32,7 +32,7 @@ test('phone login ignores attacker-controlled Host and rejects redirect forwardi
 })
 test('missing customer profile fails login explicitly',async()=>{
  const h=hooks()
- const auth=load('frontend/src/components/auth/AuthProvider.tsx',{react:h.react,'@/lib/auth/auth-storage':{getAuthToken:()=>null},'@/lib/auth/auth-client':{login:async()=> 'token',retrieveCustomer:async()=>null}})
+ const auth=load('frontend/src/components/auth/AuthProvider.tsx',{react:h.react,'@/lib/auth/auth-storage':{clearAuthToken(){}},'@/lib/auth/auth-client':{login:async()=> 'token',retrieveCustomer:async()=>null}})
  const provider=h.render(()=>auth.AuthProvider({children:null}))
  await assert.rejects(provider.props.value.login('a','b'),/CUSTOMER_PROFILE_MISSING/)
 })
@@ -60,17 +60,17 @@ test('payment method request can be retried after failure',async()=>{
 })
 test('unknown guest order never displays confirmed',async()=>{
  const h=hooks();let requested=false
- const c=load('frontend/src/components/checkout/OrderConfirmation.tsx',{react:h.react,'@/lib/medusa':{sdk:{client:{fetch:async()=>{requested=true}}}},'@/lib/auth/auth-storage':{getAuthToken:()=>null},'@/lib/checkout/receipt':{readReceipt:()=>null},'@/components/i18n/LocaleProvider':{useTranslations:()=>t}})
+ const c=load('frontend/src/components/checkout/OrderConfirmation.tsx',{react:h.react,'@/lib/medusa':{sdk:{client:{fetch:async()=>{requested=true;return {orders:[]}}}}},'@/lib/checkout/receipt':{readReceipt:()=>null},'@/components/i18n/LocaleProvider':{useTranslations:()=>t}})
  const render=()=>h.render(()=>c.OrderConfirmation({id:'does-not-exist'}))
  render();await h.flush();const tree=render()
- assert.ok(JSON.stringify(tree).includes('order.unverified'));assert.equal(requested,false)
+ assert.ok(JSON.stringify(tree).includes('order.unverified'));assert.equal(requested,true)
 })
 test('variant URL and language changes refresh selection while preserving requested variant',()=>{
  const h=hooks();let id='m',locale='sr'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},
- '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/auth/auth-storage':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
+ '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
  })
  const props={product:{id:'p'},initialVariantId:'m'}
  const first=h.render(()=>details.ProductDetails(props)).props.children[0];id='l';const next=h.render(()=>details.ProductDetails(props)).props.children[0]
