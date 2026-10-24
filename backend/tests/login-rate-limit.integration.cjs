@@ -124,6 +124,9 @@ test('client IP comes from the nginx-appended XFF entry behind loopback, and for
 test('forged XFF cannot buy a fresh quota from a public peer',async()=>{
  const peer='198.51.100.6',email='forge@example.test'
  for(let i=0;i<LOGIN_EMAIL_FAIL_LIMIT;i++)await attempt(fakeReq({peer,xff:`9.9.9.${i+1}`,email}),401)
+ // Both counters are written concurrently (Promise.allSettled), so waiting only for the IP row
+ // can catch the pair counter one write short and let the sixth request reach authentication.
+ assert.ok(await waitCount(emailKey(email,peer),LOGIN_EMAIL_FAIL_LIMIT),'the real peer must carry the email+IP quota')
  assert.ok(await waitCount(ipKey(peer),LOGIN_EMAIL_FAIL_LIMIT))
  assert.equal(await rowCount(ipKey('9.9.9.1')),null,'the forged header must never become the throttle key')
  await blocked(fakeReq({peer,xff:'9.9.9.99',email}))
