@@ -7,12 +7,17 @@ test('legacy identity registration and direct customer creation cannot bypass OT
   '@medusajs/framework/http':{defineMiddlewares:x=>x,authenticate:()=>()=>{}},
   // Catalog middleware is unrelated to the registration guards under test.
   '../utils/catalog-http':{catalogMiddlewares:[]},
+  // The login throttle itself is covered by backend/tests/login-rate-limit.integration.cjs.
+  '../utils/login-rate-limit':{loginRateLimit:()=>{}},
  }).default.routes
  for(const matcher of ['/auth/customer/:provider/register','/store/customers']) {
   let status,body,next=false
   routes.find(r=>r.matcher===matcher&&r.methods.includes('POST')).middlewares[0]({}, {status(s){status=s;return this},json(b){body=b}},()=>{next=true})
   assert.equal(status,403);assert.equal(body.code,'EMAIL_VERIFICATION_REQUIRED');assert.equal(next,false)
  }
+ const throttle=routes.find(r=>r.matcher==='/auth/customer/emailpass')
+ assert.equal(throttle.methods.join(','),'POST')
+ assert.equal(throttle.middlewares.length,1)
 })
 for(const failure of [null,'captcha']) test(`code cannot be sent before CAPTCHA; failure=${failure}`,async()=>{
  const calls=[]
