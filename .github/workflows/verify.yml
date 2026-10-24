@@ -72,5 +72,6 @@ jobs:
         working-directory: backend
       - run: npm run build
         working-directory: backend
+      - run: node test-support/verify-deploy-dispatch.mjs
       - run: bash -n scripts/deploy-vps.sh
       - run: node test-support/verify-deploy-pin.mjs

@@ -9,7 +9,7 @@
 ## Основной способ: GitHub Actions
 
 1. Подготовить PR в `main`, проверить diff и результат `Verify storefront and backend`.
-2. После merge workflow **Deploy TAMIR** запускается только когда `Verify storefront and backend` для этого коммита `main` завершится успешно. Для повторного запуска доступен `workflow_dispatch` на `main`.
+2. После merge workflow **Deploy TAMIR** запускается только когда `Verify storefront and backend` для этого коммита `main` завершится успешно. Для повторного запуска доступен `workflow_dispatch`, но только с ветки `main` (условие `github.ref`), при этом берётся HEAD `main` на момент создания запуска. Job деплоя привязан к окружению `production`: в настройках репозитория (Settings → Environments) для него можно включить required reviewers и branch policy — тогда деплой требует отдельного подтверждения.
 3. Проверить завершение deploy и публичные страницы.
 
 Workflow использует ограниченный SSH-доступ `tamir-deploy` и команду `deploy`, secrets `VPS_HOST`, `VPS_PORT`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, проверку host key. Конкурентные выпуски сериализованы. Deploy запускается по событию `workflow_run` после успешно пройденной проверки, поэтому упавший CI не выпускает релиз; при изменении только документации проверка всё равно должна пройти. Deploy выпускает ровно тот коммит, на котором `Verify` прошёл (`workflow_run.head_sha`), а не `origin/main` на момент старта деплоя: SHA проверяется на формат из 40 hex-символов и передаётся команде `deploy` обязательным аргументом; `deploy-vps.sh` без него отказывается запускаться. Обёртка `deploy` на VPS обязана пробрасывать аргументы (`"$@"`) в `scripts/deploy-vps.sh`. Всё равно проверяйте SHA в имени активированного релиза.
