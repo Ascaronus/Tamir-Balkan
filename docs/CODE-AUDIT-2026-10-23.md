@@ -64,7 +64,15 @@ Verify-прогон `40110204794` зелёный, деплой-прогон `401
 pm2-процесса онлайн. Ручная проверка приватного прокси (с ноутбука, 24.10): товары
 отдаются со `x-publishable-api-key`, без ключа — `400` от Medusa; не-store пути
 (`admin`, `health`, путь с `..`) — `404 {"error":"not_found"}` от самого прокси; во всех
-проксируемых ответах есть `cache-control: no-store` и нет `set-cookie`.
+проксируемых ответах есть `cache-control: no-store` и нет `set-cookie`. Живая проба логина
+(24.10 18:04 UTC, ноутбук → `https://tamir.rs/api/auth/login`, несуществующий e-mail):
+5×`401` («Invalid email or password», без `set-cookie` и токена в теле), 6-й запрос тем же
+e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP — `401` (блок покадровый,
+по e-mail+IP). Сверка на VPS: cwd обоих pm2-процессов — релиз
+`20261024T161211Z-0f294291568c`, `MEDUSA_PROXY_BACKEND_URL=http://127.0.0.1:9000`,
+обращений nginx к `/auth/customer/emailpass` с `127.0.0.1` — **0** (бэкенд не зовёт сам
+себя через `api.tamir.rs`), в JSON-логе бэкенда `client_ip` — реальный адрес клиента
+(правый `x-forwarded-for` от nginx).
 
 ---
 
