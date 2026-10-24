@@ -1,0 +1,70 @@
+name: Diag deploy wrapper (read-only)
+# Временная диагностика: показать, как устроена удалённая команда `deploy` на VPS.
+# Только чтение: никаких изменений на сервере. После разбора PR закрывается, файл не мержится.
+on:
+  push:
+    branches:
+      - diag/vps-deploy-wrapper
+permissions:
+  contents: read
+jobs:
+  diag:
+    name: Inspect remote deploy wrapper (read-only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read wrapper definition over SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          : "${VPS_HOST:?Missing VPS_HOST}"
+          : "${VPS_PORT:?Missing VPS_PORT}"
+          : "${VPS_SSH_KEY:?Missing VPS_SSH_KEY}"
+          : "${VPS_KNOWN_HOSTS:?Missing VPS_KNOWN_HOSTS}"
+          umask 077
+          diag_dir="$(mktemp -d)"
+          trap 'rm -rf "$diag_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$diag_dir/key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$diag_dir/known_hosts"
+          ssh_base() {
+            ssh -T \
+              -p "$VPS_PORT" \
+              -i "$diag_dir/key" \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o HostKeyAlias=tamir-vps \
+              -o UserKnownHostsFile="$diag_dir/known_hosts" \
+              -o ConnectTimeout=20 \
+              "tamir-deploy@$VPS_HOST" "$1"
+          }
+          echo '=== probe: is the SSH remote command honoured or forced? ==='
+          ssh_base 'echo PROBE_OK; echo "SSH_ORIGINAL_COMMAND=[${SSH_ORIGINAL_COMMAND:-}]"' \
+            || echo 'probe exited non-zero (likely a forced command replaced the remote string)'
+          echo '=== wrapper identification (read-only) ==='
+          ssh_base 'set +e
+            echo "== id =="; id
+            echo "== account shell =="; getent passwd "$(id -un)"
+            echo "== type -a deploy =="; type -a deploy
+            p=$(command -v deploy || true)
+            if [ -n "$p" ]; then
+              echo "== deploy file =="; ls -l "$p"
+              echo "--- content (up to 120 lines) ---"; head -120 "$p"; echo "--- end ---"
+            else
+              echo "deploy is not a file on PATH"
+            fi
+            echo "== rc files mentioning deploy/tamir =="
+            for f in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+              if [ -f "$f" ]; then echo "--- $f ---"; grep -n -i "deploy\|tamir" "$f" | head -30; fi
+            done
+            echo "== authorized_keys (public key elided) =="
+            if [ -f "$HOME/.ssh/authorized_keys" ]; then
+              sed -e "s/ssh-[a-z0-9]* [A-Za-z0-9+\/=]*.*/[public key elided]/" -e "s/ecdsa-sha2[^ ]* [A-Za-z0-9+\/=]*.*/[public key elided]/" "$HOME/.ssh/authorized_keys"
+            else
+              echo "no readable authorized_keys"
+            fi
+            true' || echo 'inspection exited non-zero (forced command in effect?)'
+          echo '=== done ==='
