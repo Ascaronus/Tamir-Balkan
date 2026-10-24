@@ -9,17 +9,26 @@
 Утром 24.10 пересмотрён объём H1 после решения владельца: телефонного логина в
 UI нет — неиспользуемый роут `phone-login` предлагается удалить, а rate-limit
 поставить на реальный логин `/auth/customer/emailpass` (подробности в пункте H1).
+Вечером 24.10 все четыре HIGH-пункта (H1–H4) исправлены, влиты в `main` и выложены
+на прод: HEAD `main` — `0f29429`, релиз на VPS `20261024T161211Z-0f294291568c`.
 
-Статус: **ничего из списка ниже ещё не исправлено** (кроме отмеченного «готово»).
+Статус: **готовы H1, H2, H3, H4** (PR #22, #23, #24, #26) — весь раздел HIGH закрыт.
+Попутно закрыты две поломки, которые обнаружили сами деплои: #27 (пустой
+`VERIFIED_RUN`) и #28 (гонка в тесте H1). **Открыты: все M1–M10 и LOW-список.**
 Работа продолжается по одному маленькому PR на исправление.
 
 ---
 
-## Как вернуться к работе завтра
+## Как продолжить работу
 
 1. `git fetch origin && git checkout main && git pull --ff-only` — убедиться, что
-   локальный `main` совпадает с `origin/main`.
-2. Открыть таблицу «Порядок PR» ниже и взять первый незакрытый номер.
+   локальный `main` совпадает с `origin/main` (на вечер 24.10 это `0f29429`, в нём
+   уже есть H1–H4). Ветки `fix/audit-m1` и `fix/audit-h1` так и не создавались:
+   H1–H4 шли в отдельных ветках — `fix/auth-rate-limit`, `fix/deploy-verified-sha`,
+   `fix/deploy-dispatch-guard`, `fix/customer-auth-cookies`.
+2. Открыть таблицу «Порядок PR» ниже и взять первый незакрытый номер. Нумерация
+   плановых PR сдвинулась: карточка #25 так и не создана, а **#26, #27 и #28 заняты**
+   H-исправлениями 24.10 — следующая свободная карточка **#29** (см. таблицу).
 3. Ветка `fix/<slug>`, один коммит, PR, ждать `verify` (обязательные проверки
    `verify (20.20.2)` и `verify (24)`, строгие).
 4. **Мерж = прод.** Перед `gh pr merge` всегда спрашивать разрешение.
@@ -41,15 +50,45 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 | #18 | `deploy.yml` запускается через `workflow_run` на `Verify`, а не параллельно push'у | `87b43b4` |
 | #19 | Secure-флаги cookie в проде (`cookieSecure`) | `686d738` |
 | #20 | Метаданные `backend/package.json` | `768426f` |
+| #22 | **H1**: удалён `phone-login`, throttle на `/auth/customer/emailpass` (только неудачи, email+IP) | `5f82714` |
+| #23 | **H2**: деплой ровно проверенного SHA + пин `VERIFIED_SHA`/`VERIFIED_RUN` в `deploy-vps.sh` | `e6fdefc` |
+| #24 | **H3**: `workflow_dispatch` только из `main` + `environment: production` | `8e88d8e` |
+| #26 | **H4**: `httpOnly`-cookie + серверный прокси только к `/api/medusa/store/*` | `5f8320e` |
+| #27 | CI: `VERIFIED_RUN` брать из `workflow_run.id` (в payload нет `run_id`) | `09c470d` |
+| #28 | Тест H1: закрыта гонка записи счётчиков в forged-XFF кейсе | `0f29429` |
 | — | Защита ветки `main`: обязательные проверки `verify (20.20.2)` / `verify (24)`, строгие, обязателен PR (0 ревью), запрещены force-push и удаление ветки, `enforce_admins: false` | — |
 
-Прод `tamir.rs` после #20 здоров, деплои проходят через гейт.
+Прод `tamir.rs` здоров, деплои проходят через гейт. На вечер 24.10 на проде крутится
+`0f29429` (H1–H4 + #27 + #28): релиз и резервная копия `20261024T161211Z-0f294291568c`,
+Verify-прогон `40110204794` зелёный, деплой-прогон `40110446245` успешный, оба
+pm2-процесса онлайн. Ручная проверка приватного прокси (с ноутбука, 24.10): товары
+отдаются со `x-publishable-api-key`, без ключа — `400` от Medusa; не-store пути
+(`admin`, `health`, путь с `..`) — `404 {"error":"not_found"}` от самого прокси; во всех
+проксируемых ответах есть `cache-control: no-store` и нет `set-cookie`.
 
 ---
 
 ## HIGH — делать в первую очередь
 
 ### H1. Подбор пароля: неиспользуемый `phone-login` удалить, реальному логину `/auth/customer/emailpass` нужен rate-limit
+
+**✅ Готово — PR #22 (ветка `fix/auth-rate-limit`, коммиты `b7139e2` + `b1806e0`,
+мерж `5f82714`, на проде с 24.10).** Реализовано по плану пункта: `phone-login` удалён
+(роут, строка в `src/api/README.md`, тест в `review-regressions.test.mjs`); добавлен
+`backend/src/utils/login-rate-limit.ts` — считает **только неудачи** (`res.on("finish")`
+при 400/401), ключ `login-email:HMAC(email|ip)` с лимитом 5/час и `login-ip:HMAC(ip)`
+с лимитом 30/час, ответы `429 {"code":"TOO_MANY_REQUESTS","retry_after":N}`, при отказе
+самого троттла — fail-open; matcher `/auth/customer/emailpass` в `src/api/middlewares.ts`;
+`LoginForm` показывает локализованную строку на 429 (`sr.json`/`en.json`). Интеграционный
+тест `backend/tests/login-rate-limit.integration.cjs` **добавлен в `verify.yml`** (частично
+закрывает M7). Turnstile на логине не делали — остался опциональным polish. Клиента
+определяет `clientIp()`: если TCP-пир loopback (nginx рядом) — берётся
+**правый** элемент `x-forwarded-for`, иначе XFF игнорируется и берётся сам пир, поэтому
+поддельная цепочка не даёт свежую квоту. Важно для H4: ветка логина в прокси обязана
+ходить на `127.0.0.1:9000` (`MEDUSA_PROXY_BACKEND_URL`), иначе nginx допишет адрес VPS
+в правый XFF и все покупатели окажутся в одном ключе `login-ip`.
+
+Ниже — исходный текст пункта, оставлен как обоснование решения.
 
 Переформулировано 24.10 после разговора с владельцем («телефонного логина в UI нет,
 это заготовка»). Первая редакция предлагала навесить rate-limit + Turnstile на
@@ -111,6 +150,19 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 
 ### H2. Деплой берёт HEAD `origin/main`, а не проверенный коммит (гонка)
 
+**✅ Готово — PR #23 (коммит `55a9ad2`, мерж `e6fdefc`, на проде с 24.10).** В
+`deploy.yml` SHA проверенного запуска собран в переменную `VERIFIED_SHA`
+(`github.event.workflow_run.head_sha || github.sha`) и передаётся в `deploy-vps.sh`
+аргументом; при ручном запуске пинится HEAD `main` на момент создания запуска. В скрипте
+пин держится жёстко: неизвестный коммит (`git rev-parse --verify`) — выход, коммит вне
+истории `origin/main` (`git merge-base --is-ancestor`) — выход; дерево релиза берётся
+из `git archive "$target"`, а не из рабочего дерева. Добавлена проверка
+`test-support/verify-deploy-pin.mjs`. Попутно выяснилось, что `VERIFIED_RUN` нельзя
+брать из `github.event.workflow_run.run_id` — такого поля в payload события нет,
+переменная была пустой и в журнале каждый автоматический деплой печатался как
+«verified by this manual dispatch» (на пин по SHA это не влияло, но сбивало аудит).
+Починено PR #27 (`f18d977`, мерж `09c470d`) через `workflow_run.id`.
+
 Файлы: `.github/workflows/deploy.yml:30-33`, `scripts/deploy-vps.sh:17`.
 
 - Шаг «Record the verified commit» только **печатает** SHA проверенного запуска.
@@ -125,6 +177,14 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 
 ### H3. `workflow_dispatch` в `deploy.yml` без guard'а и без `environment`
 
+**✅ Готово — PR #24 (коммит `c952a10`, мерж `8e88d8e`, на проде с 24.10).** В job'е
+`deploy` стоят `if` с разбором двух событий: `workflow_dispatch` допускается только
+с `github.ref == 'refs/heads/main'`, автоматический запуск — только как `workflow_run`
+на успешный Verify с `event == 'push'` и `head_branch == 'main'`; добавлено
+`environment: production` (появилось правило окружения и отдельный approval).
+При dispatch SHA пинится на HEAD `main` в момент создания запуска (`github.sha`),
+а не на HEAD ветки, с которой нажали кнопку.
+
 Файл: `.github/workflows/deploy.yml:5-6`, `:21-25`.
 
 - У `workflow_dispatch` нет условия `github.ref == 'refs/heads/main'`: запуск с
@@ -137,6 +197,39 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 
 ### H4. Токен покупателя в `localStorage` (XSS = угон аккаунта)
 
+**✅ Готово — PR #26 (коммит `c32b337`, мерж `5f8320e`, на проде с 24.10).** JWT
+покупателя больше не лежит в браузере: логин идёт на `POST /api/auth/login`
+(Next-роут), который на сервере обращается к `${MEDUSA_PROXY_BACKEND_URL}/auth/customer/emailpass`
+в обход nginx, и ставит куку `tb_customer_session` — `httpOnly`, `sameSite: lax`,
+`secure` в проде, `path: /`, `maxAge` из `exp` JWT (fallback — константа).
+ Logout чистит куку; ответ upstream с `401` в прокси тоже снимает её. `auth-storage.ts`
+оставлен только как чистильщик старых `tb_customer_token`/`medusa_auth_token`
+из `localStorage` у вернувшихся посетителей. CSRF закрыт `sameSite: lax` + JSON-only
+контентом Medusa.
+
+Прокси `frontend/src/app/api/medusa/[...path]/route.ts` пропускает **только** пути
+`/api/medusa/store/*` (первый сегмент обязан быть `store`; `SAFE_PATH`-редекc плюс отсев
+`%2e`/`%2f`/`%5c` и `..`-сегментов). Всё остальное — `/auth`, `/admin`, `/health`, пустой
+путь — `404 {"error":"not_found"}` от самого прокси; невалидный путь — `400`, слишком
+большое тело — `413`, недоступный backend — `502` (везде JSON, без HTML-страниц). Во всех ответах `cache-control: no-store`,
+`authorization` подставляется на сервере из куки, ключ publishable подставляется тоже
+на сервере. `MEDUSA_PROXY_BACKEND_URL=http://127.0.0.1:9000` задан в pm2-окружении
+`tamir-frontend` на VPS (в `deploy-vps.sh` живое pm2-окружение переносится в каждый
+новый релиз); без него fallback — `NEXT_PUBLIC_MEDUSA_BACKEND_URL`, поэтому в проде
+его держать обязательно: прямые вызовы к `api.tamir.rs` заставили бы nginx дописать
+адрес VPS в правый `x-forwarded-for` и все покупатели попали бы в один ключ `login-ip`
+(см. H1).
+
+Ручная проверка на проде (24.10, с ноутбука): товары через прокси — `200` с подставленным
+`x-publishable-api-key`; без ключа — `400` от Medusa; `admin`/`health`/путь с `..` —
+`404` от прокси; `set-cookie` в ответах нет.
+
+Файлы: `frontend/src/app/api/medusa/[...path]/route.ts`,
+`frontend/src/app/api/auth/login/route.ts`, `frontend/src/lib/auth/session.ts`,
+`frontend/src/lib/medusa.ts:25`.
+
+Было (обоснование, оставлено):
+
 Файлы: `frontend/src/lib/auth/auth-storage.ts`, `frontend/src/lib/medusa.ts:25`.
 
 - JWT клиента лежит в `localStorage` под ключом `tb_customer_token` и
@@ -144,8 +237,8 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 - Исправление — не «маленький PR»: нужен переход на `httpOnly`-cookie сессии
   (медуса умеет) и удаление ручного хранения токена из фронтенда.
 
-Отметить как отдельную дизайн-задачу; до неё — H1 (rate-limit на `/auth/customer/emailpass`) снижает
-риск подбора пароля.
+Так и сделали: это была отдельная дизайн-задача (PR #26), а до неё H1 (rate-limit на
+`/auth/customer/emailpass`) снижал риск подбора пароля.
 
 ---
 
@@ -165,7 +258,7 @@ UI нет — неиспользуемый роут `phone-login` предлаг
 случайно (`npm run seed` — `backend/package.json:17`). Нужен явный guard по
 `NODE_ENV`/переменной окружения.
 
-PR #25: убрать `test_test` из прод-конфига + guard на seed.
+PR #29 (M1 + M2 вместе): убрать `test_test` из прод-конфига + guard на seed.
 
 ### M3. Фантомные зависимости в backend
 
@@ -178,7 +271,7 @@ PR #25: убрать `test_test` из прод-конфига + guard на seed.
   (`catalog-popularity.ts`, `password-reset.ts`, `registration-code.ts`) — тоже
   отсутствует в зависимостях.
 
-Сейчас работает только за счёт транзитивной установки из `@medusajs/*`. PR #26:
+Сейчас работает только за счёт транзитивной установки из `@medusajs/*`. PR #30:
 добавить `zod` в `dependencies`, `knex` в `devDependencies` (или убрать импорт
 типов), и зафиксировать версии.
 
@@ -202,7 +295,7 @@ PR: менять порядок (активация → затем ff-merge), р
 Внешний QA-отчёт называл другой адрес (`188.121.137.67`) — в коде его нет;
 видимо, это устаревший/сторонний адрес. Актуальный — `178.104.108.200`.
 
-PR #27: вынести в переменную окружения / заменить на список «локальные хосты» без
+PR #31: вынести в переменную окружения / заменить на список «локальные хосты» без
 публичного адреса; в `DEPLOY.md` — плейсхолдер вместо IP.
 
 ### M6. `.gitignore` не закрывает загруженные медиа
@@ -211,7 +304,7 @@ PR #27: вынести в переменную окружения / замени
 медиа — `backend/static/` и `backend/private-static/` (см.
 `scripts/deploy-vps.sh:77-87`, `backend/medusa-config.ts:41`).
 
-PR #28: добавить `backend/static/` и `backend/private-static/`.
+PR #32: добавить `backend/static/` и `backend/private-static/`.
 
 ### M7. Тесты разъезжаются с CI
 
@@ -224,7 +317,7 @@ PR #28: добавить `backend/static/` и `backend/private-static/`.
   нет (grep пуст);
 - в `backend/package.json` нет скрипта `test` (только jest-скрипты Medusa).
 
-PR #29: сделать glob-список (или единый скрипт `npm test` в backend) и добавить
+PR #33: сделать glob-список (или единый скрипт `npm test` в backend) и добавить
 пропущенный тест; обновить `docs/TESTING.md`.
 
 ### M8. Фронтенд: лишние сетевые запросы и build-зависимость от сети
@@ -314,8 +407,8 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 
 ### Внешний QA-отчёт: что из него не подтвердилось
 
-Внешний отчёт (P0/P1/P2/SR-LAT/EN) сверен с кодом `main` — половина пунктов уже
-учтена выше (#22–#24), остальные разобраны:
+Внешний отчёт (P0/P1/P2/SR-LAT/EN) сверен с кодом `main` — часть пунктов уже учтена
+исправлениями HIGH (#22–#24, #26), остальные разобраны:
 
 - «Пользователь `test_test` — админ с доступом к управлению» — **неверно**.
   `test_test` — fulfillment-провайдер-заглушка (`backend/src/scripts/test-fulfillment-provider.ts`,
@@ -356,24 +449,32 @@ PR #29: сделать glob-список (или единый скрипт `npm 
 
 ## Порядок PR
 
-Номера плановые (фактические появятся при создании PR). Этот аудит-PR занял **#21**,
-поэтому отсчёт исправлений начинается с #22.
+Номера ниже — фактические (PR уже созданы и смержены) либо плановые, продолжение
+нумерации. Этот аудит-PR занял **#21**; HIGH-исправления шли отдельными PR:
+**#22** (H1), **#23** (H2), **#24** (H3), **#26** (H4); попутно закрыты поломки,
+найденные самими деплоями, — **#27** (пустой `VERIFIED_RUN`) и **#28** (гонка в
+тесте H1). Карточка **#25** так и не создавалась, а #26–#28 заняты, поэтому плановые
+номера сдвинуты: следующая свободная карточка **#29** (номер всё равно уточнить при
+создании PR — нумерация общая для репозитория).
 
-| PR | Предмет | Приоритет |
-|----|---------|-----------|
-| #22 | Удалить phone-login + rate-limit на `/auth/customer/emailpass` (IP+email, только неудачи) + friendly-429 в `LoginForm` | HIGH |
-| #23 | Деплой по проверенному SHA (`workflow_run.head_sha`) | HIGH |
-| #24 | Guard `workflow_dispatch` + `environment: production` | HIGH |
-| #25 | Убрать `test_test` из прод-конфига + guard на `seed.ts` | MED |
-| #26 | Зависимости `zod` / `knex` в `backend/package.json` | MED |
-| #27 | Убрать публичный IP из `DEPLOY.md` и бандла | MED |
-| #28 | `.gitignore`: `backend/static/`, `backend/private-static/` | MED |
-| #29 | Тесты: glob/единый скрипт + пропущенный тест + `docs/TESTING.md` | MED |
-| — | M10: решение по письму `sr` (сейчас латиница; при желании — отдельная локаль `sr-Cyrl`) + браузер-проверка алфавитов | MED, продукт |
-| — | Пакет фронтенда: таймауты, `no-store`, баннер, `next/font` | MED |
-| — | Документация: `DEPLOY.md`, `SECRETS.md`, `DOCKER-EXIT-PLAN.md`, `.env.example` | MED |
-| — | LOW-микроправки (теги actions, `.gitattributes`, бэкапы, мёртвые ассеты) | LOW |
-| — | H4: `httpOnly`-сессии вместо `localStorage` (дизайн-задача) | HIGH, отдельная |
+| PR | Предмет | Приоритет | Статус |
+|----|---------|-----------|--------|
+| #22 | Удалить phone-login + rate-limit на `/auth/customer/emailpass` (IP+email, только неудачи) + friendly-429 в `LoginForm` | HIGH | ✅ в проде (`5f82714`) |
+| #23 | Деплой по проверенному SHA (`workflow_run.head_sha`) | HIGH | ✅ в проде (`e6fdefc`) |
+| #24 | Guard `workflow_dispatch` + `environment: production` | HIGH | ✅ в проде (`8e88d8e`) |
+| #26 | H4: `httpOnly`-сессии вместо `localStorage` + прокси только `/api/medusa/store/*` | HIGH | ✅ в проде (`5f8320e`) |
+| #27 | CI: `VERIFIED_RUN` из `workflow_run.id` (в payload нет `run_id`) | HIGH | ✅ в проде (`09c470d`) |
+| #28 | H1: тест на гонку счётчиков и forged-`x-forwarded-for` | HIGH | ✅ в проде (`0f29429`) |
+| #29 | M1 + M2: убрать `test_test` из прод-конфига + guard на `seed.ts` | MED | открыто |
+| #30 | M3: зависимости `zod` / `knex` в `backend/package.json` | MED | открыто |
+| #31 | M5: убрать публичный IP из `DEPLOY.md` и бандла | MED | открыто |
+| #32 | M6: `.gitignore` — `backend/static/`, `backend/private-static/` | MED | открыто |
+| #33 | M7: тесты — glob/единый скрипт + пропущенный тест + `docs/TESTING.md` | MED | открыто |
+| — | M4: атомарный cutover (активация → ff-merge) и `pm2 reload` вместо delete+start | MED | открыто |
+| — | M10: решение по письму `sr` (сейчас латиница; при желании — отдельная локаль `sr-Cyrl`) + браузер-проверка алфавитов | MED, продукт | открыто |
+| — | M8: пакет фронтенда — таймауты, `no-store`, баннер, `next/font` | MED | открыто |
+| — | M9: документация — `DEPLOY.md`, `SECRETS.md`, `DOCKER-EXIT-PLAN.md`, `.env.example` | MED | открыто |
+| — | LOW-микроправки (теги actions, `.gitattributes`, бэкапы, мёртвые ассеты) | LOW | открыто |
 
 ---
 
