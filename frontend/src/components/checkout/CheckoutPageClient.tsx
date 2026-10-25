@@ -168,12 +168,12 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <h1 className="commerce-title">
           {t("checkout.title")}
         </h1>
-        <p className="mt-4 text-sm text-[var(--store-text-muted)]">
+        <p className="mt-6 text-sm text-[var(--store-text-muted)]">
           {customer
             ? t("checkout.loggedInHint")
             : t("checkout.guestHint")}
         </p>
-        {!customer && <div className="mt-5 flex flex-wrap items-center gap-3" aria-label={t("checkout.guestChoice")}>
+        {!customer && <div className="mt-6 flex flex-wrap items-center gap-3" aria-label={t("checkout.guestChoice")}>
           <button type="button" className="button-primary" onClick={() => {
             const input = document.querySelector<HTMLInputElement>("#checkout-form input")
             input?.focus(); input?.scrollIntoView({ behavior: "smooth", block: "center" })
@@ -290,14 +290,14 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </h2>
 
         <div className="checkout-field-row">
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.firstName")}
             </span>
             <input {...fieldProps("firstName")} autoComplete="given-name" maxLength={100} value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
             {fieldError("firstName")}
           </label>
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.lastName")}
             </span>
@@ -307,14 +307,14 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </div>
 
         <div className="checkout-field-row">
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.email")}
             </span>
             <input {...fieldProps("email")} autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} type="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
             {fieldError("email")}
           </label>
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.phone")}
             </span>
@@ -328,7 +328,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </h2>
 
         <div className="checkout-field-row">
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.country")}
             </span>
@@ -337,7 +337,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             </select>
             {fieldError("country")}
           </label>
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.postalCode")}
             </span>
@@ -347,7 +347,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         </div>
 
         <div className="checkout-field-row">
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.city")}
             </span>
@@ -358,7 +358,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             </select>
             {!otherCity && fieldError("city")}
           </label>
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.address")}
             </span>
@@ -367,9 +367,9 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           </label>
         </div>
 
-        {otherCity && <label className="mt-4 grid gap-1"><span>{t("auth.validation.cityName")} *</span><input {...fieldProps("city")} autoComplete="address-level2" value={city} maxLength={100} onChange={e => setCity(e.target.value)} required />{fieldError("city")}</label>}
+        {otherCity && <label className="mt-4 grid gap-2"><span>{t("auth.validation.cityName")} *</span><input {...fieldProps("city")} autoComplete="address-level2" value={city} maxLength={100} onChange={e => setCity(e.target.value)} required />{fieldError("city")}</label>}
 
-        <label className="mt-4 grid gap-1">
+        <label className="mt-4 grid gap-2">
           <span className="text-sm font-medium text-[var(--store-text)]">
             {t("checkout.notes")}
           </span>

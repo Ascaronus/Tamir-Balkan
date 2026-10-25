@@ -80,6 +80,7 @@ test('switcher remembers selection and navigates to the same translated product 
 function productPage(locale, ready=true, {resolverStatus, available=true}={}) {
  const product={id:'p1',handle:'bordo-kapa',title:locale==='en'?'Burgundy hat':'Bordo kapa',description:'Description',metadata:{en_handle:'burgundy-hat',en_content_ready:ready},variants:[{id:'variant_1'}]}
  return load('frontend/src/app/[countryCode]/products/[handle]/page.tsx',{
+  '@/lib/store/category-url':load('frontend/src/lib/store/category-url.ts'),
   react:{cache:fn=>fn},'@/components/reviews/Stars':{},'@/lib/reviews/server':{productReviews:async()=>null},'@/components/reviews/ProductReviews':{},
   '@/lib/i18n/content':{localizedText:(_p,_key,fallback)=>fallback},'@/lib/product-image':{getImagesForVariant:()=>[]},'@/lib/seo/product':{productJsonLd:()=>null},
   '@/lib/seo':{siteUrl,languageAlternates},'@/components/i18n/LocalizedLink':'Link',

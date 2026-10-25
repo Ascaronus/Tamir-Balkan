@@ -274,7 +274,8 @@
     "search": "Pretraži proizvode",
     "searchPlaceholder": "Naziv proizvoda…",
     "page": "Strana {n} od {total}",
-    "count": "{n} proizvoda"
+    "count": "{n} proizvoda",
+    "loadMore": "Učitaj još"
   },
   "product": {
     "home": "Početna",
@@ -299,7 +300,8 @@
     "addFailed": "Nije moguće dodati ovu količinu. Stanje se možda promenilo. Osvežite stranicu i pokušajte ponovo.",
     "brand": "Brend",
     "deliveryTerms": "Dostava širom Srbije: 300 RSD, u roku do 7 dana.",
-    "defectReturnTerms": "TAMIR prihvata povraćaj robe sa fabričkim nedostatkom u roku od 3 meseca od prijema robe i snosi troškove povratne dostave. Ovaj dodatni uslov prodavnice ne isključuje niti skraćuje zakonska prava potrošača."
+    "defectReturnTerms": "TAMIR prihvata povraćaj robe sa fabričkim nedostatkom u roku od 3 meseca od prijema robe i snosi troškove povratne dostave. Ovaj dodatni uslov prodavnice ne isključuje niti skraćuje zakonska prava potrošača.",
+    "compositionCare": "Sastav i održavanje"
   },
   "lang": {
     "sr": "Srpski",
@@ -374,7 +376,8 @@
     "voted": "Glas je zabeležen",
     "hiddenNegative": "Recenzija je sklopljena zbog negativnih glasova · {n}",
     "expandOne": "Prikaži recenziju",
-    "collapseOne": "Sklopi recenziju"
+    "collapseOne": "Sklopi recenziju",
+    "experiences": "Iskustva kupaca"
   },
   "design": {
     "heroTitle": "Toplina koja nas spaja",

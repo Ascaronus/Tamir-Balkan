@@ -4,7 +4,7 @@ import { getRegionByCountry } from "@/lib/store/regions"
 import type { HttpTypes } from "@medusajs/types"
 
 const PRODUCT_FIELDS =
-  "*images,*options,*options.values,*variants,*variants.options,*variants.options.option,*variants.calculated_price,+variants.inventory_quantity,*variants.images,+metadata"
+  "*categories,*images,*options,*options.values,*variants,*variants.options,*variants.options.option,*variants.calculated_price,+variants.inventory_quantity,*variants.images,+metadata"
 
 export async function listProductsByCountry(params: {
   countryCode: string

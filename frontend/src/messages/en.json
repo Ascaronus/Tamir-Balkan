@@ -274,7 +274,8 @@
     "search": "Search products",
     "searchPlaceholder": "Product name…",
     "page": "Page {n} of {total}",
-    "count": "{n} products"
+    "count": "{n} products",
+    "loadMore": "Load more"
   },
   "product": {
     "home": "Home",
@@ -299,7 +300,8 @@
     "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again.",
     "brand": "Brand",
     "deliveryTerms": "Delivery throughout Serbia: RSD 300, within 7 days.",
-    "defectReturnTerms": "TAMIR accepts returns for manufacturing defects within 3 months of receiving the goods and covers return shipping. This additional store policy does not exclude or shorten statutory consumer rights."
+    "defectReturnTerms": "TAMIR accepts returns for manufacturing defects within 3 months of receiving the goods and covers return shipping. This additional store policy does not exclude or shorten statutory consumer rights.",
+    "compositionCare": "Composition and care"
   },
   "lang": {
     "sr": "Serbian",
@@ -374,7 +376,8 @@
     "voted": "Vote recorded",
     "hiddenNegative": "Review collapsed due to negative feedback · {n}",
     "expandOne": "Show review",
-    "collapseOne": "Collapse review"
+    "collapseOne": "Collapse review",
+    "experiences": "Customer experiences"
   },
   "design": {
     "heroTitle": "Warmth that brings us together",
