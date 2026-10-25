@@ -78,7 +78,7 @@ button, matching the implemented control and text inset.
 - Previously agreed typography, campaign image, larger color choices, 80%
   product image with zoom, two-line card title reservation and legal links stay.
 
-### Remaining design/content decisions
+### Earlier design/content decisions (footer resolved below)
 
 The Figma footer has conflicting 48px/80px vertical padding and different mobile
 links. Keep the shared working footer until that design is unified; do not remove
@@ -98,3 +98,25 @@ content must come from the catalog. These are not certified pixel-identical area
   24px catalog row gaps, 118px mobile filter, 8px form gaps and 16px vote assets.
 - Fixture data and browser tooling are external to the shipped repository;
   this does not certify physical devices, real checkout or payment processing.
+
+### Owner decisions — 2026-10-25
+
+- Keep production footer spacing: 48px vertical on desktop, 32px at <=900px.
+  Preserve production links and its compact mobile layout. Synchronize the
+  current responsive Figma page to this implementation, not historical pages.
+- Product Attributes are shown in a conditional Dimensions and details accordion:
+  length, width, height, weight, origin country, manufacturer code and HS code.
+  Empty fields disappear; no populated fields means no accordion. Explicit zero
+  is retained, as are decimal values. Country labels follow the storefront locale.
+  These are product-level attributes from Medusa, not a fabricated size chart or
+  arbitrary metadata. The built-in admin form has no measurement-unit labels:
+  values are preserved without inventing conversions or a cm/kg convention.
+- Material continues to use the existing Composition and care accordion. Example
+  supplied by owner: `50% viscose, 50% acrylic.`; never replace it with demo data.
+- Owner confirms the shop operates without VAT. Do not add a VAT-inclusive claim
+  or new VAT charge. Existing tax configuration is outside this UI change.
+- Support contact channels are not ready. Keep the current public interface;
+  future setup checklist is in SUPPORT-CONTACTS.md.
+
+- Figma synchronization completed on active page `79:1215`: 33 footers use the
+  production link sets and 48/32px spacing. Historical design pages are unchanged.

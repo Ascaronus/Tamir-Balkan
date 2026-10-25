@@ -443,3 +443,8 @@ body { line-height: 1.5; }
   .product-thumbnail[aria-pressed=true]::after { background: var(--store-text); }
   .cart-line-title { line-height: 24px; }
 }
+
+.product-attributes dl { margin-top: 16px; font-size: 14px; line-height: 22px; }
+.product-attributes dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding-block: 8px; border-bottom: 1px solid var(--store-border); }
+.product-attributes dt { color: var(--store-text-muted); }
+.product-attributes dd { margin: 0; overflow-wrap: anywhere; }

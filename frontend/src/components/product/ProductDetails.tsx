@@ -1,5 +1,6 @@
 "use client"
 
+import { ProductAttributes } from "./ProductAttributes"
 import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -133,6 +134,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable || (remaining !== undefined && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="button-primary mt-4 w-full disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
       <div className={message ? "mt-3 text-sm" : "sr-only"} aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "error" && <span role="alert" className="text-red-700">{t("product.addFailed")}</span>}</div>
       {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
+      <ProductAttributes product={product} />
       {(material || care) && <details className="product-policy"><summary>{t("product.compositionCare")}</summary>{material && <p>{material}</p>}{care && <p className="whitespace-pre-line">{care}</p>}</details>}
       <details className="product-policy"><summary>{t("design.delivery")} / {t("design.returns")}</summary><p className="text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
       <p className="mt-1 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.defectReturnTerms")}</p>
