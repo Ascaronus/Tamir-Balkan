@@ -92,16 +92,17 @@ test('catalog review anchor opens the section; existing reviewer has no second f
  assert.ok(JSON.stringify(tree).includes('reviews.alreadyReviewed'))
  assert.equal(find(tree,n=>n.type==='form'),null)
 })
-test('negative review text is collapsed, manually revealable; guest reaction buttons disabled',async()=>{
+test('negative review text is collapsed, manually revealable; guest reactions link to login',async()=>{
  const review={id:'r',name:'Igor',body:'Review text',rating:5,score:-1,up:0,down:1,created_at:'2026-09-21',voted:false}
  const a=ui(null,{reviews:[review],count:1,rating:5,has_review:false},'#reviews')
  a.render();await a.h.flush();a.render();await a.h.flush();const tree=a.render()
  const item=find(tree,n=>typeof n.type==='function'&&n.props?.review)
  const child=hooks();Object.assign(a.h.react,child.react)
  let card=child.render(()=>item.type(item.props))
- assert.equal(find(card,n=>n.type==='p'&&n.props.children==='Review text').props.hidden,true)
- assert.ok(find(card,n=>n.type==='button'&&n.props['aria-label']==='reviews.helpful').props.disabled)
+ assert.equal(find(card,n=>n.props?.id==='review-body-r').props.hidden,true)
+ assert.ok(find(card,n=>n.props?.href==='/rs/account/login'&&n.props['aria-label']?.startsWith('reviews.helpful')))
+ assert.equal(find(card,n=>n.type==='button'&&n.props['aria-label']?.startsWith('reviews.helpful')),null)
  find(card,n=>n.type==='button'&&n.props['aria-expanded']===false).props.onClick()
  card=child.render(()=>item.type(item.props))
- assert.equal(find(card,n=>n.type==='p'&&n.props.children==='Review text').props.hidden,false)
+ assert.equal(find(card,n=>n.props?.id==='review-body-r').props.hidden,false)
 })

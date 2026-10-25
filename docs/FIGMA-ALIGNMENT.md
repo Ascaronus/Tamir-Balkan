@@ -51,3 +51,50 @@ button, matching the implemented control and text inset.
 - Figma composition screenshots reviewed for desktop/mobile catalog and profile;
   all text on the active responsive page uses Manrope.
 - Browser fixture checks do not certify physical devices or production data.
+
+## Follow-up alignment — 2026-10-25
+
+- Reviews now follow the responsive design: heading, overall rating, caption,
+  author/score row, date, body, horizontal helpfulness controls, and full-width
+  per-review collapse button. Existing voting, moderation, submission locks and
+  authentication remain in place. Guest vote links lead to login. The desktop
+  introduction has the write-review action; the top section toggle remains.
+- Product and review-summary stars have 8px gaps; catalog stars keep 4px.
+  Helpfulness icons are original 16px exports from nodes
+  `I85:2310;43:499;43:428` and `I85:2310;43:499;43:432`.
+- Product breadcrumbs use the live category and localized URLs. Color comes
+  before size. Availability uses the design's green indicator and 14/20 type.
+  The 1920px column ratio is 960:816, with the existing 48px gap. Mobile photo
+  selectors use dots while keeping accessible buttons and the zoom dialog.
+- Composition/care is an accordion only when real material/care data exists;
+  no demo composition, VAT claim, size chart or support promise is invented.
+- Catalog rows use 24px gaps. Mobile count sits beside the heading; the filter
+  button is 118px, sorting takes the remaining width. Desktop pagination uses
+  page numbers; mobile Load more appends products, deduplicates IDs, guards
+  repeated clicks and supports retry without losing the current list.
+- Checkout/profile labels have 8px gaps to controls. Introductory spacing is
+  aligned. Cart details stack title, variant, price, quantity and removal;
+  the continue-shopping action is a text link and extra separators are removed.
+- Previously agreed typography, campaign image, larger color choices, 80%
+  product image with zoom, two-line card title reservation and legal links stay.
+
+### Remaining design/content decisions
+
+The Figma footer has conflicting 48px/80px vertical padding and different mobile
+links. Keep the shared working footer until that design is unified; do not remove
+legal links to match an incomplete example. Real material/care and size-guide
+content must come from the catalog. These are not certified pixel-identical areas.
+
+### Follow-up verification
+
+- 149 frontend tests passed, including append/deduplication, duplicate-click
+  protection, retry and pricing-context isolation for Load more.
+- Production build and TypeScript passed. ESLint: no errors; 9 existing warnings.
+- Local Chromium with a disposable Store API fixture: SR/EN at 320, 390, 768,
+  1440, 1920 and 2560px; 84 screen/state checks covering catalog, product,
+  reviews, populated cart, guest checkout, validation and signed-in profile.
+  No horizontal overflow or uncaught browser errors. Checked sort navigation,
+  Load more, review collapse/expand, guest voting links, mobile image selection,
+  24px catalog row gaps, 118px mobile filter, 8px form gaps and 16px vote assets.
+- Fixture data and browser tooling are external to the shipped repository;
+  this does not certify physical devices, real checkout or payment processing.

@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "@/components/i18n/LocalizedLink"
 import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -35,10 +35,36 @@ export function CatalogClient({ initial, selection, regionId, title, basePath = 
     }).catch(() => { if (!abort.signal.aborted) setError(true) }).finally(() => { if (!abort.signal.aborted) setLoading(false) })
     return () => abort.abort()
   }, [customer, isReady, initial, selection, regionId, locale, retry])
+  const context = JSON.stringify([selection, regionId, locale, customer?.id ?? "guest"])
+  const [extra, setExtra] = useState<{ context: string; products: CatalogResult["products"]; summaries: Record<string, Summary> | null; page: number } | null>(null)
+  const [moreErrorContext, setMoreErrorContext] = useState<string | null>(null)
+  const moreError = moreErrorContext === context
+  const [loadingContext, setLoadingContext] = useState<string | null>(null)
+  const loadingMore = loadingContext === context
+  const moreRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => { moreRequest.current?.abort(); moreRequest.current = null }, [context])
+  const appended = extra?.context === context ? extra : null
+  const loadedPage = appended?.page ?? selection.page
+  const products = [...(data?.products ?? []), ...(appended?.products ?? [])]
+  const allSummaries = summaries || appended?.summaries ? { ...summaries, ...appended?.summaries } : null
+  async function loadMore() {
+    if (moreRequest.current || loading || pending || !isReady) return
+    const abort = new AbortController()
+    moreRequest.current = abort
+    setLoadingContext(context); setMoreErrorContext(null)
+    try {
+      const next = await fetchCatalog({ ...selection, page: loadedPage + 1 }, regionId, locale, { signal: abort.signal })
+      const ratings = await reviewSummaries(next.products.map(p => p.id))
+      if (abort.signal.aborted) return
+      const known = new Set(products.map(p => p.id))
+      setExtra({ context, products: [...(appended?.products ?? []), ...next.products.filter(p => !known.has(p.id))], summaries: { ...appended?.summaries, ...ratings }, page: loadedPage + 1 })
+    } catch { if (!abort.signal.aborted) setMoreErrorContext(context) }
+    finally { if (moreRequest.current === abort) { moreRequest.current = null; setLoadingContext(null) } }
+  }
   const emptyFilters = { sizes: [], colors: [], price: { min: null, max: null, currency_code: "rsd" } }
   const pages = Math.max(1, Math.ceil((data?.count ?? 0) / 24))
   const count = data?.count ?? 0
-  return <section id="catalog-products" className="catalog-layout" aria-busy={loading || pending}>
+  return <section id="catalog-products" className="catalog-layout" aria-busy={loading || pending || loadingMore}>
     <CatalogFilters filters={data?.filters ?? emptyFilters} selection={selection} basePath={basePath} />
     <div className="catalog-toolbar">
     <div className="catalog-heading"><h1>{title}</h1></div>
@@ -51,7 +77,7 @@ export function CatalogClient({ initial, selection, regionId, title, basePath = 
       <input key={selection.q} type="search" name="q" maxLength={200} defaultValue={selection.q} placeholder={t("catalog.searchPlaceholder")} aria-label={t("catalog.search")} enterKeyHint="search" />
     </form>
     </div>
-    <p className="catalog-count text-sm text-[var(--store-text-muted)]" role="status">{loading ? t("common.loading") : t("catalog.count", { n: count })}</p>
+    <p className="catalog-count text-sm text-[var(--store-text-muted)]" role="status"><span className="catalog-count-label">{loading ? t("common.loading") : t("catalog.count", { n: count })}</span><span className="catalog-count-number" aria-label={t("catalog.count", { n: count })}>{loading ? "…" : count}</span></p>
     <label className="catalog-sort">
       <span className="sr-only">{t("design.sort")}</span>
       <span className="catalog-sort-display" aria-hidden="true">
@@ -62,8 +88,17 @@ export function CatalogClient({ initial, selection, regionId, title, basePath = 
       <select value={selection.sort} onChange={e => startTransition(() => router.push(catalogHref({ ...selection, sort: e.target.value as CatalogSelection["sort"], page: 1 }, basePath), { scroll: false }))}>{catalogSorts.map(sort => <option key={sort} value={sort}>{t(`design.sorts.${sort}`)}</option>)}</select>
     </label>
     <div className="catalog-results">
-      {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{data.products.map(product => <ProductCard key={product.id} product={product} summary={summaries ? summaries[product.id] ?? { rating: 0, count: 0 } : null} />)}</ul>}
-      {!error && pages > 1 && <nav className="catalog-pagination" aria-label={t("catalog.page", { n: selection.page, total: pages })}>{selection.page > 1 && <Link className="button-secondary" href={catalogHref({ ...selection, page: Math.min(selection.page - 1, pages) }, basePath)}>{t("common.previous")}</Link>}<span>{t("catalog.page", { n: selection.page, total: pages })}</span>{selection.page < pages && <Link className="button-secondary" href={catalogHref({ ...selection, page: selection.page + 1 }, basePath)}>{t("common.next")}</Link>}</nav>}
+      {error ? <div role="alert" className="empty-state"><p>{t("design.catalogFailed")}</p><button className="button-secondary mt-4" type="button" onClick={() => setRetry(n => n + 1)}>{t("common.retry")}</button></div> : !data?.products.length ? <div className="empty-state"><p>{t("design.noResults")}</p><Link href="/rs" className="button-secondary mt-4">{t("design.reset")}</Link></div> : <ul className="product-grid">{products.map(product => <ProductCard key={product.id} product={product} summary={allSummaries ? allSummaries[product.id] ?? { rating: 0, count: 0 } : null} />)}</ul>}
+      {!error && pages > 1 && <>
+        <nav className="catalog-pagination" aria-label={t("catalog.page", { n: selection.page, total: pages })}>
+          {selection.page > 1 && <Link className="button-secondary" href={catalogHref({ ...selection, page: selection.page - 1 }, basePath)}>{t("common.previous")}</Link>}
+          {Array.from({ length: pages }, (_, i) => i + 1).filter(page => page === 1 || page === pages || Math.abs(page - selection.page) <= 1).map((page, index, visible) => <span key={page} className="inline-flex items-center gap-4">{index > 0 && page - visible[index - 1] > 1 && <span aria-hidden="true">…</span>}<Link className="button-secondary catalog-page-number" aria-current={page === selection.page ? "page" : undefined} aria-label={t("catalog.page", { n: page, total: pages })} href={catalogHref({ ...selection, page }, basePath)}>{page}</Link></span>)}
+          {selection.page < pages && <Link className="button-secondary" href={catalogHref({ ...selection, page: selection.page + 1 }, basePath)}>{t("common.next")}</Link>}
+        </nav>
+        {moreError && <p role="alert" className="mt-4 text-sm text-red-700">{t("design.catalogFailed")}</p>}
+        {loadedPage < pages && <button type="button" className="button-secondary catalog-load-more" disabled={loadingMore || loading || pending || !isReady} onClick={() => void loadMore()}>{t(loadingMore ? "common.loading" : moreError ? "common.retry" : "catalog.loadMore")}</button>}
+      </>}
+
     </div>
   </section>
 }

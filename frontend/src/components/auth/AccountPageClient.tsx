@@ -103,7 +103,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
             <h1 className="text-xl font-semibold text-[var(--store-text)]">
               {customer.first_name} {customer.last_name}
             </h1>
-            <div className="mt-1 text-sm text-[var(--store-text-muted)]">
+            <div className="mt-6 text-sm text-[var(--store-text-muted)]">
               {customer.email} {customer.phone ? `· ${customer.phone}` : ""}
             </div>
           </div>
