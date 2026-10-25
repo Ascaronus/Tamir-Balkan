@@ -301,7 +301,17 @@
     "brand": "Brend",
     "deliveryTerms": "Dostava širom Srbije: 300 RSD, u roku do 7 dana.",
     "defectReturnTerms": "TAMIR prihvata povraćaj robe sa fabričkim nedostatkom u roku od 3 meseca od prijema robe i snosi troškove povratne dostave. Ovaj dodatni uslov prodavnice ne isključuje niti skraćuje zakonska prava potrošača.",
-    "compositionCare": "Sastav i održavanje"
+    "compositionCare": "Sastav i održavanje",
+    "attributes": "Dimenzije i detalji",
+    "attributeLabels": {
+      "length": "Dužina",
+      "width": "Širina",
+      "height": "Visina",
+      "weight": "Težina",
+      "origin_country": "Zemlja porekla",
+      "mid_code": "Šifra proizvođača",
+      "hs_code": "HS šifra"
+    }
   },
   "lang": {
     "sr": "Srpski",

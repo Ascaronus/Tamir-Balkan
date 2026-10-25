@@ -301,7 +301,17 @@
     "brand": "Brand",
     "deliveryTerms": "Delivery throughout Serbia: RSD 300, within 7 days.",
     "defectReturnTerms": "TAMIR accepts returns for manufacturing defects within 3 months of receiving the goods and covers return shipping. This additional store policy does not exclude or shorten statutory consumer rights.",
-    "compositionCare": "Composition and care"
+    "compositionCare": "Composition and care",
+    "attributes": "Dimensions and details",
+    "attributeLabels": {
+      "length": "Length",
+      "width": "Width",
+      "height": "Height",
+      "weight": "Weight",
+      "origin_country": "Country of origin",
+      "mid_code": "Manufacturer code",
+      "hs_code": "HS code"
+    }
   },
   "lang": {
     "sr": "Serbian",

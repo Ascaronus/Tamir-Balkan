@@ -62,6 +62,7 @@ test('unknown guest order never displays confirmed',async()=>{
 test('variant URL and language changes refresh selection while preserving requested variant',()=>{
  const h=hooks();let id='m',locale='sr'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
+  './ProductAttributes':{ProductAttributes:'ProductAttributes'},
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},
  '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}
