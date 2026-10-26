@@ -44,14 +44,14 @@
 
 ## 3. Реальные HTTP-интеграционные тесты (P2)
 
-- [ ] 3.1 Добавить `backend/integration-tests/http/catalog.spec.ts`: in-app
+- [x] 3.1 Добавить `backend/integration-tests/http/catalog.spec.ts`: in-app
   `GET /api/store/catalog/products` против реальной БД — позитив (200, структура
   товаров, налоговые поля от `wrapProductsWithTaxPrices`) и негативный запрос
   (невалидные параметры); проверка — `npm run test:integration:http` зелёный
-- [ ] 3.2 Добавить негатив авторизации: вызов защищённого admin-маршрута без
+- [x] 3.2 Добавить негатив авторизации: вызов защищённого admin-маршрута без
   сессии даёт 401/403 (`backend/integration-tests/http/auth-negative.spec.ts`);
   проверка — тест входит в зелёный прогон Jest-суиты
-- [ ] 3.3 Обновить классификацию новых spec-файлов в каталоге `docs/TESTING.md`
+- [x] 3.3 Обновить классификацию новых spec-файлов в каталоге `docs/TESTING.md`
   (слой `http-integration`); проверка — новые файлы есть в таблице каталога
 
 ## 4. Изоляция тестовой среды (P3)

@@ -27,9 +27,9 @@ npm run build
 node test-support/verify-localized-routes.mjs
 ```
 
-`npm test` подключает TypeScript loader и запускает `tests/*.test.mjs`. Последний проход для изменения главных/служебных URL: 141 тест; число не является контрактом и меняется с набором тестов.
+`npm test` подключает TypeScript loader и запускает `tests/*.test.mjs`. Последний проход на ветке `chore/modernize-existing-tests`: 166 тестов; число не является контрактом и меняется с набором тестов.
 
-Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень с браузерным языком и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
+Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень с браузерным языком и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Перед подъёмом сервера он выполняет статическую фазу — сверку симметрии дерева маршрутов `en/*` ↔ корневых (работает без сборки и падает на асимметрии). Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
 
 ## Backend
 
@@ -102,7 +102,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | cart-client.test.mjs ⚠ | unit | Medusa SDK, HTTP/fetch, storage | Добавление/замена/удаление позиций, гонки создания корзины; живое поведение корзины — нет |
 | cart-confirmation.test.mjs | unit | Платёж/почта | Сборка receipt подтверждения, «Ukupno» |
 | catalog-pagination.test.mjs | unit | API | Границы страниц и параметры URL |
-| catalog-translations.test.mjs ⚠ | unit | API-клиент | Сопоставление переводов при поиске; утверждения на абстрактных маркерах, не на строках `messages/` |
+| catalog-translations.test.mjs | unit + компонентный рендер (harness) | Реальные `src/messages/en.json`/`sr.json`; API-клиент подменён | Сопоставление переводов при поиске + рендер `CatalogFilters` с реальными en/sr-строками витрины (заголовок, legend, кнопки, labels диалога), параллельно `en`/`sr` (проверяемые ключи различаются в двух языках, sr-редакция латиницей без кириллицы); расхождение строк в `messages/` роняет тест |
 | catalog-ui.test.mjs ⚠ | unit | API-клиент (подготовленные ответы) | Фильтры, аргументы URL, свотчи цветов; живые товары/цены — нет |
 | checkout-fields.test.mjs | unit | — | Нормализация checkout/profile-полей |
 | commerce.test.mjs | unit | — | Цены, product-mapper, схема, варианты, поля |
@@ -161,9 +161,11 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 
 | Файл | Слой | Границы | Что доказывает |
 |---|---|---|---|
-| backend/integration-tests/http/health.spec.ts ⚠ | http-integration (Jest, `medusaIntegrationTestRunner`) | Только `/health` (audit p.52) | Medusa-приложение поднимается и отвечает по HTTP; магазин/БД/почта — нет. В CI не запускался до этого change |
+| backend/integration-tests/http/health.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Только `/health` (audit p.52) | Medusa-приложение поднимается и отвечает по HTTP; магазин/БД/почта — нет. В CI не запускался до этого change |
+| backend/integration-tests/http/catalog.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`, изолированная тестовая БД + гард) | Реальный in-app HTTP с `x-publishable-api-key`; моки/фейковые req/res отсутствуют; внешние сервисы не задействованы | `GET /api/store/catalog/products` на созданной схеме: опубликованные товары sales channel с ценой/налогом региона (со статусом 200); фильтр по размеру/цене, сортировка, `limit`; контракт `sort_options`; 7 негативов 400: 6 случаев `INVALID_CATALOG_QUERY` (`region_id`/`limit`×2/`sort`/`min_price > max_price`/`fields`) плюс отсутствующий в ценовом контексте регион |
+| backend/integration-tests/http/auth-negative.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP без сессии администратора | Граница аутентификации на реальном HTTP: списки товаров и заказов в admin отклоняются без сессии |
 | backend/tests/rozetka-native.ts | scenario (`medusa exec`, база `*_import_test`) | Только эта база | Реальные import-workflow создают товары/варианты/переводы; отказ дубль-handles. В CI не запускался до этого change |
-| frontend/test-support/verify-localized-routes.mjs | http-integration (собранный `next start` на 127.0.0.1:3137) | Реальный production-сбор Next | Парность `/rs`/`/en` и headers на реальном сервере; уже в CI |
+| frontend/test-support/verify-localized-routes.mjs | http-integration (собранный `next start` на 127.0.0.1:3137) + статическая фаза по дереву маршрутов | Реальный production-сбор Next; статическая фаза сервера не требует | Парность `/rs`/`/en` и headers на реальном сервере; до подъёма сервера сверяет симметрию дерева `en/*` ↔ корневых маршрутов (асимметрия падает без сборки/сервера); уже в CI |
 
 ### Отметки и план усиления
 
@@ -171,13 +173,14 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 
 | Находка | План усиления |
 |---|---|
-| `catalog-http.test.cjs`: имя обещает HTTP, слой — фейковые `req/res` | Новый `integration-tests/http/catalog.spec.ts` — реальный `GET /api/store/catalog/products` in-app (задача 3.1 change) |
-| `login-rate-limit.integration.cjs`: реальный PG, но фейковый HTTP | Негатив авторизации на реальном HTTP: `auth-negative.spec.ts` (задача 3.2); троттлинг остаётся закрыт на своём слое |
+| `catalog-http.test.cjs`: имя обещает HTTP, слой — фейковые `req/res` | **Закрыто (задача 3.1):** `integration-tests/http/catalog.spec.ts` — 9 тестов реального `GET /api/store/catalog/products` in-app (`medusaIntegrationTestRunner`); старый тест сохранён |
+| `login-rate-limit.integration.cjs`: реальный PG, но фейковый HTTP | **Закрыто частично (задача 3.2):** негатив авторизации на реальном HTTP — `auth-negative.spec.ts` (2 теста 401 без сессии); троттлинг остаётся закрыт на своём db-слое |
 | `registration-email.test.cjs`: SMTP-мок при имени «email» | Граница задокументирована; живая доставка — вне этого репозитория (внешний E2E с Mailpit в Tamir-QA-Automation), в CI шаг запускает тест как unit с мок-границей |
-| `catalog-translations.test.mjs`: абстрактные маркеры вместо строк `messages/` | Assert'ы реальных en/sr-строк (задача 5.1) |
-| `catalog-popularity.integration.cjs`: редкие утверждения | Сценарий сортировки по популярности через реальный HTTP в `catalog.spec.ts` (задача 3.1) |
+| `catalog-translations.test.mjs`: абстрактные маркеры вместо строк `messages/` | **Закрыто (задача 5.1):** рендер `CatalogFilters` с реальными en/sr-строками из `src/messages/`; tripwire проверен правками `en.json`/`sr.json` — оба роняют тест |
+| `catalog-popularity.integration.cjs`: редкие утверждения | **Закрыто частично (задача 3.1):** HTTP-контракт сортировки (набор `sort_options`, отказ неверного `sort`) закрыт в `catalog.spec.ts`; реальный ранжировочный сценарий по продажам остаётся в `catalog-popularity.integration.cjs` — его слой сохранён |
 | `cart-client.test.mjs`, `catalog-ui.test.mjs`, `seo.test.mjs`, `registration-code-ui.test.mjs`: мок-границы ключевых внешних слоёв | Классификация сохранена; реальный браузерный journey вне этого репозитория (Tamir-QA-Automation); в репозитории граница закрыта `verify-localized-routes.mjs` (реальный HTTP) и Jest-smoke |
-| Jest-суита и `rozetka-native.ts` не исполнялись в CI | Шаги CI: `test:integration:http`, `rozetka-native` на базе `_import_test` (задачи 2.4/2.5) |
+| Jest-суита и `rozetka-native.ts` не исполнялись в CI | **Закрыто (задачи 2.4/2.5):** шаги CI `test:integration:http` и `rozetka-native` на базе `_import_test`; подтверждено прогоном #145 с артефактами отчётов |
+| `verify-localized-routes.mjs`: асимметрия маршрутов видна только когда сервер поднят | **Закрыто (задача 5.2):** статическая фаза сверяет пары `en/*` ↔ корневых маршрутов до подъёма сервера (падает без сборки), runtime-цикл проверяет статус и `<html lang>` каждой пары |
 
 ## Проверка на сайте
 
