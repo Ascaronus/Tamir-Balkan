@@ -2,6 +2,18 @@
 
 Команды запускаются из указанного каталога. CI-конфигурация — [verify.yml](../.github/workflows/verify.yml); это источник точного списка обязательных проверок. Матрица Node: 20.20.2 и 24.
 
+## Baseline CI (состояние до change modernize-existing-tests)
+
+Снято 2026-10-26 через `gh run list --workflow=verify.yml --limit 3` и GitHub API (`/actions/runs/{id}/jobs`). Все три последних прогона — `success`; длительность джоба `verify` от старта до завершения:
+
+| Прогон | Событие / ветка | Node 20.20.2 | Node 24 |
+|---|---|---|---|
+| #143 | PR `chore/setup-openspec` | 3 мин 38 с | 2 мин 47 с |
+| #142 | push `main` (merge PR #33) | 3 мин 56 с | 3 мин 59 с |
+| #141 | PR `fix/dialog-backdrop-reviews` | 2 мин 51 с | 3 мин 05 с |
+
+Типичный диапазон — 3–4 минуты на джоб. Эти числа — ориентир для сравнения после перевода CI на discovery-helper; они не являются SLA.
+
 ## Frontend
 
 ```bash
