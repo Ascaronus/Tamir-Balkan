@@ -31,23 +31,58 @@ Production-route script поднимает собранный Next на `127.0.0
 
 ## Backend
 
+Тесты исполняет discovery-helper `test-support/run-tests.mjs` (`npm run test:cjs`). Он сам находит `tests/*.test.cjs`
+и `tests/*.integration.cjs` и делит их на категории «нужна БД» и «без БД» — при добавлении нового тестового файла
+команды и workflow править не нужно.
+
 ```bash
 cd backend
 npm ci
-node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs tests/registration-email.test.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/admin-decimals.test.cjs
+npm run test:cjs -- --list                       # полный список найденных файлов и категорий
+npm run test:cjs -- --no-db                      # тесты без БД
+npm run test:cjs -- --junit-dir=reports          # все тесты, JUnit XML в backend/reports/
 npm run build
 ```
 
-SQL-интеграции требуют **отдельную тестовую PostgreSQL-базу**, переданную как `TEST_REVIEWS_DB_URL`:
+SQL-интеграции требуют **отдельную тестовую PostgreSQL-базу**, переданную как `TEST_REVIEWS_DB_URL`
+(имя базы обязано заканчиваться на `_test`/`_tests`):
 
 ```bash
 # Из backend/, TEST_REVIEWS_DB_URL уже экспортирован для отдельной тестовой БД.
-node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/category-localization.integration.cjs tests/catalog-popularity.integration.cjs
+npm run test:cjs -- --db-only --junit-dir=reports
 ```
 
-Не используйте production DATABASE_URL: тесты готовят и изменяют свои данные/схемы. CI создаёт отдельный PostgreSQL service. `npm run test:integration:http` — отдельный Jest health-тест, не замена регрессиям из `tests/`.
+`test-support/guard-env.cjs` отказывает в запуске БД-тестов, если любая строка подключения ведёт на базу с именем
+без `_test` (`exit 2`, до первого запроса); тот же гард вызывается из Jest-setup (`integration-tests/setup.js`)
+и отдельным CI-шагом. Не используйте production DATABASE_URL: тесты готовят и изменяют свои данные/схемы.
+CI создаёт отдельный PostgreSQL service. Независимость порядка файлов проверена флагом `--reverse`:
 
-Нативный import workflow проверяется `tests/rozetka-native.ts` только в специальной базе с суффиксом `_import_test`; порядок — в [ROZETKA-ADMIN-IMPORT.md](ROZETKA-ADMIN-IMPORT.md).
+```bash
+npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
+```
+
+`npm run test:integration:http` — отдельная Jest HTTP-суита (`medusaIntegrationTestRunner`); ей нужны PostgreSQL-сервер
+через `DB_HOST`/`DB_USERNAME`/`DB_PASSWORD`/`DB_PORT` (runner сам создаёт временные базы `medusa-*-integration-*`)
+и Redis (`REDIS_URL`). Она не заменяет регрессии из `tests/`. `DB_HOST` должен быть `localhost`:
+`@medusajs/test-utils` включает SSL для любого другого хоста, что не работает со стандартной локальной PostgreSQL.
+
+Нативный import workflow проверяется `tests/rozetka-native.ts` только в специальной базе с суффиксом `_import_test`;
+порядок — в [ROZETKA-ADMIN-IMPORT.md](ROZETKA-ADMIN-IMPORT.md) с дополнением для чистой базы: между
+`npx medusa db:migrate` и `npx medusa exec ./tests/rozetka-native.ts` выполните
+`npx medusa exec ./src/scripts/setup-reviews.ts` — схемы `tamir_product_url` и отзывов создаются этим скриптом,
+а не миграциями.
+
+### CI-шаги backend (`verify.yml`)
+
+1. `node test-support/guard-env.cjs --require-env` — самопроверка: окружение содержит только тестовые базы (`review_test`).
+2. `npm run test:cjs -- --no-db --junit-dir=reports` — unit/handler-тесты без БД.
+3. `tests/rozetka-native.ts` на отдельной базе `tamir_balkan_import_test`: `createdb` → `npx medusa db:migrate` →
+   `npx medusa exec ./src/scripts/setup-reviews.ts` → `npx medusa exec ./tests/rozetka-native.ts`.
+4. `npm run test:cjs -- --db-only --junit-dir=reports` — SQL-интеграции против `review_test`.
+5. `npm run test:integration:http -- --json --outputFile=reports/jest-http.json` — Jest HTTP-суита.
+6. `actions/upload-artifact` — каталог `backend/reports/` (JUnit XML от `node --test` и JSON от Jest), `retention-days: 14`.
+
+Все шаги идут на PostgreSQL- и Redis-service и на Node 20.20.2, и на Node 24.
 
 ## Каталог тестов
 
@@ -89,7 +124,7 @@ node --test tests/reviews.integration.cjs tests/deleted-customer-registration.in
 | review-regressions.test.mjs | unit | API | Регрессии: review-query, модерация, список, телефон, schema |
 | seo.test.mjs ⚠ | unit | Данные-фикстуры (audit: без живого HTTP) | Sitemap, robots, canonical, metadata; фактически отдаваемый HTML — нет |
 
-### Backend unit (`backend/tests/*.test.cjs`, 7 файлов)
+### Backend unit (`backend/tests/*.test.cjs`, 8 файлов)
 
 Среда: `node --test` + ts-node; PostgreSQL не требуется (мок SMTP/Google/`fetch` там, где указано).
 
@@ -99,6 +134,7 @@ node --test tests/reviews.integration.cjs tests/deleted-customer-registration.in
 | auth-secrets.test.cjs | unit | — | Отказ weak/template-секретов; Secure-cookie в production |
 | catalog-http.test.cjs ⚠ | handler | Фейковые `req/res`, container/graph (audit p.46) | Реальный Medusa-middleware и правила маршрута: скоуп канала, сортировка, счётчики; сетевого HTTP нет |
 | catalog.test.cjs | unit | — | Утилиты каталога: фасеты, связи «размер+цвет+цена», поиск с диакритикой |
+| guard-env.test.cjs | unit | Строки env (реального подключения к БД нет) | Гард изоляции: боевые строки подключения отвергаются, пропускаются только базы `_test`; helper относит файл к БД-категории по маркеру `postgres://` в содержимом |
 | option-autotranslate.test.cjs | handler | Google Translate (заменён `fetch`), req/res | Preview до оплаты, отказ чужим option ID, пакетный перевод |
 | registration-email.test.cjs ⚠ | unit | `nodemailer.createTransport` заменён (audit p.48) | Требования SMTP-конфига, двуязычное письмо welcome, retry subscriber; реальный SMTP — нет |
 | rozetka-admin.test.cjs ⚠ | unit/orchestration | Medusa-workflow, внешний `fetch` (audit p.47) | XML-парсер, валидация импорта, workflow-оркестрация; реально сохранённых товаров — нет |
