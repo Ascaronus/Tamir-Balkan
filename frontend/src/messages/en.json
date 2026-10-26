@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Tamir Balkan — clothing store",
-    "description": "Tamir Balkan — clothing and accessories. Delivery across Serbia."
+    "description": "TAMIR — men's clothing and accessories for everyday wear and special occasions. Explore hats, scarves, shirts and belts, with delivery across Serbia."
   },
   "header": {
     "cart": "Cart",
@@ -384,7 +384,6 @@
     "helpful": "Helpful",
     "unhelpful": "Not helpful",
     "voted": "Vote recorded",
-    "hiddenNegative": "Review collapsed due to negative feedback · {n}",
     "expandOne": "Show review",
     "collapseOne": "Collapse review",
     "experiences": "Customer experiences"

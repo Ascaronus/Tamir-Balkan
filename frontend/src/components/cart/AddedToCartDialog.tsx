@@ -1,4 +1,5 @@
 "use client"
+import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
 import { useEffect, useId, useRef } from "react"
 import Link from "@/components/i18n/LocalizedLink"
@@ -54,7 +55,7 @@ export function AddedToCartDialog({ cart, addition, onDismiss }: { cart: Cart; a
   const options = addition.display?.options
   // Allocate the server-calculated discounted line total to the newly added quantity.
   const addedAmount = item.quantity > 0 ? (item.total ?? item.unit_price * item.quantity) / item.quantity * addition.quantity : item.unit_price * addition.quantity
-  return <dialog ref={dialog} className="cart-added-dialog" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onDismiss() }}>
+  return <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event, onDismiss)} ref={dialog} className="cart-added-dialog" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onDismiss() }}>
     <div className="cart-added-content">
       <div className="cart-added-heading">
         {/* eslint-disable-next-line @next/next/no-img-element */}

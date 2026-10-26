@@ -1,3 +1,4 @@
+import * as dialogBackdrop from '../src/lib/dialog-backdrop.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {load,hooks,find} from '../test-support/component-harness.mjs'
@@ -62,6 +63,7 @@ test('unknown guest order never displays confirmed',async()=>{
 test('variant URL and language changes refresh selection while preserving requested variant',()=>{
  const h=hooks();let id='m',locale='sr'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
+ '@/lib/dialog-backdrop':dialogBackdrop,
   './ProductAttributes':{ProductAttributes:'ProductAttributes'},
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},

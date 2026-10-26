@@ -72,8 +72,12 @@ export async function generateMetadata({ searchParams, params }: {
   if (page > 1) enCanonical.searchParams.set("page", String(page))
   const description = category
     ? locale === "sr" ? `${category.name} — TAMIR kolekcija. Pogledajte modele, boje, veličine i cene. Dostava širom Srbije.` : `${category.name} — TAMIR collection. Browse styles, colors, sizes and prices. Delivery across Serbia.`
-    : locale === "sr" ? "TAMIR muška odeća i aksesoari. Pogledajte kolekciju, boje, veličine i cene. Dostava širom Srbije." : "TAMIR men's clothing and accessories. Browse the collection, colors, sizes and prices. Delivery across Serbia."
-  return { title: (category?.name || t("catalog.catalog")) + " | Tamir", description,
+    : locale === "sr" ? "TAMIR — muška odeća i aksesoari za svakodnevne i posebne prilike. Istražite kape, šalove, košulje i kaiševe, uz dostavu širom Srbije." : "TAMIR — men's clothing and accessories for everyday wear and special occasions. Explore hats, scarves, shirts and belts, with delivery across Serbia."
+  const title = (category?.name || t("catalog.catalog")) + " | Tamir"
+  const images = [{ url: siteUrl("/tamir-logo.png"), width: 2048, height: 1613, alt: "TAMIR — Collection for men" }]
+  return { title, description,
+    openGraph: { type: "website", siteName: "TAMIR", title, description, images, url: (locale === "en" ? enCanonical : canonical).href },
+    twitter: { card: "summary_large_image", title, description, images },
     alternates: languageAlternates(canonical.pathname + canonical.search, locale, enCanonical.pathname + enCanonical.search),
     // Search results and empty categories have no useful standalone search landing page.
     // This is evaluated against published products on every request, so a populated category becomes indexable automatically.

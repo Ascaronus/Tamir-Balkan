@@ -116,7 +116,6 @@ function ReviewItem({ review, signedIn, locale, onVoted }: { review: Review; sig
   return <article className="review-card">
     <div className="review-author"><span className="font-medium break-words">{review.name}</span><Stars rating={review.rating} emptyLabel={t("reviews.noRatings")} /></div>
     <time className="review-caption" dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-GB", { timeZone: "Europe/Belgrade", year: "numeric", month: "2-digit", day: "2-digit" })}</time>
-    {collapsed && negative && <p className="review-caption">{t("reviews.hiddenNegative", { n: review.score })}</p>}
     <div id={`review-body-${review.id}`} hidden={collapsed} className="review-reveal">
       <p className="review-body whitespace-pre-wrap break-words">{review.body}</p>
       <div className="review-actions" aria-label={t("reviews.helpfulness")}>

@@ -1,4 +1,5 @@
 "use client"
+import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
 import { ProductAttributes } from "./ProductAttributes"
 import { productBrand } from "@/lib/seo/product"
@@ -95,7 +96,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       {images.length > 1 && <div className="product-thumbnails" aria-label={t("product.photos")}>
         {images.map((image, index) => <button key={image.url} type="button" onClick={() => setImageIndex(index)} aria-label={t("product.photoNumber", { n: index + 1 })} aria-pressed={index === activeIndex} className="product-thumbnail"><ProductImage src={image.url} alt={t("product.photoNumber", { n: index + 1 })} className="h-full w-full object-contain" /></button>)}
       </div>}
-      <dialog ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
+      <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event)} ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
         <div className="flex h-full flex-col"><div className="flex items-center justify-between gap-4"><span>{activeIndex + 1} / {images.length}</span><button type="button" onClick={() => dialog.current?.close()} className="rounded border px-4 py-2">{t("common.close")}</button></div>
           <div className="min-h-0 flex-1"><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
           {images.length > 1 && <div className="flex justify-between"><button type="button" onClick={() => moveImage(-1)} className="rounded border px-4 py-2">← {t("common.previous")}</button><button type="button" onClick={() => moveImage(1)} className="rounded border px-4 py-2">{t("common.next")} →</button></div>}
