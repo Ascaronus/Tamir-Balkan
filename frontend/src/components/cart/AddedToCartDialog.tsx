@@ -28,7 +28,21 @@ export function AddedToCartDialog({ cart, addition, onDismiss }: { cart: Cart; a
     return () => {
       node.close()
       document.body.style.overflow = previousOverflow
-      if (addition.trigger?.isConnected) addition.trigger.focus({ preventScroll: true })
+      const trigger = addition.trigger
+      if (trigger?.isConnected) {
+        if (!trigger.matches(":disabled")) trigger.focus({ preventScroll: true })
+        else {
+          // Adding the last available unit disables the trigger; return to its product heading.
+          const fallback = trigger.closest(".product-summary")?.querySelector<HTMLElement>("h1")
+          if (fallback) {
+            const tabindex = fallback.getAttribute("tabindex")
+            fallback.setAttribute("tabindex", "-1")
+            fallback.focus({ preventScroll: true })
+            if (tabindex === null) fallback.removeAttribute("tabindex")
+            else fallback.setAttribute("tabindex", tabindex)
+          }
+        }
+      }
     }
   }, [addition, hasItem]) // Preserve the modal while localized cart data refreshes.
   if (!item) return null
