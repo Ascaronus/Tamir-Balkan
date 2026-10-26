@@ -14,6 +14,8 @@
 
 Типичный диапазон — 3–4 минуты на джоб. Эти числа — ориентир для сравнения после перевода CI на discovery-helper; они не являются SLA.
 
+После перевода на discovery-helper (прогон #145, ветка `chore/modernize-existing-tests`, обе джобы `success`): Node 20.20.2 — 4 мин 19 с, Node 24 — 4 мин 12 с. Прирост ~30–40 с на джоб объясняется новыми шагами: изолированный `_import_test`-прогон `rozetka-native.ts` (создание БД, `db:migrate`, `setup-reviews`, exec) и Jest-шаг `test:integration:http`; артефакты отчётов — `test-reports-node-*` (junit XML + jest JSON, `retention-days: 14`).
+
 ## Frontend
 
 ```bash
