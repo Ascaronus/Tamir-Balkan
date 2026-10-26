@@ -1,10 +1,16 @@
-# Verification, recovery and welcome email
+# Письма: подтверждение, восстановление и приветственное
 
-Reviewed against the code on 2026-10-11. [Environment](ENVIRONMENT.md) · [Deployment](../DEPLOY.md).
+Сверено с кодом 11 октября 2026. [Окружение](ENVIRONMENT.md) · [Деплой](../DEPLOY.md).
 
-Registration first sends a six-digit verification code synchronously; see [REGISTRATION.md](REGISTRATION.md). The account is created only after the correct code. The `customer.created` subscriber then sends a plain-text Serbian/English welcome email only for customers with `has_account=true`. Guest checkout customer records do not receive it. This is a registration notification, not verification of email ownership. Existing accounts are not emailed retroactively.
+При регистрации шестизначный код подтверждения отправляется синхронно; см.
+[REGISTRATION.md](REGISTRATION.md). Аккаунт создаётся только после правильного
+кода. Затем подписчик `customer.created` отправляет текстовое приветственное
+письмо на сербском и английском только для покупателей с `has_account=true`.
+Записи покупателей гостевого оформления его не получают. Это уведомление о
+регистрации, а не подтверждение владения почтой. Существующим аккаунтам письма
+задним числом не отправляются.
 
-Set these values in the backend environment (`/root/tamir_balkan/backend/.env` on the VPS):
+Значения задаём в окружении backend (на VPS — `/root/tamir_balkan/backend/.env`):
 
 ```dotenv
 SMTP_HOST=smtp.gmail.com
@@ -13,18 +19,34 @@ SMTP_USER=YOUR_SMTP_ACCOUNT
 SMTP_PASSWORD=YOUR_GOOGLE_APP_PASSWORD
 ```
 
-Use a Google app password, not the normal account password. Enable two-step verification, then create an app password at https://myaccount.google.com/apppasswords . Never commit credentials. The sender is TAMIR with the SMTP account address; replies go to that account.
+Нужен пароль приложения Google, а не обычный пароль аккаунта. Включите
+двухэтапную верификацию и создайте пароль приложения на
+https://myaccount.google.com/apppasswords . Учётные данные в Git не добавляем.
+Отправитель — TAMIR с адресом SMTP-аккаунта; ответы уходят на этот адрес.
 
-Deploy with `bash scripts/deploy-vps.sh`. From the active backend release directory (shown by `pm2 describe tamir-backend`), verify SMTP without sending an email:
+Выпускаем через `bash scripts/deploy-vps.sh`. Из активного каталога релиза
+backend (его показывает `pm2 describe tamir-backend`) проверяем SMTP без
+отправки письма:
 
 ```bash
 npx medusa exec ./src/scripts/check-email.ts
 ```
 
-Then register a new test customer through the storefront and check the inbox and spam folder. SMTP acceptance does not guarantee inbox delivery. No real email is sent by automated tests.
+Затем регистрируем нового тестового покупателя через витрину и проверяем
+входящие и папку спама. Приём письма сервером SMTP не гарантирует доставку в
+входящие. Автоматические тесты реальные письма не отправляют.
 
-Verification and password-reset code delivery are synchronous: an SMTP failure prevents that send step and returns `CODE_SEND_FAILED` (503). The user cannot complete a new code flow without receiving a valid code.
+Доставка кодов подтверждения и сброса пароля синхронная: сбой SMTP блокирует этот
+шаг отправки и возвращает `CODE_SEND_FAILED` (503). Без полученного кода заново
+пройти подтверждение нельзя.
 
-The later welcome email is asynchronous. Its failure is surfaced in backend subscriber logs with sanitized messages and does not roll back an already created account. A successful delivery is marked in customer metadata; a row lock prevents concurrent duplicate deliveries. There is still an unavoidable ambiguity if the process crashes after SMTP accepts the message but before the marker commits. Event retries depend on the configured Medusa event bus; this does not add a durable email queue or promise retroactive delivery after an outage.
+Приветственное письмо отправляется асинхронно. Его сбой попадает в логи
+подписчиков backend с обезличенными сообщениями и не откатывает уже созданный
+аккаунт. Успешная доставка отмечается в метаданных покупателя; блокировка строки
+не даёт параллельным процессам отправить письмо дважды. Остаётся неустранимая
+неопределённость, если процесс завершится после принятия письма SMTP, но до
+фиксации отметки. Повторы событий зависят от настроенного event bus Medusa; это
+не добавляет надёжную очередь писем и не обещает доставку задним числом после сбоя.
 
-Do not change the review moderator account: email delivery configuration is independent of `admin@tamir.local`.
+Учётную запись модератора отзывов не меняем: конфигурация SMTP не зависит от
+`admin@tamir.local`.

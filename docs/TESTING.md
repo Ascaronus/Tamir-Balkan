@@ -13,7 +13,9 @@ npm run build
 node test-support/verify-localized-routes.mjs
 ```
 
-`npm test` подключает TypeScript loader и запускает `tests/*.test.mjs`. Последний проход для изменения главных/служебных URL: 141 тест; число не является контрактом и меняется с набором тестов.
+`npm test` подключает TypeScript loader (нужен установленный dev-пакет `typescript`
+из `npm ci`) и запускает `tests/*.test.mjs`. Число тестов не является контрактом и
+меняется вместе с набором тестов; точный список обязательных прогонов — в CI.
 
 Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень с браузерным языком и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
 
@@ -22,18 +24,18 @@ Production-route script поднимает собранный Next на `127.0.0
 ```bash
 cd backend
 npm ci
-node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs tests/registration-email.test.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/admin-decimals.test.cjs
+node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs tests/auth-secrets.test.cjs
 npm run build
 ```
 
-SQL-интеграции требуют **отдельную тестовую PostgreSQL-базу**, переданную как `TEST_REVIEWS_DB_URL`:
+SQL-интеграции требуют **отдельную тестовую PostgreSQL-базу**, переданную как `TEST_REVIEWS_DB_URL`. CI запускает их отдельной командой вместе с тестами, которым нужна база:
 
 ```bash
 # Из backend/, TEST_REVIEWS_DB_URL уже экспортирован для отдельной тестовой БД.
-node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/category-localization.integration.cjs tests/catalog-popularity.integration.cjs
+node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/admin-decimals.test.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/category-localization.integration.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/catalog-popularity.integration.cjs tests/login-rate-limit.integration.cjs
 ```
 
-Не используйте production DATABASE_URL: тесты готовят и изменяют свои данные/схемы. CI создаёт отдельный PostgreSQL service. `npm run test:integration:http` — отдельный Jest health-тест, не замена регрессиям из `tests/`.
+Не используйте production DATABASE_URL: тесты готовят и изменяют свои данные/схемы. CI создаёт отдельный PostgreSQL service. `npm run test:integration:http` — отдельный Jest health-тест, не замена регрессиям из `tests/`. Тест `registration-email.test.cjs` (конфигурация SMTP и формат письма на mock-транспорте) в CI не запускается; выполняйте его отдельно при правках почтового кода.
 
 Нативный import workflow проверяется `tests/rozetka-native.ts` только в специальной базе с суффиксом `_import_test`; порядок — в [ROZETKA-ADMIN-IMPORT.md](ROZETKA-ADMIN-IMPORT.md).
 
