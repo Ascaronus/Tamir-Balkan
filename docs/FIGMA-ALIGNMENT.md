@@ -120,3 +120,14 @@ content must come from the catalog. These are not certified pixel-identical area
 
 - Figma synchronization completed on active page `79:1215`: 33 footers use the
   production link sets and 48/32px spacing. Historical design pages are unchanged.
+
+## Add-to-cart confirmation — 2026-10-26
+
+Figma component set: https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF?node-id=187-3637
+
+- Latest owner decision: Continue shopping on the left, Go to cart on the right. Mobile stacks Continue first, Go to cart second.
+- Native modal dialog opens only after a successful add operation; failures retain the existing error feedback.
+- SR: Proizvod je dodat u korpu / Nastavi kupovinu / Idi u korpu. EN: Product added to cart / Continue shopping / Go to cart.
+- Show the added variant and quantity, server-calculated line amount allocated to that quantity, updated cart quantity and merchandise total excluding delivery. Product selection supplies localized title/options and current image; other add buttons use the localized cart snapshot.
+- Escape, close and Continue dismiss; native modal focus containment, focus restoration and body scroll lock. No timed disappearance. Navigation/locale/session changes discard the confirmation.
+- Desktop 560 px, 32 px padding; mobile viewport minus 32 px, 20 px padding. Reuse storefront typography, buttons, colors and image fallback. Exact Figma success/close SVGs are bundled locally.
