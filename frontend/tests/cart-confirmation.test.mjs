@@ -1,3 +1,4 @@
+import * as dialogBackdrop from '../src/lib/dialog-backdrop.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {load,hooks,find} from '../test-support/component-harness.mjs'
@@ -35,6 +36,7 @@ test('navigation clears confirmation instead of reopening it on a later visit',a
 })
 test('dialog uses newly added amount, localized cart path and secondary-before-primary order',()=>{
  const h=hooks();const {AddedToCartDialog}=load('frontend/src/components/cart/AddedToCartDialog.tsx',{
+ '@/lib/dialog-backdrop':dialogBackdrop,
  react:{...h.react,useId:()=> 'title'},'@/components/i18n/LocalizedLink':{default:'Link'},
  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en',t:(k,args)=>args?`${k}:${args.n}`:k})},
  '@/components/store/ProductImage':{ProductImage:'Image'},'@/lib/product-image':{normalizeImageUrl:v=>v},'@/lib/format-money':{formatMoney:n=>String(n)}
