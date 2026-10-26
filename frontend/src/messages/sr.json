@@ -436,7 +436,7 @@
     "countOne": "U korpi: {n} proizvod",
     "countFew": "U korpi: {n} proizvoda",
     "countOther": "U korpi: {n} proizvoda",
-    "subtotal": "Međuzbir",
+    "subtotal": "Ukupno",
     "shipping": "Dostava nije uključena u ovu sumu.",
     "continue": "Nastavi kupovinu"
   }
