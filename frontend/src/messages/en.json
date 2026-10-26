@@ -428,5 +428,16 @@
     "productsSubtotal": "Products (excluding delivery)",
     "total": "Total",
     "reviewPrivacy": "Public reviews show only your first name: {name}."
+  },
+  "cartAdded": {
+    "title": "Product added to cart",
+    "goToCart": "Go to cart",
+    "addedQuantity": "Quantity added: {n}",
+    "countOne": "In your cart: {n} item",
+    "countFew": "In your cart: {n} items",
+    "countOther": "In your cart: {n} items",
+    "subtotal": "Item subtotal",
+    "shipping": "Shipping is not included in this subtotal.",
+    "continue": "Continue shopping"
   }
 }

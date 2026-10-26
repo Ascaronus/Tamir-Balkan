@@ -428,5 +428,16 @@
     "productsSubtotal": "Proizvodi (bez dostave)",
     "total": "Ukupno",
     "reviewPrivacy": "Uz javne recenzije prikazuje se samo ime: {name}."
+  },
+  "cartAdded": {
+    "title": "Proizvod je dodat u korpu",
+    "goToCart": "Idi u korpu",
+    "addedQuantity": "Dodato: {n} kom.",
+    "countOne": "U korpi: {n} proizvod",
+    "countFew": "U korpi: {n} proizvoda",
+    "countOther": "U korpi: {n} proizvoda",
+    "subtotal": "Međuzbir",
+    "shipping": "Dostava nije uključena u ovu sumu.",
+    "continue": "Nastavi kupovinu"
   }
 }
