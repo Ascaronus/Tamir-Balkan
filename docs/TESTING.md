@@ -245,3 +245,9 @@ so this specific lock cycle remains a diagnosis from code, not a captured DB tra
 nested events, deadlines and the installed real local event bus without a database.
 Run it with `node --test tests/subscriber-tracker.test.cjs` from backend. Full catalog
 HTTP validation still requires isolated PostgreSQL and Redis.
+
+### Избранное
+
+Контракт и границы проверок: [WISHLIST.md](WISHLIST.md). `wishlist.test.cjs` — handler,
+`wishlist.integration.cjs` — PostgreSQL с guard, `http/wishlist.spec.ts` — Medusa HTTP.
+Фронтенд: `wishlist.test.mjs` и обе локализованные страницы в `verify-localized-routes.mjs`.

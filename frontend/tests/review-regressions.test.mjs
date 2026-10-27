@@ -63,6 +63,7 @@ test('unknown guest order never displays confirmed',async()=>{
 test('variant URL and language changes refresh selection while preserving requested variant',()=>{
  const h=hooks();let id='m',locale='sr'
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
+ '@/components/wishlist/FavoriteButton':{FavoriteButton:'FavoriteButton'},
  '@/lib/dialog-backdrop':dialogBackdrop,
   './ProductAttributes':{ProductAttributes:'ProductAttributes'},
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},

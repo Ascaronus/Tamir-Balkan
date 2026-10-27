@@ -1,5 +1,6 @@
 "use client"
 
+import { FavoriteButton } from "@/components/wishlist/FavoriteButton"
 import { productPath } from "@/lib/i18n/paths"
 import Link from "@/components/i18n/LocalizedLink"
 import { useState } from "react"
@@ -14,7 +15,7 @@ import type { Summary } from "@/lib/reviews/client"
 import { ProductImage } from "./ProductImage"
 import { ColorSwatch } from "./ColorSwatch"
 
-export function ProductCard({ product, summary }: { product: CatalogProduct; summary?: Summary | null }) {
+export function ProductCard({ product, summary, showAvailability = false }: { product: CatalogProduct; summary?: Summary | null; showAvailability?: boolean }) {
   const { t, locale } = useLocaleContext()
   const title = localizedText(product, "title", product.title, locale)
   const variants = product.variants ?? []
@@ -33,9 +34,9 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
     [...new Set(option.values?.map(v => v.value) ?? [])].map(value => ({ optionId: option.id, value })))
 
   return <li className="product-card">
-    <Link className="product-card-image" href={href}>
+    <div className="product-card-media"><Link className="product-card-image" href={href}>
       <ProductImage src={image} alt={title} className="h-full w-full object-cover" />
-    </Link>
+    </Link><FavoriteButton productId={product.id} overlay /></div>
     <Link href={href} className="product-card-title">{title}</Link>
     <Link className="product-card-rating" href={`${href}#reviews`} aria-label={t("reviews.show")}>
       {!summary && <ReviewIcon />}
@@ -59,5 +60,6 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
     <p className="product-card-price">{price == null
       ? t("catalog.priceOnRequest")
       : formatMoney(price, product.catalog.currency_code, locale === "sr" ? "sr-Latn-RS" : "en-GB")}</p>
+    {showAvailability && <p className={`product-stock${variants.some(canPurchase) ? " product-stock-available" : ""}`}>{t(variants.some(canPurchase) ? "product.available" : "product.outOfStock")}</p>}
   </li>
 }

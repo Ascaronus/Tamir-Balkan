@@ -7,6 +7,8 @@ function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, 
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/store/wishlist", methods: ["GET", "POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
+  { matcher: "/store/wishlist/:productId", methods: ["DELETE"], middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/admin/products/:id/localized-url", methods: ["GET", "POST"], bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/admin/products/:id/option-translations/translate", methods: ["POST"], bodyParser: { sizeLimit: "64kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/admin/rozetka*", bodyParser: { sizeLimit: "25mb" }, middlewares: [authenticate("user", ["bearer", "session"])] },

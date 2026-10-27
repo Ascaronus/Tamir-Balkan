@@ -24,7 +24,7 @@ export function localizedPath(href: string, locale: Locale): string {
   const match = /^([^?#]*)(.*)$/.exec(href)!
   const path = internalStorePath(match[1]), suffix = match[2]
   if (path === "/" || path === "/en" || path === "/en/" || path === "/rs" || path === "/rs/") return (locale === "en" ? "/en" : "/rs") + suffix
-  if (/^\/(rs|en)\/(catalog|products|cart|checkout|account|order)(\/|$)/.test(path)) {
+  if (/^\/(rs|en)\/(catalog|products|cart|checkout|account|order|wishlist)(\/|$)/.test(path)) {
     if (locale === "sr") for (const [internal, serbian] of servicePaths) {
       const prefix = path.replace(/^\/(rs|en)\//, "")
       if (prefix === internal || prefix.startsWith(internal + "/")) return `/rs/${serbian}` + prefix.slice(internal.length) + suffix

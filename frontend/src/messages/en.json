@@ -446,5 +446,16 @@
     "signOut": "Sign out",
     "signingOut": "Signing out…",
     "logoutFailed": "Sign out failed. Please try again."
+  },
+  "wishlist": {
+    "title": "Wishlist",
+    "add": "Add to wishlist",
+    "remove": "Remove from wishlist",
+    "signIn": "Sign in to save this product.",
+    "empty": "Your wishlist is empty.",
+    "catalog": "Browse catalog",
+    "unavailable": "Product unavailable",
+    "error": "Could not save. Please try again.",
+    "loading": "Loading wishlist…"
   }
 }
