@@ -6,6 +6,7 @@ import Link from "@/components/i18n/LocalizedLink"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { ProductImage } from "@/components/store/ProductImage"
 import { normalizeImageUrl } from "@/lib/product-image"
+import { cartLineTotal, cartProductsTotal } from "@/lib/cart/display"
 import { formatMoney } from "@/lib/format-money"
 import type { Cart } from "@/lib/cart/cart-client"
 
@@ -54,7 +55,7 @@ export function AddedToCartDialog({ cart, addition, onDismiss }: { cart: Cart; a
   const title = addition.display?.title ?? item.product_title ?? item.title
   const options = addition.display?.options
   // Allocate the server-calculated discounted line total to the newly added quantity.
-  const addedAmount = item.quantity > 0 ? (item.total ?? item.unit_price * item.quantity) / item.quantity * addition.quantity : item.unit_price * addition.quantity
+  const addedAmount = item.quantity > 0 ? (cartLineTotal(item)) / item.quantity * addition.quantity : item.unit_price * addition.quantity
   return <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event, onDismiss)} ref={dialog} className="cart-added-dialog" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onDismiss() }}>
     <div className="cart-added-content">
       <div className="cart-added-heading">
@@ -77,7 +78,7 @@ export function AddedToCartDialog({ cart, addition, onDismiss }: { cart: Cart; a
       </div>
       <div className="cart-added-summary">
         <p>{countLabel}</p>
-        <div className="cart-added-subtotal"><span>{t("cartAdded.subtotal")}</span><span>{money(cart.item_total ?? cart.item_subtotal ?? cart.subtotal ?? 0)}</span></div>
+        <div className="cart-added-subtotal"><span>{t("cartAdded.subtotal")}</span><span>{money(cartProductsTotal(cart))}</span></div>
         <p>{t("cartAdded.shipping")}</p>
       </div>
       <div className="cart-added-actions">

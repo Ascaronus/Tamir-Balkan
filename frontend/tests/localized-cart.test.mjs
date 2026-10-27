@@ -55,3 +55,21 @@ test('locale lookup ignores stale responses and does not refetch on quantity cha
  render({...original,items:[{...original.items[0],quantity:2}]});await state.flush();assert.equal(pending.length,2)
  lastCleanup?.()
 })
+
+test('display state distinguishes loading, failed localization and explicit retry without refetching on quantities',async()=>{
+ const {hooks}=await import('../test-support/component-harness.mjs')
+ const h=hooks();let calls=0,fail=true
+ const {useLocalizedCartState}=load('frontend/src/components/cart/useLocalizedCart.ts',{
+  react:h.react,'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en'})},
+  '@/lib/i18n/config':{medusaStoreLocale:()=> 'en'},
+  '@/lib/medusa':{sdk:{client:{fetch:async()=>{calls++;if(fail)throw Error('offline');return {products:[{id:'hat',title:'Winter hat',handle:'winter-hat'}]}}}}},
+  '@/lib/cart/localized-cart':{localizeCart},
+ },{AbortController})
+ const render=cart=>h.render(()=>useLocalizedCartState(cart??original))
+ assert.equal(render().ready,false);await h.flush();let state=render()
+ assert.equal(state.ready,true);assert.equal(state.error,true);assert.equal(calls,1)
+ fail=false;state.retry();assert.equal(render().ready,false);await h.flush();state=render()
+ assert.equal(state.error,false);assert.equal(state.cart.items[0].product_title,'Winter hat');assert.equal(calls,2)
+ render({...original,items:[{...original.items[0],quantity:4}]});await h.flush();assert.equal(calls,2)
+ const empty=render({...original,items:[]});assert.equal(empty.ready,true);assert.equal(empty.error,false)
+})

@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "@/components/i18n/LocalizedLink"
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
-import { CartLink } from "@/components/cart/CartLink"
+import { CartPreview } from "@/components/cart/CartPreview"
 import { HeaderAccount } from "@/components/auth/HeaderAccount"
 import { CategoryNavigation } from "./CategoryNavigation"
 import { DesignIcon } from "./DesignIcon"
@@ -18,7 +18,7 @@ export function ShopHeader({ onOpenCatalog }: { countryCode?: "rs"; onOpenCatalo
 
       </div>
       <Link href="/" className="brand-link" aria-label={t("header.homeAria")}><Image src="/tamir-logo.png" alt="TAMIR — Collection for men" width={2048} height={1613} sizes="(max-width: 900px) 94px, 120px" className="brand-logo" preload /></Link>
-      <div className="header-actions"><div className="header-language"><LanguageSwitcher /></div><WishlistLink /><HeaderAccount /><Link href="/rs/cart" className="header-action" aria-label={t("header.cartAria")}><CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span></Link></div>
+      <div className="header-actions"><div className="header-language"><LanguageSwitcher /></div><WishlistLink /><HeaderAccount /><CartPreview /></div>
     </div>
     <div className="header-categories"><CategoryNavigation horizontal /></div>
   </header>

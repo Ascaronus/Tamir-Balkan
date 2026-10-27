@@ -522,3 +522,22 @@ body { line-height: 1.5; }
   .header-actions { gap: 0; }
   .header-account-name { max-width: 64px; }
 }
+
+/* Header mini-cart: disclosure only; all cart state comes from CartProvider. */
+.header-cart-preview { display: flex; align-items: center; }
+.cart-preview { position: fixed; z-index: 70; width: min(380px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid var(--store-border); border-radius: 4px; background: var(--store-bg); color: var(--store-text); box-shadow: 0 8px 28px rgb(0 0 0 / 12%); overflow: auto; font-size: 14px; line-height: 20px; animation: cart-preview-in 100ms ease-out; }
+.cart-preview::before { content: ''; position: absolute; inset: -8px 0 auto; height: 8px; }
+.cart-preview h2 { font-size: 18px; line-height: 26px; font-weight: 500; flex-shrink: 0; }
+.cart-preview-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; scrollbar-gutter: stable; }
+.cart-preview-item { display: flex; gap: 12px; min-width: 0; padding: 2px; }
+.cart-preview-item:focus-visible { outline-offset: -2px; }
+.cart-preview-image { width: 60px; height: 75px; flex: 0 0 60px; overflow: hidden; background: var(--store-bg-muted); }
+.cart-preview-details { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.cart-preview-name { font-weight: 500; }
+.cart-preview-options, .cart-preview-unit { color: var(--store-text-muted); font-size: 12px; line-height: 18px; }
+.cart-preview-footer { flex-shrink: 0; border-top: 1px solid var(--store-border); padding-top: 16px; display: flex; flex-direction: column; gap: 16px; }
+.cart-preview-total { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.cart-preview-footer .button-primary { width: 100%; min-height: 48px; }
+.cart-preview-retry { text-decoration: underline; min-height: 44px; }
+@keyframes cart-preview-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cart-preview { animation: none; } }
