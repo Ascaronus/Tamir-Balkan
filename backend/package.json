@@ -18,6 +18,7 @@
     "store-locales": "medusa exec ./src/scripts/add-store-locales.ts",
     "start": "node ./scripts/start-server.mjs",
     "dev": "medusa develop",
+    "test:cjs": "node ./test-support/run-tests.mjs",
     "test:integration:http": "TEST_TYPE=integration:http NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
     "test:integration:modules": "TEST_TYPE=integration:modules NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
     "test:unit": "TEST_TYPE=unit NODE_OPTIONS=--experimental-vm-modules jest --silent --runInBand --forceExit"
