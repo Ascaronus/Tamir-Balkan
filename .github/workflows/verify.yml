@@ -2,6 +2,16 @@ name: Verify storefront and backend
 on:
   push:
     branches: [main, fix/store-reliability]
+    # Документация (docs/, openspec/, любые .md) не влияет ни на сборку, ни на продукт.
+    # Если в push в main менялись только такие файлы, Verify не запускается —
+    # и Deploy (триггер workflow_run от Verify на main) тоже не срабатывает,
+    # прод не пересобирается и pm2 не перезапускается из-за текста в markdown.
+    # Для pull_request фильтр не ставим: required-чеки защищённого main должны
+    # приходить по любому PR.
+    paths-ignore:
+      - 'docs/**'
+      - 'openspec/**'
+      - '**.md'
   pull_request:
     branches: [main]
 permissions:
