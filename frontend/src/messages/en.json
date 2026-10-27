@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Tamir Balkan — clothing store",
-    "description": "Tamir Balkan — clothing and accessories. Delivery across Serbia."
+    "description": "TAMIR — men's clothing and accessories for everyday wear and special occasions. Explore hats, scarves, shirts and belts, with delivery across Serbia."
   },
   "header": {
     "cart": "Cart",
@@ -87,16 +87,18 @@
   },
   "auth": {
     "login": {
-      "title": "Login",
+      "title": "Sign in",
       "hint": "Use email + password.",
-      "email": "Email",
+      "email": "Email address",
       "password": "Password",
       "failed": "Login failed",
+      "tooMany": "Too many failed sign-in attempts. Please try again later.",
       "signingIn": "Signing in…",
       "signIn": "Sign in",
       "noAccount": "No account?",
       "createOne": "Create one",
-      "profileMissing": "Your sign-in details exist, but registration is incomplete. Open Create account and submit your details again using the same email and password."
+      "profileMissing": "Your sign-in details exist, but registration is incomplete. Open Create account and submit your details again using the same email and password.",
+      "signUp": "Sign up"
     },
     "register": {
       "title": "Create account",
@@ -143,7 +145,7 @@
       "failed": "Could not complete registration. Try again. If you already confirmed your code, try signing in."
     },
     "reset": {
-      "forgot": "Forgot your password?",
+      "forgot": "Forgot password?",
       "title": "Reset your password",
       "hint": "Enter your email. We will send a code to reset your password.",
       "sent": "If an active account exists for this email, a code has been sent.",
@@ -273,7 +275,8 @@
     "search": "Search products",
     "searchPlaceholder": "Product name…",
     "page": "Page {n} of {total}",
-    "count": "{n} products"
+    "count": "{n} products",
+    "loadMore": "Load more"
   },
   "product": {
     "home": "Home",
@@ -298,7 +301,18 @@
     "addFailed": "Could not add this quantity. Stock may have changed. Please refresh and try again.",
     "brand": "Brand",
     "deliveryTerms": "Delivery throughout Serbia: RSD 300, within 7 days.",
-    "defectReturnTerms": "TAMIR accepts returns for manufacturing defects within 3 months of receiving the goods and covers return shipping. This additional store policy does not exclude or shorten statutory consumer rights."
+    "defectReturnTerms": "TAMIR accepts returns for manufacturing defects within 3 months of receiving the goods and covers return shipping. This additional store policy does not exclude or shorten statutory consumer rights.",
+    "compositionCare": "Composition and care",
+    "attributes": "Dimensions and details",
+    "attributeLabels": {
+      "length": "Length",
+      "width": "Width",
+      "height": "Height",
+      "weight": "Weight",
+      "origin_country": "Country of origin",
+      "mid_code": "Manufacturer code",
+      "hs_code": "HS code"
+    }
   },
   "lang": {
     "sr": "Serbian",
@@ -371,9 +385,9 @@
     "helpful": "Helpful",
     "unhelpful": "Not helpful",
     "voted": "Vote recorded",
-    "hiddenNegative": "Review collapsed due to negative feedback · {n}",
     "expandOne": "Show review",
-    "collapseOne": "Collapse review"
+    "collapseOne": "Collapse review",
+    "experiences": "Customer experiences"
   },
   "design": {
     "heroTitle": "Warmth that brings us together",
@@ -414,5 +428,23 @@
     "productsSubtotal": "Products (excluding delivery)",
     "total": "Total",
     "reviewPrivacy": "Public reviews show only your first name: {name}."
+  },
+  "cartAdded": {
+    "title": "Product added to cart",
+    "goToCart": "Go to cart",
+    "addedQuantity": "Quantity added: {n}",
+    "countOne": "In your cart: {n} item",
+    "countFew": "In your cart: {n} items",
+    "countOther": "In your cart: {n} items",
+    "subtotal": "Item subtotal",
+    "shipping": "Shipping is not included in this subtotal.",
+    "continue": "Continue shopping"
+  },
+  "headerAuth": {
+    "myAccount": "My account",
+    "myOrders": "My orders",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "logoutFailed": "Sign out failed. Please try again."
   }
 }

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Tamir Balkan — prodavnica odeće",
-    "description": "Tamir Balkan — odeća i aksesoari. Dostava širom Srbije."
+    "description": "TAMIR — muška odeća i aksesoari za svakodnevne i posebne prilike. Istražite kape, šalove, košulje i kaiševe, uz dostavu širom Srbije."
   },
   "header": {
     "cart": "Korpa",
@@ -89,14 +89,16 @@
     "login": {
       "title": "Prijava",
       "hint": "Koristite email i lozinku.",
-      "email": "Email",
+      "email": "Email adresa",
       "password": "Lozinka",
       "failed": "Neuspela prijava",
+      "tooMany": "Previše neuspešnih pokušaja prijave. Pokušajte ponovo kasnije.",
       "signingIn": "Prijavljivanje…",
       "signIn": "Prijavi se",
       "noAccount": "Nemate nalog?",
       "createOne": "Napravite ga",
-      "profileMissing": "Podaci za prijavu postoje, ali registracija nije završena. Otvorite Kreiraj nalog i ponovo pošaljite podatke sa istim imejlom i lozinkom."
+      "profileMissing": "Podaci za prijavu postoje, ali registracija nije završena. Otvorite Kreiraj nalog i ponovo pošaljite podatke sa istim imejlom i lozinkom.",
+      "signUp": "Registruj se"
     },
     "register": {
       "title": "Napravi nalog",
@@ -273,7 +275,8 @@
     "search": "Pretraži proizvode",
     "searchPlaceholder": "Naziv proizvoda…",
     "page": "Strana {n} od {total}",
-    "count": "{n} proizvoda"
+    "count": "{n} proizvoda",
+    "loadMore": "Učitaj još"
   },
   "product": {
     "home": "Početna",
@@ -298,7 +301,18 @@
     "addFailed": "Nije moguće dodati ovu količinu. Stanje se možda promenilo. Osvežite stranicu i pokušajte ponovo.",
     "brand": "Brend",
     "deliveryTerms": "Dostava širom Srbije: 300 RSD, u roku do 7 dana.",
-    "defectReturnTerms": "TAMIR prihvata povraćaj robe sa fabričkim nedostatkom u roku od 3 meseca od prijema robe i snosi troškove povratne dostave. Ovaj dodatni uslov prodavnice ne isključuje niti skraćuje zakonska prava potrošača."
+    "defectReturnTerms": "TAMIR prihvata povraćaj robe sa fabričkim nedostatkom u roku od 3 meseca od prijema robe i snosi troškove povratne dostave. Ovaj dodatni uslov prodavnice ne isključuje niti skraćuje zakonska prava potrošača.",
+    "compositionCare": "Sastav i održavanje",
+    "attributes": "Dimenzije i detalji",
+    "attributeLabels": {
+      "length": "Dužina",
+      "width": "Širina",
+      "height": "Visina",
+      "weight": "Težina",
+      "origin_country": "Zemlja porekla",
+      "mid_code": "Šifra proizvođača",
+      "hs_code": "HS šifra"
+    }
   },
   "lang": {
     "sr": "Srpski",
@@ -371,9 +385,9 @@
     "helpful": "Korisno",
     "unhelpful": "Nije korisno",
     "voted": "Glas je zabeležen",
-    "hiddenNegative": "Recenzija je sklopljena zbog negativnih glasova · {n}",
     "expandOne": "Prikaži recenziju",
-    "collapseOne": "Sklopi recenziju"
+    "collapseOne": "Sklopi recenziju",
+    "experiences": "Iskustva kupaca"
   },
   "design": {
     "heroTitle": "Toplina koja nas spaja",
@@ -414,5 +428,23 @@
     "productsSubtotal": "Proizvodi (bez dostave)",
     "total": "Ukupno",
     "reviewPrivacy": "Uz javne recenzije prikazuje se samo ime: {name}."
+  },
+  "cartAdded": {
+    "title": "Proizvod je dodat u korpu",
+    "goToCart": "Idi u korpu",
+    "addedQuantity": "Dodato: {n} kom.",
+    "countOne": "U korpi: {n} proizvod",
+    "countFew": "U korpi: {n} proizvoda",
+    "countOther": "U korpi: {n} proizvoda",
+    "subtotal": "Ukupno",
+    "shipping": "Dostava nije uključena u ovu sumu.",
+    "continue": "Nastavi kupovinu"
+  },
+  "headerAuth": {
+    "myAccount": "Moj nalog",
+    "myOrders": "Moje porudžbine",
+    "signOut": "Odjavi se",
+    "signingOut": "Odjavljivanje…",
+    "logoutFailed": "Odjava nije uspela. Pokušajte ponovo."
   }
 }

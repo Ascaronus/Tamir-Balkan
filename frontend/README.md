@@ -15,7 +15,7 @@ npm run build
 npm start
 ```
 
-`dev` использует webpack; production build — штатную сборку Next. Для проверки production-маршрутов после сборки: `node test-support/verify-localized-routes.mjs`. На VPS используйте [общий деплой](../DEPLOY.md).
+`dev` использует webpack, production — штатную сборку Next. Для проверки production-маршрутов после сборки: `node test-support/verify-localized-routes.mjs`. На VPS используйте [общий деплой](../DEPLOY.md).
 
 ## Карта кода
 
@@ -28,7 +28,7 @@ npm start
 - `src/components/i18n/LocalizedLink.tsx`, `useLocalizedRouter.ts`: локализованная навигация. Не подменять обычным Link/router без учёта языка.
 - `src/components/product/`, `cart/`, `auth/`, `checkout/`, `reviews/`: покупательские сценарии.
 - `src/app/sitemap.ts`, `robots.ts`, `src/lib/seo/`: SEO и структурированные данные.
-- `tests/`, `test-support/`: автоматические проверки и production-route smoke test.
+- `tests/`, `test-support/`: автоматические проверки и smoke-проверка production-маршрутов.
 
 Названия товаров, категорий и опций приходят из переводов Medusa; словари интерфейса не заменяют администраторские переводы. Галерея сохраняет пропорции фото, увеличивается при наведении; поле количества блокируется вместе с кнопками при остатке ≤1. Нулевой счётчик отзывов скрыт, пустые звёзды остаются.
 

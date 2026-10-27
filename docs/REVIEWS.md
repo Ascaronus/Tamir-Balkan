@@ -1,39 +1,74 @@
-# Product reviews and CAPTCHA
+# Отзывы о товарах и CAPTCHA
 
-Reviewed against the code on 2026-10-11.
+Сверено с кодом 11 октября 2026.
 
-Reviews are available in English and Serbian at the bottom of product pages, expanded by default. Users can collapse the whole section without resetting individual review choices. The catalog fetches a single batch of rating summaries for all visible products. When there are no reviews, empty stars remain but the numeric zero rating/count is hidden. A numeric rating/count appears only after at least one published review. The number and fractional star fill use the same mean rounded to one decimal.
+Отзывы доступны на английском и сербском внизу страниц товара и по умолчанию
+развернуты. Покупатель может свернуть весь раздел, не сбрасывая выбор по
+отдельным отзывам. Каталог получает одним запросом сводки оценок сразу для всех
+видимых товаров. Если отзывов нет, пустые звёзды остаются, но нулевой числовой
+рейтинг и количество скрываются. Числовой рейтинг и количество появляются только
+после первого опубликованного отзыва. Число и дробная заливка звёзд используют
+среднее, округлённое до одного знака.
 
-A customer must sign in, have a first name in their profile, choose a rating and write 1–250 Unicode code points. CAPTCHA opens only after pressing Send. The API takes the public name from the saved profile, never from an email or client-supplied display name. One review per `(customer_id, product_id)` is enforced in PostgreSQL, including hidden and deleted reviews. Review ratings are immutable. No attachments, avatars or replies are supported.
+Покупатель должен войти, иметь имя в профиле, выбрать оценку и написать текст
+длиной от 1 до 250 кодовых точек Unicode. CAPTCHA открывается только после
+нажатия «Отправить». API берёт публичное имя из сохранённого профиля, никогда из
+адреса почты или переданного клиентом отображаемого имени. Один отзыв на пару
+`(customer_id, product_id)` обеспечивается в PostgreSQL, включая скрытые и
+удалённые отзывы. Оценки отзывов неизменяемы. Вложения, аватары и ответы не
+поддерживаются.
 
-Only signed-in customers can vote, including on their own review. Each `(customer_id, review_id)` permits exactly one immutable +1 or −1. A transaction locks the review row; repeat or simultaneous requests return the existing result. Each review can be expanded or collapsed manually. By default, scores below zero collapse the text and scores of zero or above show it. Manual choices take priority until leaving the page; they do not remove the review or its product rating. Published reviews with any helpfulness score count towards the product average. Hidden/deleted reviews do not.
+Голосовать могут только вошедшие покупатели, в том числе по своему отзыву. Для
+пары `(customer_id, review_id)` разрешена ровно одна неизменяемая реакция +1 или
+−1. Транзакция блокирует строку отзыва; повторные или одновременные запросы
+возвращают существующий результат. Каждый отзыв можно развернуть или свернуть
+вручную. По умолчанию текст свёрнут при отрицательной сумме реакций и развёрнут
+при нулевой или положительной. Ручной выбор действует, пока покупатель не
+покинул страницу, и не убирает отзыв и его оценку товара. Опубликованные отзывы с
+любой суммой полезных реакций учитываются в средней оценке товара. Скрытые и
+удалённые отзывы не учитываются.
 
-## Moderator
+## Модератор
 
-Sign into the existing Medusa administration as **admin@tamir.local**, then open **Reviews / Recenzije** (`/app/reviews`). Authorization checks the authenticated **admin user** on the server. A storefront customer account with that email is not a moderator. Other admin users cannot read author emails through these endpoints or moderate reviews.
+Войдите в существующую админку Medusa как **admin@tamir.local** и откройте
+**Reviews / Recenzije** (`/app/reviews`). На сервере авторизация проверяет
+вошедшего **пользователя админки**. Покупательский аккаунт витрины с такой же
+почтой модератором не является. Другие пользователи админки через эти эндпоинты
+не видят адреса почты авторов и не могут модерировать отзывы.
 
-The page shows product, author name/email, date, stars, up/down counts and status. It permits hiding, restoring, removing from publication and correcting text/name. Star ratings and reaction totals cannot be changed. Removal is a recoverable soft deletion, preserving the one-review constraint and audit history. Each change records the admin ID, previous content and new values. Concurrent moderation uses a monotonically increasing `version` to reject stale changes.
+Страница показывает товар, имя и почту автора, дату, звёзды, счётчики «плюс» и
+«минус» и статус. Можно скрыть, вернуть, снять с публикации и исправить текст или
+имя. Оценки в звёздах и суммы реакций изменить нельзя. Удаление — восстанавливаемое
+мягкое удаление, ограничение «один отзыв на товар» и история аудита сохраняются.
+Каждое изменение записывает ID администратора, прежнее содержимое и новые
+значения. При параллельной модерации монотонно растущий `version` отклоняет
+устаревшие изменения.
 
-## Before deployment
+## Перед деплоем
 
-Create a **Cloudflare Turnstile** managed widget for `tamir.rs` and `www.tamir.rs` (the storefront domains, not the API domain). DNS does not need to move to Cloudflare.
+Создайте managed-виджет **Cloudflare Turnstile** для `tamir.rs` и `www.tamir.rs`
+(домены витрины, а не API-домен). Переносить DNS к Cloudflare не нужно.
 
-In `/root/tamir_balkan/frontend/.env.local` set:
+В `/root/tamir_balkan/frontend/.env.local` укажите:
 
 ```dotenv
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=your_real_site_key
 ```
 
-In `/root/tamir_balkan/backend/.env` set:
+В `/root/tamir_balkan/backend/.env` укажите:
 
 ```dotenv
 TURNSTILE_SECRET_KEY=your_real_secret_key
 TURNSTILE_HOSTNAMES=tamir.rs,www.tamir.rs
 ```
 
-The existing backend `JWT_SECRET` must be at least 32 characters for hashing short-lived anti-spam identifiers. Alternatively set a separate `REVIEW_RATE_SECRET` generated by `openssl rand -hex 32`; do not change the existing JWT secret just for this feature. Never put secret keys into `NEXT_PUBLIC_*` variables or commit `.env` files.
+Существующий backend `JWT_SECRET` должен быть не короче 32 символов — он нужен
+для хеширования коротко живущих анти-спам идентификаторов. Альтернативно задайте
+отдельный `REVIEW_RATE_SECRET`, созданный командой `openssl rand -hex 32`; не
+меняйте существующий JWT-секрет из-за этой функции. Никогда не кладите секретные
+ключи в переменные `NEXT_PUBLIC_*` и не добавляйте `.env`-файлы в Git.
 
-Then run the regular deployment:
+Затем выполните обычный выпуск:
 
 ```bash
 cd /root/tamir_balkan
@@ -41,22 +76,54 @@ git pull --ff-only
 bash scripts/deploy-vps.sh
 ```
 
-The deployment checks key presence and rejects Cloudflare test keys before building/switching the release. It does not prove that the supplied keys match: verify one real registration and one review after deployment. Missing configuration causes CAPTCHA-protected submissions to fail closed, not bypass verification. A failed preflight leaves the existing release running.
+Деплой проверяет наличие ключей и отклоняет тестовые ключи Cloudflare до сборки и
+переключения релиза. Он не доказывает, что ключи подходят: после деплоя
+проверьте одну реальную регистрацию и один отзыв. При отсутствующей конфигурации
+защита CAPTCHA работает в отказоустойчивом режиме — защищённые отправки не
+проходят, а не обходят проверку. Неудачный preflight оставляет работать
+существующий релиз.
 
-The deploy script creates a database backup, builds/tests, and runs `medusa exec ./src/scripts/setup-reviews.ts` before activation. This idempotent, transactional setup creates the review tables (`tamir_review`, `tamir_review_vote`, `tamir_review_audit`, `tamir_review_rate`), registration/password-reset challenge tables, product URL registry and their indexes. Despite its historical name, it is required for more than reviews; see [backend scripts](../backend/src/scripts/README.md). For manual/dev deployment run that same command once from backend before using reviews. The additional tables are included in the existing full database backup. A code rollback can leave these additive tables in place.
+Скрипт деплоя делает резервную копию базы, собирает и проверяет приложение и
+запускает `medusa exec ./src/scripts/setup-reviews.ts` до активации. Эта
+идемпотентная транзакционная настройка создаёт таблицы отзывов
+(`tamir_review`, `tamir_review_vote`, `tamir_review_audit`, `tamir_review_rate`),
+таблицы challenge для регистрации и сброса пароля, реестр адресов товаров и их
+индексы. Несмотря на историческое имя, она нужна не только для отзывов; см.
+[скрипты backend](../backend/src/scripts/README.md). При ручном или dev-деплое
+один раз выполните ту же команду из backend до работы с отзывами. Дополнительные
+таблицы попадают в существующее полное резервное копирование базы. Откат кода
+может оставить эти аддитивные таблицы.
 
-Turnstile validation is server-side with the exact expected action and allowed hostname; tokens are one-use and expire at Cloudflare. New registration uses the email-code endpoints in [REGISTRATION.md](REGISTRATION.md); direct `/auth/customer/:provider/register` and POST `/store/customers` are blocked with `EMAIL_VERIFICATION_REQUIRED`. CAPTCHA failure must not create or reclaim an identity. Abuse limits use account IDs for reviews/votes and a keyed hash of the resolved client IP for registration; configure the trusted reverse proxy correctly if changing the deployment topology. Limits are 10 review submissions/account/hour, 60 votes/account/hour, and 30 registration attempts/IP/hour. Expired buckets are cleaned on subsequent protected requests. The secret stays server-side.
+Проверка Turnstile выполняется на сервере с ожидаемым действием и разрешённым
+hostname; токены одноразовые и истекают на стороне Cloudflare. Новая регистрация
+использует эндпоинты с кодом на почте из [REGISTRATION.md](REGISTRATION.md);
+прямые `/auth/customer/:provider/register` и POST `/store/customers` заблокированы
+с `EMAIL_VERIFICATION_REQUIRED`. Сбой CAPTCHA не должен создавать или возвращать
+identity. Для анти-злоупотреблений лимиты отзывов и голосов привязаны к ID
+аккаунта, а лимиты регистрации — к keyed hash определённого IP клиента; при
+смене топологии деплоя правильно настраивайте доверенный reverse proxy. Лимиты:
+10 отзывов на аккаунт в час, 60 голосов на аккаунт в час, 30 попыток регистрации
+на IP в час. Просроченные окна очищаются при следующих защищённых запросах.
+Секрет остаётся на сервере.
 
-## Acceptance checks
+## Проверка приёмки
 
-- Guest sees ratings and text but cannot post or react, including direct API requests.
-- Blank text, 251 characters, absent/invalid rating, CAPTCHA failure and token replay cannot create a review.
-- The stored first name is public; email and phone are absent from public JSON/markup.
-- A duplicate review cannot be created by retries/concurrent requests or after moderator removal.
-- One positive and one negative reaction attempted concurrently produce only one vote.
-- A score of −1 folds the text; zero unfolds normally; changing usefulness does not affect stars.
-- Catalog summaries and the product mean exclude hidden/deleted reviews.
-- Only the designated admin user can access review management and author email.
-- Registration has a challenge after submit; canceled/failed challenges do not create an identity.
+- Гость видит оценки и тексты, но не может публиковать и реагировать, в том числе
+  прямыми запросами к API.
+- Пустой текст, 251 символ, отсутствующая или неверная оценка, сбой CAPTCHA и
+  повторная подача токена не создают отзыв.
+- Сохранённое имя публикуется; адрес почты и телефон отсутствуют в публичном JSON
+  и разметке.
+- Дубликат отзыва нельзя создать повторными или параллельными запросами, а также
+  после удаления модератором.
+- Одна положительная и одна отрицательная реакция, отправленные параллельно,
+  дают ровно один голос.
+- Сумма −1 сворачивает текст, нулевая разворачивает обычным образом; изменение
+  полезности не влияет на звёзды.
+- Сводки каталога и средняя оценка товара исключают скрытые и удалённые отзывы.
+- Доступ к управлению отзывами и к почте авторов имеет только назначенный
+  пользователь админки.
+- После отправки регистрации появляется challenge; отменённые и неудачные
+  challenge identity не создают.
 
-Provider documentation: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
+Документация провайдера: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/

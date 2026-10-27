@@ -1,4 +1,5 @@
 "use client"
+import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 import { useRef, useState } from "react"
 import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
@@ -45,6 +46,6 @@ export function CatalogFilters({ filters, selection, basePath = "/rs/catalog" }:
   return <>
     <aside className="catalog-filter-desktop"><FilterForm key={key} filters={filters} selection={selection} basePath={basePath} /></aside>
     <button className="button-secondary catalog-filter-toggle" type="button" aria-haspopup="dialog" onClick={() => dialog.current?.showModal()}><DesignIcon name="filter" />{t("design.filters")}{selection.size.length + selection.color.length > 0 && <span>({selection.size.length + selection.color.length})</span>}</button>
-    <dialog ref={dialog} className="filter-drawer" aria-label={t("design.filters")}><div className="flex items-center justify-between pb-6"><h2 className="text-2xl font-semibold">{t("design.filters")}</h2><button className="icon-button" type="button" aria-label={t("common.close")} onClick={() => dialog.current?.close()}><DesignIcon name="close" /></button></div><FilterForm key={key} filters={filters} selection={selection} basePath={basePath} onApply={() => dialog.current?.close()} /></dialog>
+    <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event)} ref={dialog} className="filter-drawer" aria-label={t("design.filters")}><div className="flex items-center justify-between pb-6"><h2 className="text-2xl font-semibold">{t("design.filters")}</h2><button className="icon-button" type="button" aria-label={t("common.close")} onClick={() => dialog.current?.close()}><DesignIcon name="close" /></button></div><FilterForm key={key} filters={filters} selection={selection} basePath={basePath} onApply={() => dialog.current?.close()} /></dialog>
   </>
 }

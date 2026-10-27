@@ -84,7 +84,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
       <h2 className="text-lg font-semibold text-[var(--store-text)]">
         {t("account.profileSection")}
       </h2>
-      <p className="mt-1 text-sm text-[var(--store-text-muted)]">
+      <p className="mt-5 text-sm">
         {t("account.profileHint")}
       </p>
 
@@ -95,7 +95,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
       ) : (
         <form
           noValidate
-          className="profile-form checkout-form mt-6"
+          className="profile-form checkout-form mt-5"
           onSubmit={async (e) => {
             e.preventDefault()
             if (saveLock.current) return
@@ -163,7 +163,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           <p className="text-xs text-[var(--store-text-muted)]">
             {t("account.emailReadOnly")}
           </p>
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("auth.register.email")}
             </span>
@@ -175,7 +175,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           </label>
 
           <div className="profile-field-row">
-            <label className="grid gap-1">
+            <label className="grid gap-2">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.firstName")}
               </span>
@@ -187,7 +187,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               />
               {fieldError("firstName")}
             </label>
-            <label className="grid gap-1">
+            <label className="grid gap-2">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.lastName")}
               </span>
@@ -201,7 +201,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             </label>
           </div>
 
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("auth.register.phone")}
             </span>
@@ -219,7 +219,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           </h3>
           <p className="text-sm text-[var(--store-text-muted)]">{t("account.addressOptionalHint")}</p>
 
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("auth.register.country")}
             </span>
@@ -235,7 +235,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
           </label>
 
           <div className="profile-field-row">
-            <label className="grid gap-1">
+            <label className="grid gap-2">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.postalCode").replace(/\s*\*$/, "")}
               </span>
@@ -246,7 +246,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               />
               {fieldError("postalCode")}
             </label>
-            <label className="grid gap-1">
+            <label className="grid gap-2">
               <span className="text-sm font-medium text-[var(--store-text)]">
                 {t("auth.register.city")}
               </span>
@@ -260,7 +260,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
             </label>
           </div>
 
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("checkout.address").replace(/\s*\*$/, "")}
             </span>
@@ -272,7 +272,7 @@ export function AccountProfileForm({ countryCode }: { countryCode: string }) {
               {fieldError("address1")}
           </label>
 
-          <label className="grid gap-1">
+          <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
               {t("auth.register.notes")}
             </span>

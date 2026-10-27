@@ -1,13 +1,13 @@
-# HTTP integration tests
+# HTTP интеграционные тесты
 
-Reviewed on 2026-10-11. This directory currently contains `health.spec.ts`: it uses `medusaIntegrationTestRunner` from `@medusajs/test-utils`, starts the application and checks that GET `/health` returns 200. It is a Jest test, distinct from the Node test suites in `backend/tests/`.
+Проверено 2026-10-11. Каталог сейчас содержит `health.spec.ts`: он использует `medusaIntegrationTestRunner` из `@medusajs/test-utils`, поднимает приложение и проверяет, что GET `/health` отвечает 200. Это Jest-тест, отдельный от наборов Node-тестов в `backend/tests/`.
 
-From `backend/`, with dependencies installed and a dedicated test database/configuration:
+Из каталога `backend/` при установленных зависимостях и отдельной тестовой базе и конфигурации:
 
 ```bash
 npm run test:integration:http
 ```
 
-The package script sets `TEST_TYPE=integration:http`; `jest.config.js` selects these files. Do not point integration test setup at production data. A successful health test does not verify imports, email delivery, checkout or all business rules.
+Скрипт пакета задаёт `TEST_TYPE=integration:http`; эти файлы отбирает `jest.config.js`. Не направляйте интеграционную конфигурацию на production-данные. Успешный health-тест не проверяет импорт, отправку писем, оформление заказа и остальные бизнес-правила.
 
-The main GitHub CI runs explicit frontend and `backend/tests/*.cjs` regressions plus builds; it does not use this single health test as their replacement. See [TESTING.md](../../../docs/TESTING.md) and [verify.yml](../../../.github/workflows/verify.yml).
+Основной GitHub CI выполняет явные проверки frontend и регрессии `backend/tests/*.cjs` плюс сборки, и не заменяет ими этот единственный health-тест. См. [TESTING.md](../../../docs/TESTING.md) и [verify.yml](../../../.github/workflows/verify.yml).

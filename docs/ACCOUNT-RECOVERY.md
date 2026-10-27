@@ -1,59 +1,69 @@
-# Account recovery and guest checkout
+# Восстановление аккаунта и гостевое оформление
 
-Reviewed against the code on 2026-10-11. [Route table](BROWSER-LANGUAGE.md).
+Сверено с кодом 11 октября 2026. [Таблица маршрутов](BROWSER-LANGUAGE.md).
 
-## Registration after deletion
+## Повторная регистрация после удаления
 
-The verified registration route can reclaim a customer-only email/password identity
-whose `customer_id` is null, points to a soft-deleted customer, or points to a
-missing customer. Cleanup runs only after the registration code has been verified.
-A live customer with this email or linked ID, another actor (including admin), or
-an identity shared with an OAuth provider cannot be detached. Reclaimed legacy
-upper-case email identifiers are normalized without merging unrelated identities.
+Проверенный маршрут регистрации может вернуть себе identity типа
+email/password, у которого только роль customer, если `customer_id` равен `null`,
+ссылается на мягко удалённого покупателя или на отсутствующего покупателя.
+Очистка выполняется только после проверки кода регистрации. Нельзя отвязать
+живого покупателя с этой почтой или со связанным ID, другого актора (в том числе
+администратора) или identity, разделённое с OAuth-провайдером. Унаследованные
+identity с адресом почты в верхнем регистре нормализуются без слияния
+посторонних identity.
 
-## Password recovery
+## Восстановление пароля
 
-The login page links to `/rs/nalog/zaboravljena-lozinka` in Serbian and
-`/en/account/forgot-password` in English. Old `/rs/account/forgot-password`
-links redirect permanently to the Serbian route, preserving the query string.
-The customer passes CAPTCHA and requests a six-digit code, then enters the code
-and a new password twice. A prominent notice asks them to check spam.
+Со страницы входа есть ссылки на `/rs/nalog/zaboravljena-lozinka` по-сербски и
+`/en/account/forgot-password` по-английски. Старые ссылки `/rs/account/forgot-password`
+ведут постоянный редирект на сербский маршрут, строка запроса сохраняется.
+Покупатель проходит CAPTCHA и запрашивает шестизначный код, затем вводит код и
+новый пароль дважды. Заметное напоминание просит проверить папку спама.
 
-- Code lifetime: 10 minutes; maximum 5 failed attempts; resend cooldown: 60 seconds.
-- Resending invalidates the previous code. Successful reset consumes the code.
-- Codes are stored as keyed hashes, not plaintext, separately from registration codes.
-- The challenge is bound to the original customer, auth identity and password version.
-- Only active registered customer accounts can be reset; guest/deleted/admin identities
-  are not changed. The start endpoint uses the same public response for unknown emails.
-- The existing SMTP configuration and Turnstile keys are used. The Turnstile action is
-  `password_reset`; it must match server verification.
-- Medusa's email/password provider hashes the new password. The user then signs in.
+- Срок действия кода: 10 минут; не более 5 неудачных попыток; пауза повторной
+  отправки: 60 секунд.
+- Повторная отправка аннулирует предыдущий код. Успешный сброс расходует код.
+- Коды хранятся как keyed hash, а не открытым текстом, отдельно от кодов регистрации.
+- Challenge привязан к исходному покупателю, auth-identity и версии пароля.
+- Сбросить можно только активный зарегистрированный аккаунт покупателя; identity
+  гостя, удалённого покупателя или администратора не меняются. На стартовом
+  эндпоинте неизвестный адрес почты даёт такой же публичный ответ.
+- Используются существующие конфигурация SMTP и ключи Turnstile. Действие
+  Turnstile — `password_reset`; оно должно совпадать с серверной проверкой.
+- Провайдер email/password Medusa хеширует новый пароль. После этого пользователь
+  входит.
 
-`setup-reviews.ts` now idempotently creates `tamir_password_reset`.
-The existing deployment script already runs this setup before switching releases.
-No manual SQL or new environment variables are required for the normal deployment.
+`setup-reviews.ts` идемпотентно создаёт таблицу `tamir_password_reset`.
+Существующий скрипт деплоя и так запускает эту настройку перед переключением
+релизов. Ручной SQL и новые переменные окружения для обычного деплоя не нужны.
 
-## Guest checkout
+## Гостевое оформление
 
-Cart and checkout show an explicit “Buy without registration” option. The guest
-enters contact and delivery information and places an order through the existing
-Medusa cart/payment flow. Choosing login can return the customer to checkout.
+В корзине и оформлении заказа есть явный вариант «Купить без регистрации».
+Гость вводит контакты и данные доставки и оформляет заказ через существующий
+поток корзины и оплаты Medusa. После возврата ко входу покупатель может
+оформлять заказ дальше.
 
-SDK and UI now use the same JWT storage key. If the saved account has been deleted
-or its token is rejected, both current and legacy tokens are cleared before cart
-initialization. Transient backend errors do not clear a valid saved session.
+SDK и интерфейс используют один и тот же ключ хранения JWT. Если сохранённый
+аккаунт удалён или его токен отклонён, перед инициализацией корзины очищаются и
+текущие, и унаследованные токены. Временные сбои backend не удаляют корректную
+сохранённую сессию.
 
-Browser scenarios use an isolated API fixture and simulated CAPTCHA. They do not
-send real emails or create production accounts/orders. PostgreSQL integration tests
-cover identity reclamation and real Medusa password hashing/authentication.
+Сценарии в браузере работают на изолированной фикстуре API и с имитацией CAPTCHA.
+Они не отправляют реальные письма и не создают production-аккаунты и заказы.
+Интеграционные тесты PostgreSQL покрывают возврат identity и реальное
+хеширование и проверку пароля в Medusa.
 
-## Historical responsive browser checks
+## Исторические проверки адаптивности в браузере
 
-The original account-recovery release recorded 63 page/viewport combinations in Chromium: catalog, product, cart,
-checkout, registration, login and password recovery at 1920×1080, 2560×1440,
-320×568, 360×780, 375×667, 390×844, 412×915, 430×932 and 768×1024.
-Mobile contexts emulate touch and device pixel density. These are browser
-emulations, not tests on physical phones or Safari/WebKit. No horizontal overflow,
-broken images or page runtime errors were observed in that matrix. These are
-historical results, not a fresh run for this documentation update. Current commands
-and test scope are in [TESTING.md](TESTING.md).
+При исходном выпуске восстановления аккаунта в Chromium было записано 63
+комбинации страниц и вьюпортов: каталог, товар, корзина, оформление,
+регистрация, вход и восстановление пароля при 1920×1080, 2560×1440, 320×568,
+360×780, 375×667, 390×844, 412×915, 430×932 и 768×1024.
+Мобильные контексты эмулируют касания и плотность пикселей. Это эмуляция
+браузера, а не тесты на физических телефонах и не Safari/WebKit. В этой матрице
+не было замечено горизонтального выхода за границы, битых изображений или ошибок
+во время выполнения страницы. Это исторические результаты, а не свежий прогон
+для этого обновления документации. Актуальные команды и состав тестов — в
+[TESTING.md](TESTING.md).

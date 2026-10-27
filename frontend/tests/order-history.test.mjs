@@ -7,7 +7,6 @@ function setup(fetch) {
  const c=load('frontend/src/components/auth/OrderHistoryDetails.tsx',{
   react:h.react,
   '@/lib/medusa':{sdk:{client:{fetch}}},
-  '@/lib/auth/auth-storage':{getAuthToken:()=> 'customer-token'},
   '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en',t:k=>k})},
   '@/lib/format-money':load('frontend/src/lib/format-money.ts'),
  })
@@ -17,7 +16,7 @@ function setup(fetch) {
 test('order details show historical item prices and separate shipping status',async()=>{
  let query
  const {h,render}=setup(async(path,options)=>{
-  assert.equal(path,'/store/orders');assert.equal(options.headers.authorization,'Bearer customer-token')
+  assert.equal(path,'/store/orders');assert.equal(options.headers?.authorization,undefined)
   query=options.query
   return {orders:[{id:'own',total:3200,subtotal:3000,shipping_total:200,tax_total:0,discount_total:0,
    items:[{id:'line',product_title:'Historical shirt',variant_title:'XL',unit_price:1500,quantity:2,total:3000}]}]}

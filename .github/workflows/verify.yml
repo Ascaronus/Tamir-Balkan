@@ -2,16 +2,35 @@ name: Verify storefront and backend
 on:
   push:
     branches: [main, fix/store-reliability]
+    # Документация (docs/, openspec/, любые .md) не влияет ни на сборку, ни на продукт.
+    # Если в push в main менялись только такие файлы, Verify не запускается —
+    # и Deploy (триггер workflow_run от Verify на main) тоже не срабатывает,
+    # прод не пересобирается и pm2 не перезапускается из-за текста в markdown.
+    # Для pull_request фильтр не ставим: required-чеки защищённого main должны
+    # приходить по любому PR.
+    paths-ignore:
+      - 'docs/**'
+      - 'openspec/**'
+      - '**.md'
   pull_request:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  # Единая очередь для всех прогонов Verify: при двух параллельных прогонах
+  # Jest HTTP-тесты зависают на шаге integration tests. Новые прогоны ждут в queued,
+  # самый старый queued-прогон может быть отменён новым — его нужно перезапустить.
+  group: verify-global
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
+      # Matrix-джобы (Node 20 и 24) тоже выполняются по очереди: оба запускают
+      # Jest HTTP и Rozetka-шаги, которые не должны идти одновременно.
+      max-parallel: 1
       matrix:
         node: ["20.20.2", "24"]
     services:
@@ -28,8 +47,22 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       TEST_REVIEWS_DB_URL: postgres://review_test:review_test@127.0.0.1:5432/review_test
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USERNAME: review_test
+      DB_PASSWORD: review_test
+      REDIS_URL: redis://localhost:6379
       NEXT_PUBLIC_MEDUSA_BACKEND_URL: http://127.0.0.1:9000
       NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: pk_ci_placeholder
       NEXT_TELEMETRY_DISABLED: "1"
@@ -66,10 +99,37 @@ jobs:
         working-directory: frontend
       - run: npm ci --no-audit --no-fund
         working-directory: backend
-      - run: node --test tests/rozetka-admin.test.cjs tests/option-autotranslate.test.cjs tests/auth-secrets.test.cjs
+      - name: Guard test database env
+        run: node test-support/guard-env.cjs --require-env
         working-directory: backend
-      - run: node --test tests/reviews.integration.cjs tests/deleted-customer-registration.integration.cjs tests/registration-code.integration.cjs tests/password-reset.integration.cjs tests/admin-decimals.test.cjs tests/decimal-attributes.integration.cjs tests/product-urls.integration.cjs tests/category-localization.integration.cjs tests/catalog.test.cjs tests/catalog-http.test.cjs tests/catalog-popularity.integration.cjs
+      - name: Backend unit tests (no DB, auto-discovered)
+        run: npm run test:cjs -- --no-db --junit-dir=reports
+        working-directory: backend
+      - name: Rozetka import pipeline test (isolated _import_test DB)
+        run: |
+          createdb -h 127.0.0.1 -U review_test tamir_balkan_import_test || true
+          DATABASE_URL=postgres://review_test:review_test@127.0.0.1:5432/tamir_balkan_import_test npx medusa db:migrate
+          DATABASE_URL=postgres://review_test:review_test@127.0.0.1:5432/tamir_balkan_import_test npx medusa exec ./src/scripts/setup-reviews.ts
+          DATABASE_URL=postgres://review_test:review_test@127.0.0.1:5432/tamir_balkan_import_test npx medusa exec ./tests/rozetka-native.ts
+        working-directory: backend
+        env:
+          PGPASSWORD: review_test
+      - name: Backend integration tests (DB, auto-discovered)
+        run: npm run test:cjs -- --db-only --junit-dir=reports
+        working-directory: backend
+      - name: Backend HTTP integration tests (Jest, medusaIntegrationTestRunner)
+        run: npm run test:integration:http -- --json --outputFile=reports/jest-http.json
         working-directory: backend
       - run: npm run build
         working-directory: backend
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-node-${{ matrix.node }}
+          path: backend/reports/
+          retention-days: 14
+          if-no-files-found: ignore
+      - run: node test-support/verify-deploy-dispatch.mjs
       - run: bash -n scripts/deploy-vps.sh
+      - run: node test-support/verify-deploy-pin.mjs

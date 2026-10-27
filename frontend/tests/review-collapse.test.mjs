@@ -8,6 +8,7 @@ function setup(score) {
  const react = Object.fromEntries(Object.keys(parent.react).map(k=>[k,(...args)=>active.react[k](...args)]))
  const review={id:'r1',name:'Igor',rating:5,body:'Good product',score,up:0,down:0,created_at:'2026-09-22',voted:false}
  const component=load('frontend/src/components/reviews/ProductReviews.tsx',{
+  '@/components/auth/LoginDialog':{LoginDialog:'LoginDialog'},
   react,'@/components/i18n/LocalizedLink':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})},
   '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({t:k=>k,locale:'en'})},
   '@/components/security/Captcha':{useCaptcha:()=>({captcha:null})},
@@ -26,6 +27,7 @@ for(const score of [-3,-1,0,2]) test(`review score ${score}: default, manual tog
  await s.parent.flush(); tree=s.render()
  const node=find(tree,n=>typeof n.type==='function'&&n.props.review)
  let item=s.renderItem(node)
+ assert.equal(find(item,n=>n.props?.children==='reviews.hiddenNegative'),null)
  assert.equal(find(item,n=>n.props?.id==='review-body-r1').props.hidden,score<0)
  const toggle=()=>find(item,n=>n.type==='button'&&n.props['aria-controls']==='review-body-r1')
  toggle().props.onClick();item=s.renderItem(node)
