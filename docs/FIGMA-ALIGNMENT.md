@@ -1,133 +1,170 @@
-# Storefront and Figma alignment
+# Витрина и соответствие Figma
 
-Design source: [04 · TAMIR / Responsive v2](https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF/TAMIR?node-id=79-1215).
-Reviewed on 2026-10-22. Earlier Screens and foundations remain historical;
-the responsive page is the source for current storefront work.
+Источник дизайна: [04 · TAMIR / Responsive v2](https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF/TAMIR?node-id=79-1215).
+Сверено 22 октября 2026. Страницы Screens и foundations остаются историческими;
+для текущих работ по витрине источником служит адаптивная страница.
 
-## Catalog sorting and ratings
+## Сортировка каталога и оценки
 
-- Sorting follows desktop node `79:1268`: 48px height, 12px padding,
-  Manrope Medium 16/24, 8px between the label and the 20px down icon.
-  The arrow follows the label rather than the browser-dependent right edge.
-  Narrow mobile controls retain 14px text and 8px horizontal padding.
-- A transparent native select covers the visible control, preserving keyboard
-  navigation, screen-reader naming, native mobile pickers and existing URLs.
-  Keyboard focus outlines the entire visible control.
-- Rating stars use the original 16px vector from component `30:54`, 4px gaps,
-  and `--store-text` (#0a0a0a). Empty portions use `--store-border` (#e8e8e8).
-  Fractional fills use the existing rating calculation. Review text stays
-  `--store-text-muted` (#5c5c5c). Mobile catalog cards retain one compact star.
-- The extra review-bubble icon is omitted when stars are present, as in Figma.
-  If the review service is unavailable, its existing text/icon fallback stays.
-- `public/design/down.svg` and `star.svg` are exact Figma SVG exports,
-  retrieved through the plugin export API; no temporary asset URLs are shipped.
+- Сортировка повторяет десктопный узел `79:1268`: высота 48 px, отступы 12 px,
+  Manrope Medium 16/24, 8 px между подписью и иконкой стрелки вниз 20 px.
+  Стрелка следует за подписью, а не за зависимым от браузера правым краем.
+  Узкие мобильные контролы сохраняют текст 14 px и горизонтальные отступы 8 px.
+- Прозрачный нативный `select` перекрывает видимый контрол, сохраняя навигацию с
+  клавиатуры, именование для скринридеров, нативные мобильные селекторы и
+  существующие URL. Фокус с клавиатуры обводит весь видимый контрол.
+- Звёзды оценки используют исходный вектор 16 px из компонента `30:54`, зазоры
+  4 px и `--store-text` (#0a0a0a). Пустые части используют `--store-border`
+  (#e8e8e8). Дробная заливка опирается на существующий расчёт рейтинга. Текст
+  отзывов остаётся `--store-text-muted` (#5c5c5c). В мобильных карточках каталога
+  остаётся одна компактная звезда.
+- Дополнительная иконка «облачко отзыва» не показывается, если есть звёзды, как в
+  Figma. Если сервис отзывов недоступен, сохраняется его существующий запасной
+  вариант с текстом/иконкой.
+- `public/design/down.svg` и `star.svg` — точные SVG-экспорты из Figma, полученные
+  через API экспорта плагина; временные URL ассетов в репозиторий не попадают.
 
-## Previously accepted differences
+## Ранее принятые отличия
 
-Keep Manrope and the readable responsive typography, search beside the catalog
-heading on desktop and below it on mobile, the winter family campaign banner,
-interactive larger color swatches and their centered selection rings, and the
-80% product gallery with pointer zoom. Do not restore the old illustration,
-small non-interactive swatches or full-size gallery from historical frames.
-Real product names, photos, prices, availability, categories and review counts
-remain live data rather than the demonstration content in Figma.
+Сохраняем Manrope и читаемую адаптивную типографику, поиск рядом с заголовком
+каталога на десктопе и под ним на мобильных, зимний семейный баннер акции,
+интерактивные крупные образцы цвета с центрированным кольцом выбора и галерею
+товара на 80 % с зумом по наведению. Не возвращаем старую иллюстрацию, мелкие
+неинтерактивные образцы цвета и полноразмерную галерею с исторических фреймов.
+Реальные названия, фото, цены, доступность, категории и количество отзывов
+остаются живыми данными, а не демонстрационным содержимым Figma.
 
-## Figma updates
+## Правки в Figma
 
-On page 04, remaining Inter overrides in profile/checkout fields now use
-Manrope. The mobile card component's price is 16/24, matching its existing
-screen overrides; the 320px catalog heading is 28/36. All five catalog search
-fields retain the agreed location and now contain an editable 44px search
-button, matching the implemented control and text inset.
+На странице 04 оставшиеся переопределения шрифта Inter в полях профиля и
+оформления заменены на Manrope. Цена в компоненте мобильной карточки — 16/24, как
+в её существующих переопределениях на экранах; заголовок каталога при 320 px —
+28/36. Все пять
+полей поиска каталога сохраняют согласованное расположение и теперь содержат
+редактируемую кнопку поиска 44 px, соответствующую реализованному контролу и
+внутреннему отступу текста.
 
-## Validation
+## Проверка (историческая запись)
 
-- Existing frontend suite: 147 tests passed; production build and TypeScript
-  passed; ESLint has no errors (9 pre-existing warnings).
-- Chromium with a local Store API fixture: Serbian and English at 320, 390,
-  768, 1440, 1920 and 2560px. Verified no horizontal overflow or runtime errors,
-  16px star geometry and colors, 8px label-to-arrow spacing, visible keyboard
-  focus, pointer/native selection, keyboard sort changes and search submission.
-- Figma composition screenshots reviewed for desktop/mobile catalog and profile;
-  all text on the active responsive page uses Manrope.
-- Browser fixture checks do not certify physical devices or production data.
+- Тогдашний набор тестов frontend: 147 тестов прошли успешно; production-сборка и
+  TypeScript прошли успешно; ESLint без ошибок (9 существовавших предупреждений).
+- Chromium с локальной фикстурой Store API: сербская и английская версии при 320,
+  390, 768, 1440, 1920 и 2560 px. Проверено отсутствие горизонтального выхода за
+  границы и ошибок во время выполнения, геометрия и цвета звёзд 16 px, зазор 8 px
+  между подписью и стрелкой, видимый фокус с клавиатуры, выбор курсором и
+  нативный выбор, смена сортировки с клавиатуры и отправка поиска.
+- Просмотрены скриншоты композиций для десктопа и мобильных: каталог и профиль;
+  весь текст на активной адаптивной странице использует Manrope.
+- Проверки в браузере на фикстуре не сертифицируют физические устройства и
+  production-данные. Актуальное количество тестов здесь не пересчитывалось;
+  текущие команды — в [TESTING.md](TESTING.md).
 
-## Follow-up alignment — 2026-10-25
+## Уточнение соответствия — 25 октября 2026
 
-- Reviews now follow the responsive design: heading, overall rating, caption,
-  author/score row, date, body, horizontal helpfulness controls, and full-width
-  per-review collapse button. Existing voting, moderation, submission locks and
-  authentication remain in place. Guest vote links lead to login. The desktop
-  introduction has the write-review action; the top section toggle remains.
-- Product and review-summary stars have 8px gaps; catalog stars keep 4px.
-  Helpfulness icons are original 16px exports from nodes
-  `I85:2310;43:499;43:428` and `I85:2310;43:499;43:432`.
-- Product breadcrumbs use the live category and localized URLs. Color comes
-  before size. Availability uses the design's green indicator and 14/20 type.
-  The 1920px column ratio is 960:816, with the existing 48px gap. Mobile photo
-  selectors use dots while keeping accessible buttons and the zoom dialog.
-- Composition/care is an accordion only when real material/care data exists;
-  no demo composition, VAT claim, size chart or support promise is invented.
-- Catalog rows use 24px gaps. Mobile count sits beside the heading; the filter
-  button is 118px, sorting takes the remaining width. Desktop pagination uses
-  page numbers; mobile Load more appends products, deduplicates IDs, guards
-  repeated clicks and supports retry without losing the current list.
-- Checkout/profile labels have 8px gaps to controls. Introductory spacing is
-  aligned. Cart details stack title, variant, price, quantity and removal;
-  the continue-shopping action is a text link and extra separators are removed.
-- Previously agreed typography, campaign image, larger color choices, 80%
-  product image with zoom, two-line card title reservation and legal links stay.
+- Отзывы теперь следуют адаптивному дизайну: заголовок, общая оценка, подпись,
+  строка автора и оценки, дата, текст, горизонтальные реакции полезности и
+  кнопка сворачивания на всю ширину для каждого отзыва. Существующие голосование,
+  модерация, блокировки отправки и авторизация сохранены. Ссылки голосования для
+  гостей ведут на вход. В десктопном вводе есть действие «написать отзыв»;
+  переключатель в верхней части раздела остаётся.
+- У звёзд на странице товара и в сводке отзывов зазор 8 px; в каталоге остаётся
+  4 px. Иконки полезности — исходные 16 px экспорты из узлов
+  `I85:2310;43:499;43:428` и `I85:2310;43:499;43:432`.
+- Хлебные крошки товара используют живую категорию и локализованные адреса. Цвет
+  указывается перед размером. Доступность использует зелёный индикатор из дизайна и
+  набор 14/20. Соотношение колонок при 1920 px — 960:816 с существующим зазором
+  48 px. Мобильные селекторы фото используют точки, оставаясь доступными кнопками,
+  и открывают диалог зума.
+- Состав/уход — аккордеон только при наличии реальных данных о материале и уходе;
+  демонстрационный состав, утверждения о НДС, размерные таблицы и обещания
+  поддержки не придумываются.
+- Ряды каталога используют зазоры 24 px. Количество справа от заголовка на мобильных;
+  кнопка фильтров шириной 118 px, сортировка занимает оставшуюся ширину. На
+  десктопе пагинация показывает номера страниц; на мобильных «Показать ещё»
+  дописывает товары, устраняет дубликаты ID, защищает от повторных нажатий и
+  поддерживает повтор запроса без потери текущего списка.
+- У подписей оформления и профиля зазор 8 px до контролов. Выровнены отступы
+  вводных блоков. Детали корзины показывают столбиком название, вариант, цену,
+  количество и удаление; действие «продолжить покупки» — текстовая ссылка,
+  лишние разделители убраны.
+- Ранее согласованные типографика, изображение акции, крупные образцы цвета, фото
+  товара на 80 % с зумом и резерв названия карточки в две строки и юридические
+  ссылки остаются.
 
-### Earlier design/content decisions (footer resolved below)
+### Более ранние решения по дизайну и контенту (по футеру решение ниже)
 
-The Figma footer has conflicting 48px/80px vertical padding and different mobile
-links. Keep the shared working footer until that design is unified; do not remove
-legal links to match an incomplete example. Real material/care and size-guide
-content must come from the catalog. These are not certified pixel-identical areas.
+В футере Figma противоречивые вертикальные отступы 48 px и 80 px и разные
+мобильные ссылки. Сохраняем общий рабочий футер, пока дизайн не унифицирован; не
+убираем юридические ссылки ради несогласованного примера. Реальные данные о
+материале, уходе и размерной таблице должны приходить из каталога. Эти области не
+считаются выверенными до пикселя.
 
-### Follow-up verification
+### Повторная проверка (историческая запись)
 
-- 149 frontend tests passed, including append/deduplication, duplicate-click
-  protection, retry and pricing-context isolation for Load more.
-- Production build and TypeScript passed. ESLint: no errors; 9 existing warnings.
-- Local Chromium with a disposable Store API fixture: SR/EN at 320, 390, 768,
-  1440, 1920 and 2560px; 84 screen/state checks covering catalog, product,
-  reviews, populated cart, guest checkout, validation and signed-in profile.
-  No horizontal overflow or uncaught browser errors. Checked sort navigation,
-  Load more, review collapse/expand, guest voting links, mobile image selection,
-  24px catalog row gaps, 118px mobile filter, 8px form gaps and 16px vote assets.
-- Fixture data and browser tooling are external to the shipped repository;
-  this does not certify physical devices, real checkout or payment processing.
+- 149 тестов frontend прошли успешно, включая дописывание и устранение
+  дубликатов, защиту от повторных нажатий, повтор запроса и изоляцию ценового
+  контекста для «Показать ещё».
+- Production-сборка и TypeScript прошли успешно. ESLint: без ошибок;
+  9 существовавших предупреждений.
+- Локальный Chromium с одноразовой фикстурой Store API: SR/EN при 320, 390, 768,
+  1440, 1920 и 2560 px; 84 проверки экранов и состояний — каталог, товар, отзывы,
+  заполненная корзина, гостевое оформление, валидация и профиль вошедшего. Без
+  горизонтального выхода за границы и необработанных ошибок браузера. Проверены
+  переход сортировки, «Показать ещё», сворачивание и разворачивание отзывов,
+  ссылки голосования для гостей, выбор изображения на мобильных, зазоры рядов
+  каталога 24 px, мобильная кнопка фильтров 118 px, зазоры форм 8 px и ассеты
+  голосов 16 px.
+- Данные фикстуры и инструменты браузера находятся вне поставляемого репозитория;
+  это не сертифицирует физические устройства, реальное оформление и обработку
+  платежей. Актуальное количество тестов здесь не пересчитывалось; текущие команды
+  — в [TESTING.md](TESTING.md).
 
-### Owner decisions — 2026-10-25
+### Решения владельца — 25 октября 2026
 
-- Keep production footer spacing: 48px vertical on desktop, 32px at <=900px.
-  Preserve production links and its compact mobile layout. Synchronize the
-  current responsive Figma page to this implementation, not historical pages.
-- Product Attributes are shown in a conditional Dimensions and details accordion:
-  length, width, height, weight, origin country, manufacturer code and HS code.
-  Empty fields disappear; no populated fields means no accordion. Explicit zero
-  is retained, as are decimal values. Country labels follow the storefront locale.
-  These are product-level attributes from Medusa, not a fabricated size chart or
-  arbitrary metadata. The built-in admin form has no measurement-unit labels:
-  values are preserved without inventing conversions or a cm/kg convention.
-- Material continues to use the existing Composition and care accordion. Example
-  supplied by owner: `50% viscose, 50% acrylic.`; never replace it with demo data.
-- Owner confirms the shop operates without VAT. Do not add a VAT-inclusive claim
-  or new VAT charge. Existing tax configuration is outside this UI change.
-- Support contact channels are not ready. Keep the current public interface;
-  future setup checklist is in SUPPORT-CONTACTS.md.
+- Сохранить отступы production-футера: 48 px по вертикали на десктопе, 32 px при
+  ширине <=900 px. Сохранить production-ссылки и компактную мобильную раскладку.
+  Синхронизировать текущую адаптивную страницу Figma с этой реализацией, а не с
+  историческими страницами.
+- Атрибуты товара показываются в условном аккордеоне «Размеры и подробности»:
+  длина, ширина, высота, вес, страна происхождения, код производителя и код HS.
+  Пустые поля исчезают; если заполненных полей нет, аккордеона нет. Явный ноль
+  сохраняется, как и дробные значения. Подписи стран соответствуют локали
+  витрины. Это атрибуты уровня товара из Medusa, а не выдуманная размерная
+  таблица и не
+  произвольные метаданные. Во встроенной форме админки нет подписей единиц
+  измерения: значения сохраняются как есть, без выдуманных переводов и без
+  соглашения см/кг.
+- Материал продолжает использовать существующий аккордеон «Состав и уход».
+  Пример владельца: `50% вискоза, 50% акрил.`; никогда не подменять его
+  демонстрационными данными.
+- Владелец подтверждает, что магазин работает без НДС. Не добавлять утверждение о
+  включённом НДС и новую ставку НДС. Существующая налоговая конфигурация вне этой
+  правки интерфейса.
+- Каналы поддержки не готовы. Текущий публичный интерфейс сохраняется; чек-лист
+  будущей настройки — в SUPPORT-CONTACTS.md.
 
-- Figma synchronization completed on active page `79:1215`: 33 footers use the
-  production link sets and 48/32px spacing. Historical design pages are unchanged.
+- Синхронизация Figma завершена на активной странице `79:1215`: 33 футера
+  используют production-наборы ссылок и отступы 48/32 px. Исторические страницы
+  дизайна не менялись.
 
-## Add-to-cart confirmation — 2026-10-26
+## Подтверждение добавления в корзину — 26 октября 2026
 
-Figma component set: https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF?node-id=187-3637
+Набор компонентов Figma: https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF?node-id=187-3637
 
-- Latest owner decision: Continue shopping on the left, Go to cart on the right. Mobile stacks Continue first, Go to cart second.
-- Native modal dialog opens only after a successful add operation; failures retain the existing error feedback.
-- SR: Proizvod je dodat u korpu / Nastavi kupovinu / Idi u korpu. EN: Product added to cart / Continue shopping / Go to cart.
-- Show the added variant and quantity, server-calculated line amount allocated to that quantity, updated cart quantity and merchandise total excluding delivery. Product selection supplies localized title/options and current image; other add buttons use the localized cart snapshot.
-- Escape, close and Continue dismiss; native modal focus containment, focus restoration and body scroll lock. No timed disappearance. Navigation/locale/session changes discard the confirmation.
-- Desktop 560 px, 32 px padding; mobile viewport minus 32 px, 20 px padding. Reuse storefront typography, buttons, colors and image fallback. Exact Figma success/close SVGs are bundled locally.
+- Последнее решение владельца: «Продолжить покупки» слева, «В корзину» справа. На
+  мобильных «Продолжить покупки» первым, «В корзину» вторым.
+- Нативный модальный диалог открывается только после успешного добавления; при
+  сбое сохраняется существующая обратная связь об ошибке.
+- SR: Proizvod je dodat u korpu / Nastavi kupovinu / Idi u korpu. EN: Product
+  added to cart / Continue shopping / Go to cart.
+- Показываются добавленные вариант и количество, рассчитанная сервером сумма
+  позиции, приходящаяся на это количество, обновлённое количество в корзине и
+  сумма товаров без доставки. Выбор товара даёт локализованные название и опции и
+  актуальное изображение; остальные кнопки добавления используют локализованный
+  снимок корзины.
+- Escape, закрытие и «Продолжить покупки» закрывают диалог; у нативного модального
+  окна — удержание фокуса, возврат фокуса и блокировка прокрутки страницы. Таймера
+  автоматического закрытия нет. Переход, смена локали или сессии отменяют подтверждение.
+- Десктоп: 560 px, отступ 32 px; мобильные: ширина вьюпорта минус 32 px, отступ
+  20 px. Используются существующие шрифты, кнопки, цвета и запасное изображение
+  витрины. Точные SVG успеха и закрытия из Figma подключены локально.

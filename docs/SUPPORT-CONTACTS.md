@@ -1,21 +1,21 @@
-# Support contacts — pending owner input
+# Контакты поддержки — ожидается решение владельца
 
-Decision recorded 2026-10-25: no customer support channels are ready for publication.
-Keep existing legal/help links; do not publish fake email addresses, telephone
-numbers, contact buttons or response-time promises.
+Решение зафиксировано 25 октября 2026: каналы поддержки покупателей публиковать
+нельзя. Сохраняем существующие ссылки юридических страниц и помощи; не публикуем
+фиктивные адреса почты, номера телефонов, кнопки связи и обещания сроков ответа.
 
-Transactional email for notifications and verification codes already exists;
-this does not establish a monitored customer support inbox.
+Транзакционные письма для уведомлений и кодов подтверждения уже работают; это не
+означает, что существует контролируемый почтовый ящик поддержки.
 
-Before enabling a public contact block, fill in and verify:
+Перед тем как включать публичный блок контактов, заполнить и проверить:
 
-- Monitored support email: pending.
-- Telephone / messaging channel, if offered: pending.
-- Working days, hours and timezone: pending.
-- Supported languages: pending.
-- Response-time wording approved by the owner: pending.
-- Person responsible for incoming requests: pending.
+- Контролируемый адрес поддержки: ожидается.
+- Телефон или мессенджер, если предоставляются: ожидается.
+- Рабочие дни, часы и часовой пояс: ожидается.
+- Языки общения: ожидается.
+- Формулировка срока ответа, согласованная с владельцем: ожидается.
+- Ответственный за входящие обращения: ожидается.
 
-After approval: add translated SR/EN labels, verify mailto/tel destinations,
-check keyboard and mobile access, and synchronize the footer in Figma.
-No customer-facing placeholders should be rendered while values are missing.
+После согласования: добавить переводы меток SR/EN, проверить назначения ссылок
+`mailto`/`tel`, проверить доступ с клавиатуры и с телефона и синхронизировать
+футер в Figma. Пока значения не заполнены, плейсхолдеры покупателям не показываем.

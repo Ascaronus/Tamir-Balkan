@@ -1,75 +1,103 @@
-# Product URLs and structured data
+# Адреса товаров и структурированные данные
 
-Reviewed against the code on 2026-10-11.
+Сверено с кодом 11 октября 2026.
 
-## Localized URLs
+## Локализованные адреса
 
-SR product pages use `/rs/products/<product.handle>`; EN pages use `/en/products/<metadata.en_handle>`. Admin Rozetka imports generate readable handles from prepared content. Completed older imports can be normalized with `normalize-rozetka-products.ts`; the default is dry run. Old imported handles are retained as aliases so existing links can redirect. See [LOCALIZATION.md](LOCALIZATION.md) for native translations, stable URL rules and the admin URL widget.
+Страницы товаров SR используют `/rs/products/<product.handle>`, страницы EN —
+`/en/products/<metadata.en_handle>`. Завершённые старые импорты можно
+нормализовать скриптом `normalize-rozetka-products.ts`; по умолчанию это dry run.
+Прежние импортированные адреса сохраняются как алиасы, чтобы существующие ссылки
+работали через перенаправление. Нативные переводы, устойчивые правила адресов и
+виджет URL в админке описаны в [LOCALIZATION.md](LOCALIZATION.md).
 
-A title edit does not automatically change an established English URL. A managed URL change reserves the old alias. Query parameter `v_id` selects a variant, while canonical identifies the product without the query. Links can therefore preserve variant selection without creating one canonical page per size/color.
+Правка названия не меняет автоматически уже сложившийся английский адрес.
+Управляемая смена адреса резервирует старый алиас. Параметр запроса `v_id`
+выбирает вариант, а canonical идентифицирует товар без запроса. Поэтому ссылки
+могут сохранять выбранный вариант, не создавая отдельную canonical-страницу для
+каждого размера или цвета.
 
-EN readiness requires nonempty native English title and description without Cyrillic characters. Incomplete EN content stays `noindex` and is omitted from the EN sitemap. SR/EN alternate links are emitted only where the target content is ready. Categories use native translated names and per-language handles. Both languages serve the same Serbia/RSD market and share stock, checkout and customer accounts.
+Готовность EN требует непустых нативных английских названия и описания без
+кириллических символов. Неполный контент EN остаётся `noindex` и исключается из
+английского sitemap. Взаимные ссылки SR/EN выдаются только там, где целевой
+контент готов. Категории используют нативные переведённые имена и адреса для
+каждого языка. Обе языковые версии обслуживают рынок Сербии с валютой RSD и
+делят остатки, оформление заказа и аккаунты покупателей.
 
-See [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md) for home/account/cart routes and [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md) for sitemap inclusion and expected index exclusions.
+Маршруты главной, аккаунта и корзины — в [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md);
+попадание в sitemap и ожидаемые исключения индексации — в
+[GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md).
 
-## Structured data
+## Структурированные данные
 
-Product pages generate JSON-LD from the same public product prices and published
-reviews shown to visitors. No authentication is forwarded for this server fetch.
-Reviews are also rendered in the initial HTML; client requests still load each
-signed-in customer's voting and submission state.
+Страницы товаров формируют JSON-LD из тех же публичных цен и опубликованных
+отзывов, которые видит посетитель. Для этой серверной выборки авторизация не
+передаётся. Отзывы также попадают в начальную HTML-выдачу; клиентские запросы
+догружают состояние голосов и отправки для конкретного вошедшего покупателя.
 
-- `offers`: real calculated variant prices, currency, availability and variant URL.
-- `aggregateRating`: the published review count and average, only when count > 0.
-- `review`: the published first page of reviews, author name, text, date and stars.
-  Private account properties are never copied into JSON-LD.
-- `brand`: a nonempty product metadata string `brand`, or `rozetka_vendor` from
-  the existing XML importer. The brand is also shown beside the product details.
-  The merchant confirmed that the catalogue is TAMIR-branded on 2026-09-29;
-  products without an explicit brand default to TAMIR.
-- GTIN: validated EAN/UPC/barcode of a single-variant product, or explicit product
-  metadata `gtin`. Keep GTINs as strings to preserve leading zeroes. Internal SKUs
-  must not be used as GTINs; a variant's identifier is not assigned to an entire
-  multi-variant product.
+- `offers`: реальные рассчитанные цены вариантов, валюта, доступность и URL варианта.
+- `aggregateRating`: количество опубликованных отзывов и средняя оценка, только
+  если количество больше нуля.
+- `review`: первая страница опубликованных отзывов, имя автора, текст, дата и
+  звёзды. Приватные свойства аккаунта в JSON-LD не копируются.
+- `brand`: непустая строка метаданных товара `brand` или `rozetka_vendor` из
+  существующего импортёра XML. Бренд также показан рядом с описанием товара.
+  Владелец 29 сентября 2026 подтвердил, что ассортимент выпущен под брендом TAMIR;
+  товары без явного бренда по умолчанию считаются TAMIR.
+- GTIN: проверенный EAN/UPC/штрихкод товара с одним вариантом или явные метаданные
+  товара `gtin`. GTIN храним строкой, чтобы сохранить ведущие нули. Внутренние SKU
+  как GTIN использовать нельзя; идентификатор варианта не назначается всему
+  товару с несколькими вариантами.
 
-If neither a valid offer nor reviews/aggregate exist, the page omits the incomplete
-Product object. This does not add `noindex`, remove the page, or remove it from the
-sitemap. Fill the real price for the storefront's Serbia region/RSD currency to
-make an unreviewed product eligible for offer markup. Never add a fabricated zero
-price or fabricated reviews just to silence a warning.
+Если нет ни корректного предложения, ни отзывов или aggregate, страница не
+выводит неполный объект Product. Это не добавляет `noindex`, не убирает страницу
+и не удаляет её из sitemap. Чтобы товар без отзывов получил разметку предложения,
+укажите реальную цену для региона Сербии и валюты RSD витрины. Никогда не
+добавляйте выдуманную нулевую цену или выдуманные отзывы, чтобы убрать
+предупреждение.
 
-## Business information still needed
+## Недостающие сведения о бизнесе
 
-Confirmed on 2026-09-29: Serbia delivery costs 300 RSD and takes up to seven
-days. RSD offers include destination RS, the 300 RSD shipping rate, and a transit
-upper bound of seven days. A separate handling duration has not been confirmed
-and is not invented. The full delivery promise is also visible on product pages.
-These changes describe the published tariff; checkout still obtains its real
-shipping charge from the Medusa shipping option configured by the administrator.
-Keep that option at 300 RSD to match the published policy.
+Подтверждено 29 сентября 2026: доставка по Сербии стоит 300 RSD и занимает до
+семи дней. В предложениях RSD указывается пункт назначения RS, тариф доставки
+300 RSD и верхняя граница срока доставки — семь дней. Отдельная длительность
+комплектации не подтверждена и не придумывается. Полные условия доставки также
+видны на страницах товаров. Эти изменения описывают опубликованный тариф;
+оформление заказа по-прежнему получает фактическую стоимость доставки из
+настроенной администратором опции доставки Medusa. Держите эту опцию на уровне
+300 RSD, чтобы соответствовать опубликованным условиям.
 
-The merchant confirmed an additional return policy for manufacturing defects:
-returns within three calendar months of receiving the goods, with return shipping
-paid by TAMIR. Product pages show this in Serbian and English, explicitly without
-excluding or shortening statutory consumer rights. Three months must not be
-converted into a general 90-day return window in Google's markup.
-`hasMerchantReturnPolicy` remains pending: defect returns are separate from the
-general right to withdraw from an online purchase. Confirm who pays return
-shipping for a non-defective item before publishing a general return policy and
-markup. The existing test-project terms also need a separate commercial-policy
-update with actual seller information.
-Optional review warnings can remain on products with no published reviews.
+Владелец подтвердил дополнительную политику возврата для производственных
+дефектов: возврат в течение трёх календарных месяцев с момента получения товара,
+расходы обратной доставки оплачивает TAMIR. На страницах товаров это указано на
+сербском и английском, явно без исключения и без сокращения законных прав
+потребителей. Три месяца нельзя превращать в общее окно возврата на 90 дней в
+разметке Google. `hasMerchantReturnPolicy` остаётся отложенным: возвраты из-за
+дефектов отделены от общего права отказаться от покупки на расстоянии. Прежде чем
+публиковать общую политику возврата и разметку, уточните, кто оплачивает обратную
+доставку для товара без дефекта. Действующие условия тестового проекта отдельно
+требуют обновления коммерческой политики с настоящими данными продавца.
+Необязательные предупреждения отзывов могут оставаться у товаров без
+опубликованных отзывов.
 
-After deployment, inspect affected URLs in Google's Rich Results Test and Search
-Console, then request validation/re-crawling. Search Console is not updated at
-deployment time; Google must crawl the new page.
+После деплоя проверьте затронутые адреса в Google Rich Results Test и Search
+Console, затем запросите проверку или повторный обход. Search Console во время
+деплоя не обновляется: Google должен обойти новую страницу.
 
-References:
+Ссылки:
 - https://developers.google.com/search/docs/appearance/structured-data/product-snippet
 - https://developers.google.com/search/docs/appearance/structured-data/merchant-listing
 
-## Internal links and product retirement (2026-10-12)
+## Внутренние ссылки и вывод товара из ассортимента (12 октября 2026)
 
-Default product-card links omit `v_id` when opening the page without it selects the same variant; deliberate color/filter selections remain addressable. A single-variant Offer uses the clean product URL. Multiple-variant Offers keep variant-specific URLs under one product canonical. General catalog navigation links to the canonical language home.
+Ссылки карточек каталога по умолчанию не содержат `v_id`, если страница без него
+выбирает тот же вариант; осознанный выбор цвета или фильтра остаётся адресуемым.
+Предложение с одним вариантом использует чистый адрес товара. Предложения с
+несколькими вариантами сохраняют адреса вариантов при одном canonical товара.
+Обычная навигация каталога ведёт на canonical главной языковой версии.
 
-For discontinued stock, replacement products and URL changes, follow the decision table in [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md). Do not reuse a product identity for an unrelated replacement or redirect every missing product to the homepage. No historical redirect or canonical should be removed solely to clear a Search Console exclusion.
+Для снятых с продажи остатков, заменяющих товаров и смены адресов следуйте
+таблице решений в [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md). Не
+переиспользуйте identity товара для не связанной замены и не перенаправляйте все
+отсутствующие товары на главную. Не удаляйте исторические перенаправления или
+canonical только ради того, чтобы убрать исключение в Search Console.
