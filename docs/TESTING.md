@@ -211,3 +211,14 @@ Auth API и DOM мокируются на границе. Эти проверк�
 переходы регистрации/восстановления и мобильную клавиатуру. На production аккаунты
 для этих проверок не создавать. Logout сохраняет действующее правило очистки локальной
 привязки корзины после успешного снятия cookie; при ошибке выхода состояние не очищается.
+
+### Custom product URL schema in HTTP catalog tests
+
+The catalog suite installs the shared `productUrlSchema` in its nested `beforeEach`,
+after the Medusa runner resets the database and before product workflows emit events.
+Medusa migrations alone do not create `tamir_product_url`. Production deployment
+already runs `src/scripts/setup-reviews.ts` (which installs the same schema) before
+activating the release. A catalog integration case exercises `syncProductUrl` and
+checks the persisted current alias and product metadata. Existing HTTP assertions
+and hook timeouts remain intact. This fixes the missing-table error; it does not
+by itself establish the cause of intermittent runner cleanup timeouts.
