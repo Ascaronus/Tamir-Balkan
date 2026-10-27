@@ -457,5 +457,13 @@
     "unavailable": "Product unavailable",
     "error": "Could not save. Please try again.",
     "loading": "Loading wishlist…"
+  },
+  "cartPreview": {
+    "title": "Your cart",
+    "loading": "Loading cart…",
+    "error": "Could not load your cart.",
+    "empty": "Your cart is empty",
+    "total": "Total",
+    "viewCart": "View cart"
   }
 }

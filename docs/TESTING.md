@@ -251,3 +251,10 @@ HTTP validation still requires isolated PostgreSQL and Redis.
 Контракт и границы проверок: [WISHLIST.md](WISHLIST.md). `wishlist.test.cjs` — handler,
 `wishlist.integration.cjs` — PostgreSQL с guard, `http/wishlist.spec.ts` — Medusa HTTP.
 Фронтенд: `wishlist.test.mjs` и обе локализованные страницы в `verify-localized-routes.mjs`.
+
+### Предварительный просмотр корзины в шапке
+
+`frontend/tests/cart-preview.test.mjs` — unit/component на существующем harness: таймеры hover/focus,
+Escape, touch, границы viewport, SR/EN, ссылки вариантов, серверные суммы, empty/loading/error.
+`localized-cart.test.mjs` дополнен проверкой состояния ошибки и явного retry.
+Контракт и границы проверок: [CART-PREVIEW.md](CART-PREVIEW.md).

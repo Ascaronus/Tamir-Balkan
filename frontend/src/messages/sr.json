@@ -457,5 +457,13 @@
     "unavailable": "Proizvod nije dostupan",
     "error": "Čuvanje nije uspelo. Pokušajte ponovo.",
     "loading": "Učitavanje omiljenih proizvoda…"
+  },
+  "cartPreview": {
+    "title": "Vaša korpa",
+    "loading": "Učitavanje korpe…",
+    "error": "Korpa nije mogla da se učita.",
+    "empty": "Korpa je prazna",
+    "total": "Ukupno",
+    "viewCart": "Pogledaj korpu"
   }
 }

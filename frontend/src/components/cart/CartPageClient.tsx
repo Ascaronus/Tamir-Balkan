@@ -3,6 +3,7 @@ import Link from "@/components/i18n/LocalizedLink"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useCart } from "./CartProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
+import { cartLineTotal, cartProductsTotal } from "@/lib/cart/display"
 import { formatMoney } from "@/lib/format-money"
 import { ProductImage } from "@/components/store/ProductImage"
 import { normalizeImageUrl } from "@/lib/product-image"
@@ -21,12 +22,12 @@ export function CartPageClient() {
           <div className="relative aspect-[3/4] overflow-hidden bg-[var(--store-bg-muted)]"><ProductImage src={normalizeImageUrl(item.thumbnail)} alt={item.product_title ?? item.title} className="h-full w-full object-contain" /></div>
           <div className="cart-line-details"><Link className="cart-line-title hover:underline" href={item.product_handle ? `/rs/products/${encodeURIComponent(item.product_handle)}?v_id=${encodeURIComponent(item.variant_id ?? "")}` : "/rs"}>{item.product_title ?? item.title}</Link>
             {item.variant_title && <p className="mt-2 text-sm text-[var(--store-text-muted)]">{item.variant_title}</p>}
-            <p className="cart-line-price tabular-nums">{money(item.total ?? item.unit_price * item.quantity)}</p>
+            <p className="cart-line-price tabular-nums">{money(cartLineTotal(item))}</p>
             <div className="cart-line-actions"><div className="quantity-stepper"><button type="button" disabled={isMutating || item.quantity <= 1} onClick={() => void updateItemQuantity(item.id, item.quantity - 1).catch(() => undefined)} aria-label={t("cartPage.decreaseQty")} className="quantity-button">−</button><span className="quantity-value inline-flex items-center justify-center tabular-nums">{item.quantity}</span><button type="button" disabled={isMutating} onClick={() => void updateItemQuantity(item.id, item.quantity + 1).catch(() => undefined)} aria-label={t("cartPage.increaseQty")} className="quantity-button">+</button></div><button type="button" disabled={isMutating} onClick={() => void removeItem(item.id).catch(() => undefined)} className="button-quiet cart-remove disabled:opacity-40">{t("cartPage.remove")}</button></div>
           </div>
         </li>)}
       </ul><Link href="/rs" className="cart-continue mt-6">← {t("product.backToCatalog")}</Link></div>
-      <aside className="order-summary"><h2>{t("design.summary")}</h2><div className="my-6 flex flex-wrap justify-between gap-3 text-sm"><span>{t("design.productsSubtotal")}</span><strong className="tabular-nums">{money(cart?.item_total ?? cart?.item_subtotal ?? cart?.subtotal ?? 0)}</strong></div><p className="mb-6 text-xs text-[var(--store-text-muted)]">{t("design.shippingLater")}</p><Link href="/rs/checkout" aria-disabled={isMutating} onClick={event => { if (isMutating) event.preventDefault() }} className={`button-primary w-full ${isMutating ? "opacity-50" : ""}`}>{t(customer ? "cartPage.checkout" : "checkout.continueGuest")}</Link><p className="mt-6 text-xs text-[var(--store-text-muted)]">{t("cartPage.guestCheckoutHint")}</p></aside>
+      <aside className="order-summary"><h2>{t("design.summary")}</h2><div className="my-6 flex flex-wrap justify-between gap-3 text-sm"><span>{t("design.productsSubtotal")}</span><strong className="tabular-nums">{money(cartProductsTotal(cart))}</strong></div><p className="mb-6 text-xs text-[var(--store-text-muted)]">{t("design.shippingLater")}</p><Link href="/rs/checkout" aria-disabled={isMutating} onClick={event => { if (isMutating) event.preventDefault() }} className={`button-primary w-full ${isMutating ? "opacity-50" : ""}`}>{t(customer ? "cartPage.checkout" : "checkout.continueGuest")}</Link><p className="mt-6 text-xs text-[var(--store-text-muted)]">{t("cartPage.guestCheckoutHint")}</p></aside>
     </div>}
   </div>
 }

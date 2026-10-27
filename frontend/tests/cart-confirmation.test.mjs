@@ -2,6 +2,7 @@ import * as dialogBackdrop from '../src/lib/dialog-backdrop.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {load,hooks,find} from '../test-support/component-harness.mjs'
+const cartDisplay=load('frontend/src/lib/cart/display.ts')
 const cart={id:'c',currency_code:'rsd',items:[{id:'line',variant_id:'v',quantity:3,unit_price:100,total:270,product_title:'Hat'}],item_total:270}
 function provider(addToCart){
  const h=hooks();let path='/rs/products/hat';
@@ -12,7 +13,7 @@ function provider(addToCart){
  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'sr'})},
  '@/components/auth/AuthProvider':{useAuth:()=>({isReady:false})},
  '@/lib/cart/cart-client':{addToCart},'@/lib/store/commerce':{stableItems:items=>items},
- './useLocalizedCart':{useLocalizedCart:cart=>cart},'./AddedToCartDialog':{AddedToCartDialog:'Confirmation'}
+ './useLocalizedCart':{useLocalizedCartState:cart=>({cart,ready:true,error:false,retry(){}})},'./AddedToCartDialog':{AddedToCartDialog:'Confirmation'}
  },{document:{activeElement:trigger},HTMLElement:Element,Error})
  const render=()=>h.render(()=>CartProvider({countryCode:'rs',children:'content'}))
  return {render,trigger,navigate:()=>{path='/rs/cart'}}
@@ -36,7 +37,7 @@ test('navigation clears confirmation instead of reopening it on a later visit',a
 })
 test('dialog uses newly added amount, localized cart path and secondary-before-primary order',()=>{
  const h=hooks();const {AddedToCartDialog}=load('frontend/src/components/cart/AddedToCartDialog.tsx',{
- '@/lib/dialog-backdrop':dialogBackdrop,
+ '@/lib/dialog-backdrop':dialogBackdrop,'@/lib/cart/display':cartDisplay,
  react:{...h.react,useId:()=> 'title'},'@/components/i18n/LocalizedLink':{default:'Link'},
  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en',t:(k,args)=>args?`${k}:${args.n}`:k})},
  '@/components/store/ProductImage':{ProductImage:'Image'},'@/lib/product-image':{normalizeImageUrl:v=>v},'@/lib/format-money':{formatMoney:n=>String(n)}

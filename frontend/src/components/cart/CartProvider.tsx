@@ -9,13 +9,16 @@ import { AddedToCartDialog, type AddedProductDisplay, type CartAddition } from "
 import { usePathname } from "next/navigation"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 
-import { useLocalizedCart } from "./useLocalizedCart"
+import { useLocalizedCartState } from "./useLocalizedCart"
 
 type CartContextValue = {
   cart: Cart | null
   isReady: boolean
   isMutating: boolean
   error: string | null
+  displayReady: boolean
+  displayError: boolean
+  retryDisplay: () => Promise<void>
   itemCount: number
   refresh: () => Promise<Cart>
   addItem: (variantId: string, quantity?: number, display?: AddedProductDisplay) => Promise<void>
@@ -74,9 +77,11 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   }, [refresh, authReady])
 
   if (addition && (addition.path !== pathname || addition.locale !== locale)) setAddition(null)
-  const localizedCart = useLocalizedCart(cart)
+  const display = useLocalizedCartState(cart)
+  const localizedCart = display.cart
   const value = useMemo<CartContextValue>(() => ({
-    cart: localizedCart, isReady, isMutating: pending > 0, error,
+    cart: localizedCart, displayReady: display.ready, displayError: display.error,
+    retryDisplay: async () => { display.retry(); await refresh() }, isReady, isMutating: pending > 0, error,
     itemCount: cart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
     refresh,
     addItem: async (variantId, quantity = 1, display) => {
@@ -88,7 +93,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     },
     updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, lineItemId, quantity })) },
     removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, lineItemId })) },
-  }), [cart, localizedCart, isReady, pending, error, refresh, run, countryCode, pathname, locale])
+  }), [cart, localizedCart, display, isReady, pending, error, refresh, run, countryCode, pathname, locale])
   return <CartContext.Provider value={value}>{children}{addition && localizedCart && addition.cartId === localizedCart.id && addition.path === pathname && addition.locale === locale && <AddedToCartDialog cart={localizedCart} addition={addition} onDismiss={dismissAddition} />}</CartContext.Provider>
 }
 export function useCart() {
