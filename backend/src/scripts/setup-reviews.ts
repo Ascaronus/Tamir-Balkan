@@ -1,3 +1,4 @@
+import { wishlistSchema } from "../utils/wishlist"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { productUrlSchema } from "../utils/product-urls"
@@ -13,6 +14,7 @@ export default async function setupReviews({ container }: ExecArgs) {
   const db = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
   await db.transaction(async trx => {
     await trx.raw("SELECT pg_advisory_xact_lock(67195051, 1)")
+    await trx.raw(wishlistSchema)
     await trx.raw(reviewSchema)
     await trx.raw(productUrlSchema)
     await trx.raw(registrationSchema)

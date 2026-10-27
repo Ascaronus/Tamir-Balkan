@@ -12,6 +12,7 @@ export async function listProductsByCountry(params: {
   q?: string
   limit?: number
   offset?: number
+  ids?: string[]
   handle?: string
   /** Фильтр по категории (как в админке: Product → Categories). */
   signal?: AbortSignal
@@ -31,6 +32,7 @@ export async function listProductsByCountry(params: {
     fields: PRODUCT_FIELDS,
   }
 
+  if (params.ids) query.id = params.ids
   if (q) query.q = q
   if (handle) query.handle = handle
   if (categoryId) query.category_id = categoryId

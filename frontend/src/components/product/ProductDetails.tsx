@@ -1,6 +1,7 @@
 "use client"
 import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
+import { FavoriteButton } from "@/components/wishlist/FavoriteButton"
 import { ProductAttributes } from "./ProductAttributes"
 import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
@@ -104,7 +105,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       </dialog>
     </div>
     <div className="product-summary">
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+      <div className="product-title-row"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1><FavoriteButton productId={product.id} /></div>
       <div className="mt-4">{ratingSummary}</div>
       {productBrand(product.metadata) && <p className="mt-2 break-words text-sm text-[var(--store-text-muted)]">{t("product.brand")}: {productBrand(product.metadata)}</p>}
       {variant?.sku && <p className="mt-2 text-xs text-[var(--store-text-muted)]">SKU: {variant.sku}</p>}

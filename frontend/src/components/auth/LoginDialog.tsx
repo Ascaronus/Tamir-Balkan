@@ -6,9 +6,9 @@ import { LoginForm } from "./LoginForm"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
-type Props = { onDismiss: () => void; trigger: RefObject<HTMLButtonElement | null> }
+type Props = { message?: string; onSuccess?: () => void; onDismiss: () => void; trigger: RefObject<HTMLButtonElement | null> }
 
-export function LoginDialog({ onDismiss, trigger }: Props) {
+export function LoginDialog({ onDismiss, trigger, message, onSuccess }: Props) {
   const t = useTranslations()
   const dialog = useRef<HTMLDialogElement>(null)
   const navigating = useRef(false)
@@ -33,6 +33,7 @@ export function LoginDialog({ onDismiss, trigger }: Props) {
       <h2 id={titleId}>{t("auth.login.title")}</h2>
       <button type="button" className="login-dialog-close" onClick={onDismiss} aria-label={t("common.close")}><span aria-hidden="true">×</span></button>
     </div>
-    <LoginForm countryCode="rs" modal onSuccess={onDismiss} onNavigate={() => { navigating.current = true; onDismiss() }} />
+    {message && <p className="mb-4 text-sm">{message}</p>}
+    <LoginForm countryCode="rs" modal onSuccess={onSuccess ?? onDismiss} onNavigate={() => { navigating.current = true; onDismiss() }} />
   </dialog>
 }

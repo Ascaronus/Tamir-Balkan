@@ -496,3 +496,29 @@ body { line-height: 1.5; }
 .login-modal-form .login-register-link { margin-top: -12px; width: 100%; font-size: 14px; font-weight: 600; }
 @media (max-width: 900px) { .header-actions { position: relative; } .header-account { position: static; } .header-account-name { max-width: 88px; font-size: 14px; } }
 @media (max-width: 480px) { .login-dialog { padding-inline: 20px; padding-bottom: 20px; } .login-dialog-heading { padding-top: 12px; } }
+
+/* Wishlist: one state across cards, detail and header. */
+:root { --store-favorite: #eab308; }
+.product-card-media { position: relative; }
+.favorite-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; color: var(--store-text); background: rgb(255 255 255 / 94%); }
+.favorite-button[aria-pressed=true] { color: var(--store-favorite); }
+.favorite-button:disabled { cursor: wait; opacity: .6; }
+.favorite-overlay { position: absolute; top: 8px; right: 8px; }
+.product-title-row { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; }
+.product-title-row h1 { min-width: 0; overflow-wrap: anywhere; }
+.wishlist-notice { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); z-index: 60; background: var(--store-bg); border: 1px solid var(--store-border); padding: 16px 24px; box-shadow: 0 4px 24px #0002; }
+.wishlist-notice button { text-decoration: underline; min-height: 44px; }
+.wishlist-count { font-size: 12px; }
+.wishlist-empty { display: grid; justify-items: start; gap: 24px; padding: 48px 0; }
+.wishlist-unavailable { min-height: 220px; padding: 20px; border: 1px solid var(--store-border); display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+@media (max-width: 500px) { .header-actions { gap: 0; } .header-action { padding-left: 4px; padding-right: 4px; } }
+@media (max-width: 1200px) {
+  .header-actions { gap: 8px; }
+  .header-action { min-width: 44px; padding-inline: 4px; gap: 4px; }
+  .header-action-label, .wishlist-count { display: none; }
+  .header-account-name { max-width: 88px; font-size: 14px; }
+}
+@media (max-width: 500px) {
+  .header-actions { gap: 0; }
+  .header-account-name { max-width: 64px; }
+}

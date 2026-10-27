@@ -446,5 +446,16 @@
     "signOut": "Odjavi se",
     "signingOut": "Odjavljivanje…",
     "logoutFailed": "Odjava nije uspela. Pokušajte ponovo."
+  },
+  "wishlist": {
+    "title": "Omiljeno",
+    "add": "Dodaj u omiljene",
+    "remove": "Ukloni iz omiljenih",
+    "signIn": "Prijavite se da sačuvate proizvod.",
+    "empty": "Još nemate omiljenih proizvoda.",
+    "catalog": "Pogledajte katalog",
+    "unavailable": "Proizvod nije dostupan",
+    "error": "Čuvanje nije uspelo. Pokušajte ponovo.",
+    "loading": "Učitavanje omiljenih proizvoda…"
   }
 }

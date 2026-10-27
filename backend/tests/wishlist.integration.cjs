@@ -1,0 +1,30 @@
+const { test, before, after } = require('node:test')
+const assert = require('node:assert/strict')
+require('ts-node/register/transpile-only')
+const { assertNonProduction } = require('../test-support/guard-env.cjs')
+const connection=process.env.TEST_REVIEWS_DB_URL
+assertNonProduction(connection,'TEST_REVIEWS_DB_URL')
+const knex=require('knex'),schema='wishlist_test_'+process.pid
+const root=knex({client:'pg',connection}),db=knex({client:'pg',connection,searchPath:[schema]})
+const {wishlistSchema,saveFavorite,removeFavorite,favoriteIds}=require('../src/utils/wishlist')
+before(async()=>{
+ await root.raw(`CREATE SCHEMA ${schema}`)
+ await db.schema.createTable('customer',t=>t.text('id').primary())
+ await db.schema.createTable('product',t=>{t.text('id').primary();t.timestamp('deleted_at').nullable()})
+ await db.raw(wishlistSchema);await db.raw(wishlistSchema)
+ await db('customer').insert([{id:'a'},{id:'b'}]);await db('product').insert([{id:'prod_a'},{id:'prod_b'}])
+})
+after(async()=>{await db.destroy();await root.raw(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await root.destroy()})
+test('SQL: parallel saves are idempotent; accounts remain isolated; deletes are repeatable',async()=>{
+ await Promise.all(Array.from({length:20},()=>saveFavorite(db,'a','prod_a')))
+ assert.deepEqual(await favoriteIds(db,'a'),['prod_a']);assert.deepEqual(await favoriteIds(db,'b'),[])
+ await saveFavorite(db,'b','prod_a');await removeFavorite(db,'a','prod_a');await removeFavorite(db,'a','prod_a')
+ assert.deepEqual(await favoriteIds(db,'a'),[]);assert.deepEqual(await favoriteIds(db,'b'),['prod_a'])
+})
+test('SQL: physical product/customer deletion cascades, soft deletion remains removable',async()=>{
+ await saveFavorite(db,'a','prod_b');await db('product').where({id:'prod_b'}).update({deleted_at:new Date()})
+ assert.deepEqual(await favoriteIds(db,'a'),['prod_b']);await removeFavorite(db,'a','prod_b');assert.deepEqual(await favoriteIds(db,'a'),[])
+ await db('product').where({id:'prod_a'}).delete();assert.deepEqual(await favoriteIds(db,'b'),[])
+ await saveFavorite(db,'a','prod_b');await db('customer').where({id:'a'}).delete();assert.equal((await db('tamir_customer_favorite')).length,0)
+ await assert.rejects(saveFavorite(db,'b','prod_missing'),e=>e.code==='23503')
+})

@@ -49,7 +49,7 @@ try {
     server.stderr.on('data', observe)
     server.once('exit', code => { clearTimeout(timer); reject(Error(`Preview server exited: ${code}`)) })
   })
-  for (const [path, language] of [['/en/privacy', 'en'], ['/privacy', 'sr'], ['/en/terms', 'en'], ['/en/cart', 'en'], ['/rs/korpa', 'sr'], ['/rs/nalog', 'sr'], ['/rs/nalog/prijava', 'sr'], ['/rs/nalog/registracija', 'sr'], ['/rs/nalog/zaboravljena-lozinka', 'sr'], ['/rs', 'sr'], ['/en', 'en'], ['/en/account/login', 'en']]) {
+  for (const [path, language] of [['/rs/wishlist', 'sr'], ['/en/wishlist', 'en'], ['/en/privacy', 'en'], ['/privacy', 'sr'], ['/en/terms', 'en'], ['/en/cart', 'en'], ['/rs/korpa', 'sr'], ['/rs/nalog', 'sr'], ['/rs/nalog/prijava', 'sr'], ['/rs/nalog/registracija', 'sr'], ['/rs/nalog/zaboravljena-lozinka', 'sr'], ['/rs', 'sr'], ['/en', 'en'], ['/en/account/login', 'en']]) {
     const res = await fetch(`http://127.0.0.1:${port}${path}`, { headers: { 'Accept-Language': language === 'en' ? 'ru-RU' : 'en-US', Cookie: `store_locale=${language === 'en' ? 'sr' : 'en'}` }, redirect: 'manual', signal: AbortSignal.timeout(15000) })
     assert.equal(res.status, 200, path)
     const html = await res.text()
@@ -64,7 +64,7 @@ try {
       assert.ok(html.includes(`rel="canonical" href="https://tamir.rs${path}"`), path)
       assert.ok(html.includes('hrefLang="en"') || html.includes('hreflang="en"'), path)
     }
-    if (/\/(cart|account|korpa|nalog)(\/|$)/.test(path)) assert.match(html, /name="robots" content="noindex/, path)
+    if (/\/(cart|account|korpa|nalog|wishlist)(\/|$)/.test(path)) assert.match(html, /name="robots" content="noindex/, path)
     if (language === 'en') assert.doesNotMatch(html, /<a[^>]*href="\/rs\//, path)
     console.log(`PASS ${path}: ${language}`)
   }
