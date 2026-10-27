@@ -11,6 +11,17 @@ import {
 
 import { productUrlSchema, syncProductUrl } from "../../src/utils/product-urls"
 
+const { waitForSubscribers, completedCount } = require("../helpers/subscriber-tracker")
+
+// Keep the real handler and its database work. Observe completion rather than
+// replacing it with a no-op: Medusa's local event bus swallows listener errors
+// and the integration runner waits for workflows only, not event listeners.
+jest.mock("../../src/subscribers/product-localized-url", () => {
+  const actual = jest.requireActual("../../src/subscribers/product-localized-url")
+  const { trackSubscriber } = require("../helpers/subscriber-tracker")
+  return { __esModule: true, ...actual, default: trackSubscriber(actual.default) }
+})
+
 jest.setTimeout(120 * 1000)
 
 // Тот же приём, что в src/scripts/add-balkan-regions.ts: валюты магазина
@@ -52,6 +63,9 @@ medusaIntegrationTestRunner({
         offChannelProductId: string
       }
 
+      // Nested afterEach runs before the runner's outer afterEach/TRUNCATE.
+      afterEach(async () => { await waitForSubscribers() })
+
       const catalogGet = (query: string) => api.get(`/store/catalog/products?${query}`, {
         headers: { "x-publishable-api-key": fixtures.publishableKey },
         validateStatus: () => true,
@@ -62,6 +76,7 @@ medusaIntegrationTestRunner({
       // выполняется после служебного beforeEach раннера.
       beforeEach(async () => {
         const container = getContainer()
+        const completedBeforeFixtures = completedCount()
         // The runner resets the database between cases. Medusa migrations do not
         // include this custom schema; production installs it via setup-reviews.ts.
         // Install it before product workflows emit product.created events.
@@ -163,6 +178,10 @@ medusaIntegrationTestRunner({
             ],
           },
         })
+
+        await waitForSubscribers()
+        // Also catches a loader change that bypasses our observer.
+        expect(completedCount() - completedBeforeFixtures).toBeGreaterThanOrEqual(4)
 
         fixtures = {
           regionId: region.id,

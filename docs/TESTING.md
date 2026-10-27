@@ -222,3 +222,26 @@ activating the release. A catalog integration case exercises `syncProductUrl` an
 checks the persisted current alias and product metadata. Existing HTTP assertions
 and hook timeouts remain intact. This fixes the missing-table error; it does not
 by itself establish the cause of intermittent runner cleanup timeouts.
+
+### Await event subscribers before catalog cleanup
+
+Medusa 2.13.1's local event bus emits via EventEmitter without awaiting async
+listeners. Its integration runner waits for workflow executions, then truncates
+tables; workflow completion does not imply subscriber completion. The catalog
+suite observes the **real** product-localized-url handler via a Jest module wrapper,
+waits after product fixture creation and in nested afterEach (before runner cleanup),
+and asserts that at least four fixture handlers completed. Subscriber failures are
+re-thrown to Jest even if the event bus catches and logs them. No handler is skipped
+or replaced with a no-op. The observer has a 10-second diagnostic deadline; the
+existing 120-second Jest timeout is unchanged.
+
+This prevents test cleanup from overlapping URL transactions. In particular, those
+transactions lock product rows and query translations through another connection;
+a concurrent multi-table TRUNCATE can leave application-level waits across those
+connections. CI logs prove hook timeouts but do not include a live lock snapshot,
+so this specific lock cycle remains a diagnosis from code, not a captured DB trace.
+
+`backend/tests/subscriber-tracker.test.cjs` checks delayed completion, failures,
+nested events, deadlines and the installed real local event bus without a database.
+Run it with `node --test tests/subscriber-tracker.test.cjs` from backend. Full catalog
+HTTP validation still requires isolated PostgreSQL and Redis.
