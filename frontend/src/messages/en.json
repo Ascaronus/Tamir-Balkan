@@ -87,9 +87,9 @@
   },
   "auth": {
     "login": {
-      "title": "Login",
+      "title": "Sign in",
       "hint": "Use email + password.",
-      "email": "Email",
+      "email": "Email address",
       "password": "Password",
       "failed": "Login failed",
       "tooMany": "Too many failed sign-in attempts. Please try again later.",
@@ -97,7 +97,8 @@
       "signIn": "Sign in",
       "noAccount": "No account?",
       "createOne": "Create one",
-      "profileMissing": "Your sign-in details exist, but registration is incomplete. Open Create account and submit your details again using the same email and password."
+      "profileMissing": "Your sign-in details exist, but registration is incomplete. Open Create account and submit your details again using the same email and password.",
+      "signUp": "Sign up"
     },
     "register": {
       "title": "Create account",
@@ -144,7 +145,7 @@
       "failed": "Could not complete registration. Try again. If you already confirmed your code, try signing in."
     },
     "reset": {
-      "forgot": "Forgot your password?",
+      "forgot": "Forgot password?",
       "title": "Reset your password",
       "hint": "Enter your email. We will send a code to reset your password.",
       "sent": "If an active account exists for this email, a code has been sent.",
@@ -438,5 +439,12 @@
     "subtotal": "Item subtotal",
     "shipping": "Shipping is not included in this subtotal.",
     "continue": "Continue shopping"
+  },
+  "headerAuth": {
+    "myAccount": "My account",
+    "myOrders": "My orders",
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "logoutFailed": "Sign out failed. Please try again."
   }
 }

@@ -78,11 +78,9 @@ export async function signup(params: {
 }
 
 export async function logout() {
-  try {
-    await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
-  } catch {
-    // Сети нет — кука всё равно снимется позже, а токен умрёт по своему `exp`.
-  }
+  const res = await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
+  // Keep the current session visible if the server could not clear its cookie.
+  if (!res.ok) throw new Error("LOGOUT_FAILED")
   clearStoredCartId()
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("tb-cart-reset"))

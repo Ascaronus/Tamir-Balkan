@@ -57,7 +57,8 @@ try {
     if (path === '/rs' || path === '/en') {
       assert.ok(html.includes(`rel="canonical" href="https://tamir.rs${path}"`), path)
       assert.ok(html.includes('href="/rs/korpa"') || language === 'en', path)
-      assert.ok(html.includes('href="/rs/nalog/prijava"') || language === 'en', path)
+      assert.match(html, /<button[^>]*class="header-action header-account-trigger"[^>]*aria-haspopup="dialog"/, path)
+      assert.ok(html.includes(language === 'en' ? '>Sign in</span>' : '>Prijavi se</span>'), path)
     }
     if (path.endsWith('/privacy')) {
       assert.ok(html.includes(`rel="canonical" href="https://tamir.rs${path}"`), path)

@@ -4,6 +4,7 @@ import Link from "@/components/i18n/LocalizedLink"
 import { OrderHistoryDetails } from "./OrderHistoryDetails"
 import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import type { HttpTypes } from "@medusajs/types"
 import { applyReorder, reorderTargets } from "@/lib/cart/reorder"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -14,10 +15,11 @@ import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 
 export function AccountPageClient({ countryCode }: { countryCode: string }) {
   const { t, locale } = useLocaleContext()
-  const [panel, setPanel] = useState<"orders" | "profile">("orders")
+  const requestedPanel = useSearchParams().get("panel")
+  const panel = requestedPanel === "profile" ? "profile" : "orders"
   const router = useRouter()
   const { addItem, refresh: refreshCart, isMutating } = useCart()
-  const { customer, isReady, logout } = useAuth()
+  const { customer, isReady, logout, isMutating: isLoggingOut } = useAuth()
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [repeating, setRepeating] = useState(false)
@@ -27,6 +29,7 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
   const [orders, setOrders] = useState<HttpTypes.StoreOrder[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [logoutError, setLogoutError] = useState(false)
 
   useEffect(() => {
     if (!isReady) return
@@ -109,18 +112,24 @@ export function AccountPageClient({ countryCode }: { countryCode: string }) {
           </div>
           <button
             type="button"
+            disabled={isLoggingOut}
             onClick={async () => {
-              await logout()
-              router.push(`/${countryCode}/catalog`)
+              if (isLoggingOut) return
+              setLogoutError(false)
+              try {
+                await logout()
+                router.push(`/${countryCode}/catalog`)
+              } catch { setLogoutError(true) }
             }}
             className="inline-flex h-10 items-center justify-center rounded border border-[var(--store-border)] px-5 text-sm font-semibold text-[var(--store-text)]"
           >
-            {t("account.logout")}
+            {isLoggingOut ? t("headerAuth.signingOut") : t("account.logout")}
           </button>
+          {logoutError && <p role="alert" className="text-sm text-red-700">{t("headerAuth.logoutFailed")}</p>}
         </div>
       </div>
 
-      <nav className="account-nav" aria-label={t("account.title")}><button type="button" aria-pressed={panel === "orders"} className={panel === "orders" ? "button-primary" : "button-quiet"} onClick={() => setPanel("orders")}>{t("account.orders")}</button><button type="button" aria-pressed={panel === "profile"} className={panel === "profile" ? "button-primary" : "button-quiet"} onClick={() => setPanel("profile")}>{t("account.profileSection")}</button><Link className="button-quiet" href="/rs">{t("product.backToCatalog")}</Link></nav>
+      <nav className="account-nav" aria-label={t("account.title")}><button type="button" aria-pressed={panel === "orders"} className={panel === "orders" ? "button-primary" : "button-quiet"} onClick={() => router.replace(`/${countryCode}/account?panel=orders`, { scroll: false })}>{t("account.orders")}</button><button type="button" aria-pressed={panel === "profile"} className={panel === "profile" ? "button-primary" : "button-quiet"} onClick={() => router.replace(`/${countryCode}/account?panel=profile`, { scroll: false })}>{t("account.profileSection")}</button><Link className="button-quiet" href="/rs">{t("product.backToCatalog")}</Link></nav>
       <div className="account-body"><div hidden={panel !== "profile"} id="account-profile"><AccountProfileForm key={customer.id} countryCode={countryCode} /></div>
       {panel === "orders" && <div className="rounded bg-[var(--store-bg-muted)] p-6"><h2 className="text-2xl font-semibold">{t("account.profileSection")}</h2><p className="mt-4 break-words">{customer.first_name} {customer.last_name} · {customer.email}</p><p className="mt-4 text-xs text-[var(--store-text-muted)]">{t("design.reviewPrivacy", { name: customer.first_name || "" })}</p></div>}
 
