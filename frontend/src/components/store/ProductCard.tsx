@@ -38,7 +38,7 @@ export function ProductCard({ product, summary }: { product: CatalogProduct; sum
     </Link>
     <Link href={href} className="product-card-title">{title}</Link>
     <Link className="product-card-rating" href={`${href}#reviews`} aria-label={t("reviews.show")}>
-      <ReviewIcon />
+      {!summary && <ReviewIcon />}
       {summary ? <>
         <Stars compact rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} />
         {summary.count > 0 && <span>· {summary.count}</span>}

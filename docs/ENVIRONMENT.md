@@ -2,10 +2,12 @@
 
 Значения ниже — примеры для разработки. Реальные `.env`, ключи, пароли и дампы нельзя добавлять в Git. Оба приложения получают собственное окружение; `NEXT_PUBLIC_*` становится доступным браузеру.
 
+Правила хранения, резервного копирования и замены значений: [SECRETS.md](SECRETS.md). В Git хранятся только пустые `.env.example`. Для Compose нужен отдельный корневой `.env` с `POSTGRES_PASSWORD`; он не загружается автоматически в backend.
+
 ## Backend: `backend/.env`
 
 ```dotenv
-DATABASE_URL=postgres://medusa:medusa@localhost:5432/medusa-v2
+DATABASE_URL=postgres://medusa:REPLACE_WITH_URL_ENCODED_DATABASE_PASSWORD@127.0.0.1:5432/medusa-v2
 REDIS_URL=redis://localhost:6379
 STORE_CORS=http://localhost:3000
 ADMIN_CORS=http://localhost:9000
@@ -15,7 +17,7 @@ COOKIE_SECRET=REPLACE_WITH_ANOTHER_LOCAL_RANDOM_SECRET
 MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 ```
 
-Пара БД `medusa/medusa` соответствует локальному Compose, не является production-рекомендацией. Секреты для новой установки генерируются отдельно; существующие production-секреты не заменяйте при обычном обновлении.
+Пароль в `DATABASE_URL` должен соответствовать паролю роли БД. JWT и cookie требуют отдельных случайных значений длиной не менее 32 символов; пустые и шаблонные значения останавливают запуск и сборку. Секреты для новой установки генерируются отдельно; существующие production-секреты заменяются согласованно, а не случайно при обычном обновлении. Изменение `POSTGRES_PASSWORD` в Compose не меняет пароль уже созданной роли БД.
 
 | Переменная | Назначение |
 | --- | --- |
@@ -23,6 +25,7 @@ MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 | `STORE_CORS`, `ADMIN_CORS`, `AUTH_CORS` | Разрешённые origin витрины, админки и auth |
 | `JWT_SECRET`, `COOKIE_SECRET` | Секреты существующей аутентификации |
 | `MEDUSA_PUBLIC_BACKEND_URL` | Публичный origin для local file provider, production `https://api.tamir.rs` |
+| `COOKIE_SECURE` | Флаг `Secure` у auth cookie. По умолчанию включён при `NODE_ENV=production` (`https://tamir.rs`, `https://api.tamir.rs`) и выключен в остальных средах. `false` допустим только для локального хоста без HTTPS |
 | `GOOGLE_TRANSLATE_API_KEY` | Необязательный серверный ключ перевода товаров, опций и категорий |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Почта: код регистрации/сброса и welcome email; порты 587 или 465 |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_HOSTNAMES` | Серверная проверка CAPTCHA; рабочие домены витрины |

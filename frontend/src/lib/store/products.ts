@@ -4,7 +4,7 @@ import { getRegionByCountry } from "@/lib/store/regions"
 import type { HttpTypes } from "@medusajs/types"
 
 const PRODUCT_FIELDS =
-  "*images,*options,*options.values,*variants,*variants.options,*variants.options.option,*variants.calculated_price,+variants.inventory_quantity,*variants.images,+metadata"
+  "*categories,*images,*options,*options.values,*variants,*variants.options,*variants.options.option,*variants.calculated_price,+variants.inventory_quantity,*variants.images,+metadata"
 
 export async function listProductsByCountry(params: {
   countryCode: string
@@ -14,7 +14,6 @@ export async function listProductsByCountry(params: {
   offset?: number
   handle?: string
   /** Фильтр по категории (как в админке: Product → Categories). */
-  token?: string | null
   signal?: AbortSignal
   categoryId?: string
 }): Promise<{ products: HttpTypes.StoreProduct[]; count: number }> {
@@ -42,7 +41,7 @@ export async function listProductsByCountry(params: {
   }>(`/store/products`, {
     method: "GET",
     query,
-    headers: { ...(locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : {}), ...(params.token ? { authorization: `Bearer ${params.token}` } : {}) },
+    headers: { ...(locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : {}) },
     signal: params.signal,
     // Важно: иначе изменения из админки могут не появляться на витрине.
     cache: "no-store",

@@ -1,41 +1,77 @@
-# Registration with email verification
+# Регистрация с подтверждением почты
 
-Reviewed against the code on 2026-10-11. Forms: `/rs/nalog/registracija` and
-`/en/account/register`. Legacy `/rs/account/register` redirects to the SR route.
+Сверено с кодом 11 октября 2026. Формы: `/rs/nalog/registracija` и
+`/en/account/register`. Старый `/rs/account/register` ведёт на сербский маршрут.
 
-New customer registration is a two-step flow:
+Регистрация нового покупателя — два шага:
 
-1. POST `/store/registration/start` with email and a valid `register` Turnstile token. The server sends a six-digit code through the configured SMTP account. It creates no customer or auth identity at this stage.
-2. POST `/store/registration/verify` with the challenge ID, code, email and registration profile/password. Only a correct code allows the server to register the auth identity and run Medusa's customer-account creation workflow. The storefront then signs in with the supplied password.
+1. POST `/store/registration/start` с адресом почты и корректным токеном
+   Turnstile действия `register`. Сервер отправляет шестизначный код через
+   настроенный SMTP. На этом этапе покупатель и auth-identity не создаются.
+2. POST `/store/registration/verify` с ID challenge, кодом, адресом почты,
+   профилем и паролем. Только правильный код позволяет серверу зарегистрировать
+   auth-identity и запустить workflow создания покупательского аккаунта Medusa.
+   После этого витрина входит с указанным паролем.
 
-The form prominently reminds customers to check Spam, supports one-time-code autofill/paste, and has EN/SR translations. Password and profile remain in React memory while awaiting the code, not in browser storage or the pending-code table. Reloading the page requires starting again.
+Форма заметно напоминает проверять папку Spam, поддерживает автозаполнение и
+вставку одноразового кода, переводы EN/SR на месте. Пока ждём код, пароль и
+профиль хранятся только в памяти React, а не в хранилище браузера и не в таблице
+ожидающих кодов. Перезагрузка страницы требует начать заново.
 
-## Limits and persistence
+## Ограничения и хранение
 
-- Codes expire after 10 minutes and allow 5 wrong attempts. Failed attempts are committed even when the API returns an error. Parallel guesses serialize on the database row.
-- Resend requires a fresh CAPTCHA and at least 60 seconds since the last successful send. A successful resend replaces both the challenge ID and code, resets the attempt counter, and invalidates the previous code. SMTP rejection rolls back the new code, retaining the previous one.
-- Additional limits: 30 send requests per IP/hour, 5 per email/hour, 60 verification requests per IP/hour.
-- Codes are generated with Node's cryptographic random generator and stored only as an HMAC using REVIEW_RATE_SECRET (or JWT_SECRET). The table is additive and created by `setup-reviews.ts` during deployment.
-- Pending rows older than expiry + 24 hours are cleaned during successful sends.
-- Repeating a successful confirmation is idempotent for that same challenge and password within its original expiry; it cannot create another customer or change credentials. This supports recovery after a lost HTTP response.
+- Код действует 10 минут и допускает 5 неверных попыток. Неудачные попытки
+  фиксируются, даже когда API отвечает ошибкой. Параллельные подборки
+  сериализуются на строке базы данных.
+- Для повторной отправки нужны свежий CAPTCHA и минимум 60 секунд с момента
+  последней успешной отправки. Успешная повторная отправка заменяет и ID
+  challenge, и код, сбрасывает счётчик попыток и аннулирует предыдущий код. Если
+  SMTP отклонил письмо, новый код откатывается и предыдущий сохраняется.
+- Дополнительные лимиты: 30 запросов отправки на IP в час, 5 на адрес почты в
+  час, 60 запросов проверки на IP в час.
+- Коды создаются криптографическим генератором Node и хранятся только как HMAC с
+  `REVIEW_RATE_SECRET` (или `JWT_SECRET`). Таблица аддитивная и создаётся
+  `setup-reviews.ts` при деплое.
+- Ожидающие строки старше срока действия плюс 24 часа удаляются при успешной
+  отправке.
+- Повтор успешного подтверждения идемпотентен для того же challenge и пароля в
+  пределах исходного срока действия: он не может создать ещё одного покупателя
+  или изменить учётные данные. Это помогает восстановиться, если HTTP-ответ потерян.
 
-Both `/auth/customer/:provider/register` and POST `/store/customers` reject public requests with EMAIL_VERIFICATION_REQUIRED. Old unregistered JWTs cannot bypass code verification. Admin customer creation and existing customer login are unchanged. Guest checkout does not create a registered account.
+И `/auth/customer/:provider/register`, и POST `/store/customers` отклоняют
+публичные запросы с `EMAIL_VERIFICATION_REQUIRED`. Старые незарегистрированные
+JWT не обходят проверку кода. Создание покупателя в админке и вход существующих
+покупателей не менялись. Гостевое оформление зарегистрированный аккаунт не создаёт.
 
-## Deleted and existing accounts
+## Удалённые и существующие аккаунты
 
-After successful code verification, a customer-only email/password identity may be reclaimed if its `customer_id` is null, points to a soft-deleted customer, or points to a missing customer. A live customer with the same email or linked ID, another actor (including admin), or an identity shared with an OAuth provider prevents cleanup. Legacy uppercase email identifiers are normalized without merging unrelated identities. A deleted user registers as a new customer; old orders and addresses are not restored. See [ACCOUNT-RECOVERY.md](ACCOUNT-RECOVERY.md).
+После успешной проверки кода можно вернуть identity типа email/password только
+для роли customer, если его `customer_id` равен `null`, ссылается на мягко
+удалённого покупателя или на отсутствующего покупателя. Очистку блокируют живой
+покупатель с той же почтой или связанным ID, другой актор (включая
+администратора) или identity, разделённое с OAuth-провайдером. Унаследованные
+identity с почтой в верхнем регистре нормализуются без слияния посторонних
+identity. Удалённый пользователь регистрируется как новый покупатель; старые
+заказы и адреса не восстанавливаются. См. [ACCOUNT-RECOVERY.md](ACCOUNT-RECOVERY.md).
 
-Existing active accounts are not reset by the code flow. They receive ACCOUNT_EXISTS and should use login/password recovery. Older active accounts are not forced through retroactive verification.
+Код не сбрасывает существующие активные аккаунты. Они получают `ACCOUNT_EXISTS`
+и должны использовать вход или восстановление пароля. Более старые активные
+аккаунты не проходят обязательную проверку задним числом.
 
-## Deployment and verification
+## Деплой и проверка
 
-Configure SMTP_USER and SMTP_PASSWORD (Gmail app password) in the source backend environment. `deploy-vps.sh` checks configuration, creates the code table, and verifies SMTP before activating the new release. No email is sent by the connectivity check. A successful SMTP check does not guarantee inbox delivery; check Spam too.
+Настройте `SMTP_USER` и `SMTP_PASSWORD` (пароль приложения Gmail) в окружении
+нужного backend. `deploy-vps.sh` проверяет конфигурацию, создаёт таблицу кодов и
+проверяет SMTP до активации нового релиза. Проверка соединения письма не
+отправляет. Успешная проверка SMTP не гарантирует доставку в входящие — проверяйте
+и папку спама.
 
-Run the PostgreSQL regression tests against an isolated test database:
+Регрессионные тесты PostgreSQL запускаем на изолированной тестовой базе:
 
 ```bash
 cd backend
 TEST_REVIEWS_DB_URL=... node --test tests/registration-code.integration.cjs tests/deleted-customer-registration.integration.cjs
 ```
 
-The test suite uses fake email delivery; no real email is sent. A live registration check is still necessary after deployment.
+Тестовый набор использует фиктивную доставку писем; реальные письма не
+отправляются. После деплоя по-прежнему нужна живая проверка регистрации.

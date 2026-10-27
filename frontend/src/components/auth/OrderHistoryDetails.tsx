@@ -3,7 +3,6 @@
 import { useState } from "react"
 import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { formatMoney } from "@/lib/format-money"
 
@@ -22,12 +21,9 @@ export function OrderHistoryDetails({ order }: { order: HttpTypes.StoreOrder }) 
     setLoading(true)
     setFailed(false)
     try {
-      const token = getAuthToken()
-      if (!token) throw new Error("Authentication required")
       // The list endpoint enforces ownership via the authenticated customer ID.
       const result = await sdk.client.fetch<{ orders: HttpTypes.StoreOrder[] }>("/store/orders", {
         method: "GET",
-        headers: { authorization: `Bearer ${token}` },
         query: {
           id: order.id, limit: 1,
           fields: "id,display_id,status,currency_code,total,subtotal,shipping_total,tax_total,discount_total,*items",

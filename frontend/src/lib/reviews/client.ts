@@ -1,12 +1,11 @@
 import { sdk } from "@/lib/medusa"
-import { getAuthToken } from "@/lib/auth/auth-storage"
 export type Review = { id: string; name: string; body: string; rating: number; score: number; up: number; down: number; created_at: string; voted: boolean }
 export type ReviewList = { reviews: Review[]; count: number; rating: number; has_review: boolean }
 export type Summary = { count: number; rating: number }
 export async function reviewRequest<T>(path: string, body?: Record<string, unknown>): Promise<T> {
-  const token = getAuthToken()
+  // Авторизация покупателя — на стороне серверного прокси (httpOnly-кука, H4).
   return sdk.client.fetch<T>(path, { method: body ? "POST" : "GET", cache: "no-store",
-    headers: token ? { authorization: `Bearer ${token}` } : {}, ...(body ? { body } : {}) })
+    ...(body ? { body } : {}) })
 }
 export function listReviews(productId: string, offset = 0) {
   return reviewRequest<ReviewList>(`/store/reviews?product_id=${encodeURIComponent(productId)}&offset=${offset}`)

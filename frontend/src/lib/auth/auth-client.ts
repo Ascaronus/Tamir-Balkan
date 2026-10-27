@@ -1,51 +1,52 @@
 import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
-import { clearAuthToken, getAuthToken, setAuthToken } from "./auth-storage"
 import { clearStoredCartId } from "@/lib/cart/cart-storage"
 
-function authHeaders(token: string | null): Record<string, string> {
-  if (!token) return {}
-  return { authorization: `Bearer ${token}` }
-}
+/**
+ * Аутентификация покупателя (H4). JWT живёт только в httpOnly-куке, а в
+ * `authorization` его подставляет серверный прокси `/api/medusa/*`, поэтому
+ * здесь нет никакой работы с токеном: `sdk.client.fetch` (auth type "session")
+ * просто отправляет куку на свой origin.
+ */
 
-async function customerForToken(token: string): Promise<HttpTypes.StoreCustomer | null> {
+export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null> {
   try {
     const res = await sdk.client.fetch<{ customer: HttpTypes.StoreCustomer }>(
       "/store/customers/me", {
-        method: "GET", headers: authHeaders(token), cache: "no-store",
+        method: "GET", cache: "no-store",
         query: { fields: "*addresses" },
       }
     )
     return res.customer ?? null
   } catch (error) {
+    // Истёкшая/невалидная сессия → анонимный режим (прокси на 401 сам снимает куку).
+    // Сетевые и 5xx ошибки (502/503) пробрасываем: транзиентный сбой не должен
+    // выбрасывать покупателя из аккаунта.
     if ([401, 404].includes((error as { status?: number }).status ?? 0)) return null
     throw error
   }
 }
 
-export async function retrieveCustomer(): Promise<HttpTypes.StoreCustomer | null> {
-  const token = getAuthToken()
-  if (!token) return null
-  const customer = await customerForToken(token)
-  // Expired tokens and deleted customers must not block anonymous cart requests.
-  // Never discard a newer login or a token after a transient network error.
-  if (!customer && getAuthToken() === token) {
-    clearAuthToken()
-    await sdk.client.clearToken()
-  }
-  return customer
-}
-
 export async function login(params: { email: string; password: string }) {
-  const token = await sdk.auth.login("customer", "emailpass", {
-    email: params.email.trim().toLowerCase(),
-    password: params.password,
+  // Не `sdk.auth.login`: js-sdk `FetchError` теряет `error`/`code` из ответа
+  // бэкенда, а LoginForm и лимит попыток входа (H1, 429 + `retry_after`) показывают
+  // пользователю именно `message` бэкенда. Куку ставит маршрут `/api/auth/login`.
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: params.email.trim().toLowerCase(), password: params.password }),
+    cache: "no-store",
   })
-  if (typeof token !== "string") {
-    throw new Error("Unexpected login flow")
+  if (!res.ok) {
+    let message = ""
+    try {
+      const data = (await res.json()) as { message?: unknown }
+      if (data && typeof data.message === "string") message = data.message
+    } catch {
+      // не JSON — подставляем текст по статусу
+    }
+    throw Object.assign(new Error(message || "Login failed"), { status: res.status })
   }
-  setAuthToken(token)
-  return token
 }
 
 export type RegistrationChallenge = { challenge_id: string; expires_at: string; retry_after: number }
@@ -70,19 +71,16 @@ export async function signup(params: {
 }) {
   const email = params.email.trim().toLowerCase()
   await sdk.client.fetch("/store/registration/verify", { method: "POST", body: { ...params, email }, cache: "no-store" })
-  const token = await login({ email, password: params.password })
-  const customer = await customerForToken(token)
+  await login({ email, password: params.password })
+  const customer = await retrieveCustomer()
   if (!customer) throw new Error("REGISTRATION_PROFILE_FAILED")
   return customer
 }
 
 export async function logout() {
-  try {
-    await sdk.auth.logout()
-  } catch {
-    await sdk.client.clearToken()
-  }
-  clearAuthToken()
+  const res = await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
+  // Keep the current session visible if the server could not clear its cookie.
+  if (!res.ok) throw new Error("LOGOUT_FAILED")
   clearStoredCartId()
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("tb-cart-reset"))
@@ -95,12 +93,9 @@ export async function updateCustomerProfile(params: {
   phone?: string
   metadata?: Record<string, unknown>
 }) {
-  const token = getAuthToken()
-  if (!token) throw new Error("Not authenticated")
   const res = await sdk.store.customer.update(
     params as Record<string, unknown>,
-    {},
-    authHeaders(token) as never
+    {}
   )
   return res.customer
 }
@@ -115,9 +110,6 @@ export async function upsertCustomerShippingAddress(params: {
   postal_code: string
   country_code: string
 }) {
-  const token = getAuthToken()
-  if (!token) throw new Error("Not authenticated")
-  const h = authHeaders(token) as Record<string, string>
   const body = {
     first_name: params.first_name,
     last_name: params.last_name,
@@ -133,16 +125,13 @@ export async function upsertCustomerShippingAddress(params: {
     const res = await sdk.store.customer.updateAddress(
       params.addressId,
       body as Record<string, unknown>,
-      {},
-      h as never
+      {}
     )
     return res.customer
   }
   const res = await sdk.store.customer.createAddress(
     body as Record<string, unknown>,
-    {},
-    h as never
+    {}
   )
   return res.customer
 }
-
