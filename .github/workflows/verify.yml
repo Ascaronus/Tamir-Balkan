@@ -6,12 +6,21 @@ on:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  # Единая очередь для всех прогонов Verify: при двух параллельных прогонах
+  # Jest HTTP-тесты зависают на шаге integration tests. Новые прогоны ждут в queued,
+  # самый старый queued-прогон может быть отменён новым — его нужно перезапустить.
+  group: verify-global
+  cancel-in-progress: false
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # Matrix-джобы (Node 20 и 24) тоже выполняются по очереди: оба запускают
+      # Jest HTTP и Rozetka-шаги, которые не должны идти одновременно.
+      max-parallel: 1
       matrix:
         node: ["20.20.2", "24"]
     services:
