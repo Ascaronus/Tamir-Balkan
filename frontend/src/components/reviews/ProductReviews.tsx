@@ -1,6 +1,7 @@
 "use client"
 import Link from "@/components/i18n/LocalizedLink"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { LoginDialog } from "@/components/auth/LoginDialog"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { useCaptcha } from "@/components/security/Captcha"
@@ -11,6 +12,8 @@ import { Stars, Thumb } from "./Stars"
 export function ProductReviews({ productId, initial, initialReviews = null }: { productId: string; initial: Summary | null; initialReviews?: ReviewList | null }) {
   const { t, locale } = useLocaleContext()
   const { customer, isReady } = useAuth()
+  const [loginOpen, setLoginOpen] = useState(false)
+  const loginTrigger = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(true)
   const [data, setData] = useState<ReviewList | null>(initialReviews)
   const [summary, setSummary] = useState(initial)
@@ -46,7 +49,7 @@ export function ProductReviews({ productId, initial, initialReviews = null }: { 
     return () => { generation.current++ }
   }, [isReady, customer?.id, load])
   return <section id="reviews" className="reviews-layout mt-12 scroll-mt-6 border-t border-[var(--store-border)] pt-8">
-    <div className="reviews-intro"><h2>{t("design.reviewIntro")}</h2><p>{t("design.reviewHint")}</p><Link href={customer ? "#review-write" : "/rs/account/login"} className="button-secondary" onClick={() => setOpen(true)}>{t("reviews.write")}</Link></div>
+    <div className="reviews-intro"><h2>{t("design.reviewIntro")}</h2><p>{t("design.reviewHint")}</p>{customer ? <Link href="#review-write" className="button-secondary" onClick={() => setOpen(true)}>{t("reviews.write")}</Link> : <button type="button" className="button-secondary" disabled={!isReady} aria-haspopup="dialog" onClick={event => { loginTrigger.current = event.currentTarget; setOpen(true); setLoginOpen(true) }}>{t("reviews.write")}</button>}</div>
     <div className="reviews-main">
       <div className="review-section-heading"><h2>{t("reviews.title")}{summary ? ` (${summary.count})` : ""}</h2><button type="button" aria-expanded={open} aria-controls="product-review-content" className="button-quiet" onClick={() => setOpen(v => !v)}>{t(open ? "reviews.collapse" : "reviews.show")}</button></div>
       {summary && <div className="review-summary"><Stars rating={summary.rating} count={summary.count} emptyLabel={t("reviews.noRatings")} wide />{summary.count > 0 && <span>· {t("reviews.count", { n: summary.count })}</span>}</div>}
@@ -60,7 +63,7 @@ export function ProductReviews({ productId, initial, initialReviews = null }: { 
         {data?.reviews.map(review => <ReviewItem key={review.id + ":" + (customer?.id || "guest")} review={review} signedIn={Boolean(customer)} locale={locale} onVoted={updated => setData(old => old ? { ...old, reviews: old.reviews.map(r => r.id === review.id ? { ...r, ...updated } : r) } : old)} />)}
       </div>
       {data && data.reviews.length < data.count && <button type="button" disabled={loading} className="my-3 rounded border px-4 py-2 text-sm disabled:opacity-50" onClick={() => void load(data.reviews.length)}>{t("reviews.more")}</button>}
-      <div id="review-write" className="scroll-mt-6">{isReady && !customer ? <p className="mt-4 text-sm"><Link href="/rs/account/login" className="underline">{t("reviews.signIn")}</Link> {t("reviews.signInHint")}</p> : customer && data?.has_review ? <p className="mt-4 text-sm text-[var(--store-text-muted)]">{t("reviews.alreadyReviewed")}</p> : customer && data && <form className="mt-5 max-w-xl border-t border-[var(--store-border)] pt-5" onSubmit={async e => {
+      <div id="review-write" className="scroll-mt-6">{isReady && !customer ? <p className="mt-4 text-sm"><button type="button" className="underline" aria-haspopup="dialog" onClick={event => { loginTrigger.current = event.currentTarget; setLoginOpen(true) }}>{t("reviews.signIn")}</button> {t("reviews.signInHint")}</p> : customer && data?.has_review ? <p className="mt-4 text-sm text-[var(--store-text-muted)]">{t("reviews.alreadyReviewed")}</p> : customer && data && <form className="mt-5 max-w-xl border-t border-[var(--store-border)] pt-5" onSubmit={async e => {
         e.preventDefault()
         if (submitLock.current) return
         setError(""); setNotice("")
@@ -93,6 +96,7 @@ export function ProductReviews({ productId, initial, initialReviews = null }: { 
       <button type="button" className="button-quiet mt-4 w-full" onClick={() => { setOpen(false); document.getElementById("reviews")?.scrollIntoView({ block: "start" }) }}>{t("reviews.collapse")}</button>
     </div>
     </div>
+    {loginOpen && !customer && <LoginDialog trigger={loginTrigger} onDismiss={() => setLoginOpen(false)} />}
     {captcha}
   </section>
 }

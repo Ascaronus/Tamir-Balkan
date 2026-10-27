@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
+import {createTranslator} from '../src/lib/i18n/translator.ts'
 import { load, hooks, find } from '../test-support/component-harness.mjs'
 import { completeRegistration } from '../src/lib/auth/registration-flow.ts'
 const validation = load('backend/src/utils/review-validation.ts')
@@ -62,17 +64,17 @@ test('CAPTCHA errors cannot bypass registration through partial-account recovery
   assert.equal(logins,0)
  }
 })
-function ui(customer = null, response = {reviews:[],count:0,rating:0,has_review:false}, hash = '') {
+function ui(customer = null, response = {reviews:[],count:0,rating:0,has_review:false}, hash = '', locale = null) {
  const h=hooks();let calls=0,posted=0,captchaCalls=0
  const component=load('frontend/src/components/reviews/ProductReviews.tsx',{
-  react:h.react,'@/components/i18n/LocalizedLink':'Link',
+  react:h.react,'@/components/auth/LoginDialog':{LoginDialog:'LoginDialog'},'@/components/i18n/LocalizedLink':'Link',
   '@/components/auth/AuthProvider':{useAuth:()=>({customer,isReady:true})},
-  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'en',t:(key,args)=>key+(args?JSON.stringify(args):'')})},
+  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:locale || 'en',t:locale ? createTranslator(JSON.parse(readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url),'utf8'))) : (key,args)=>key+(args?JSON.stringify(args):'')})},
   '@/components/security/Captcha':{useCaptcha:()=>({requestCaptcha:async()=>{captchaCalls++;return 'challenge-token'},captcha:null})},
   '@/lib/reviews/client':{listReviews:async()=>{calls++;return response},reviewRequest:async()=>{posted++},reviewErrorKey:()=> 'reviews.failed'},
   '@/lib/reviews/rating':rating,'./Stars':{Stars:'Stars',ReviewIcon:'ReviewIcon',Thumb:'Thumb'},
  },{window:{location:{hash},addEventListener(){},removeEventListener(){}},document:{getElementById:()=>null}})
- return {h,render:()=>h.render(()=>component.ProductReviews({productId:'prod_1',initial:{rating:4.5,count:2}})),get calls(){return calls},get posted(){return posted},get captchaCalls(){return captchaCalls}}
+ return {h,setCustomer:value=>{customer=value},render:()=>h.render(()=>component.ProductReviews({productId:'prod_1',initial:{rating:4.5,count:2}})),get calls(){return calls},get posted(){return posted},get captchaCalls(){return captchaCalls}}
 }
 test('review section starts expanded and a guest can collapse only reading',async()=>{
  const a=ui();let tree=a.render();await a.h.flush();tree=a.render()
@@ -106,3 +108,29 @@ test('negative review text is collapsed, manually revealable; guest reactions li
  card=child.render(()=>item.type(item.props))
  assert.equal(find(card,n=>n.props?.id==='review-body-r').props.hidden,false)
 })
+
+for (const [locale, write, signIn] of [['sr','Napišite recenziju','Prijavite se'],['en','Write a review','Sign in']]) {
+ test(`component: ${locale} review guest actions open shared login dialog and reveal form after login`, async () => {
+  const a=ui(null,undefined,'',locale)
+  a.render(); await a.h.flush(); let tree=a.render()
+  for (const label of [write,signIn]) {
+   const button=find(tree,n=>n.type==='button'&&n.props.children===label)
+   assert.ok(button,label); assert.equal(button.props['aria-haspopup'],'dialog')
+   assert.equal(button.props.href,undefined)
+   const trigger={isConnected:true}
+   button.props.onClick({currentTarget:trigger})
+   tree=a.render()
+   const dialog=find(tree,n=>n.type==='LoginDialog')
+   assert.ok(dialog); assert.equal(dialog.props.trigger.current,trigger)
+   dialog.props.onDismiss(); tree=a.render()
+   assert.equal(find(tree,n=>n.type==='LoginDialog'),null)
+  }
+  find(tree,n=>n.type==='button'&&n.props.children===write).props.onClick({currentTarget:{}})
+  a.setCustomer({id:'customer',first_name:'Igor'})
+  tree=a.render(); await a.h.flush(); tree=a.render()
+  assert.equal(find(tree,n=>n.type==='LoginDialog'),null)
+  assert.ok(find(tree,n=>n.type==='form'))
+  assert.ok(find(tree,n=>n.props?.href==='#review-write'))
+  assert.equal(a.posted,0); assert.equal(a.captchaCalls,0)
+ })
+}
