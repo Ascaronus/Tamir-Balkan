@@ -17,6 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: messages.meta.title,
     description: messages.meta.description,
+    authors: [{ name: "Igor Demin" }],
+    other: { "date": "2026-09-14", "article:published_time": "2026-09-14T00:00:00+02:00" },
+    openGraph: { type: "website", siteName: "TAMIR", title: messages.meta.title, description: messages.meta.description,
+      images: [{ url: "https://tamir.rs/tamir-logo.png", width: 2048, height: 1613, alt: "TAMIR — Collection for men" }] },
     robots: { index: true, follow: true },
   }
 }

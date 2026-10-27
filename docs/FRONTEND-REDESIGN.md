@@ -1,61 +1,68 @@
-# TAMIR storefront redesign — historical release notes
+# Редизайн витрины TAMIR — исторические заметки выпуска
 
-Reviewed on 2026-10-11. This document records the original redesign scope and
-its checks; later routes/localization/gallery changes are documented in
+Сверено 11 октября 2026. Этот документ хранит исходный объём редизайна и его
+проверки; последующие изменения маршрутов, локализации и галереи описаны в
 [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md), [LOCALIZATION.md](LOCALIZATION.md)
-and [RESPONSIVE-V2.md](RESPONSIVE-V2.md). Current test commands: [TESTING.md](TESTING.md).
+и [RESPONSIVE-V2.md](RESPONSIVE-V2.md). Актуальные команды тестов: [TESTING.md](TESTING.md).
 
-The existing Next.js storefront now uses the approved TAMIR Figma concept:
-white, black, gray and dark fuchsia (#842154). The supplied TAMIR logo remains
-unchanged; Next Image delivers appropriately sized versions while preserving
-its 2048:1613 aspect ratio using object-contain. The current logo box is
-120 px wide on desktop and 94 px on mobile.
+Существующая витрина на Next.js использует согласованную концепцию TAMIR из Figma:
+белый, чёрный, серый и тёмная фуксия (#842154). Переданный логотип TAMIR остаётся
+без изменений; Next Image отдаёт подходящие по размеру версии, сохраняя пропорцию
+2048:1613 через object-contain. Текущий блок логотипа шириной 120 px на десктопе и
+94 px на мобильных.
 
-## Included
+## Что входило
 
-- Responsive header, live category navigation, search, language switch and cart badge.
-- Desktop catalog sidebar and accessible native mobile filter dialog.
-- Size, color, inclusive price range and all four backend sorts through
-  `/store/catalog/products`. Repeated sizes preserve decimal commas. URLs retain
-  the selection and pagination resets when filters or sort change.
-- Product cards use `product.catalog.price` and `preferred_variant_id`; real
-  products, stock, images and review aggregates come from Medusa.
-- Product gallery/zoom, aligned color selection, sizes, quantity and cart actions.
-- Catalog and product page use regional tax context. Signed-in requests also
-  carry the customer token for customer-group prices. RSD formatting explicitly
-  keeps two decimal places to avoid server/browser CLDR differences.
-- Reviews retain authenticated publishing/voting, CAPTCHA, one-review limits,
-  public name privacy and manual section/item collapse. Negative helpfulness
-  scores start individually collapsed; the section starts expanded.
-- Cart and checkout share the design. Checkout displays totals returned by
-  Medusa after applying the delivery option, including delivery in the total.
-- Registration retains all existing required fields, CAPTCHA and the existing
-  email-code activation flow. A single accessible/autofill-compatible code input
-  is presented as six cells. The spam reminder remains prominent.
-- Account orders/profile tabs, editable address/profile, order history/reorder.
-- Existing legal pages, cookie controls and SEO metadata remain available.
+- Адаптивный хедер, живая навигация по категориям, поиск, переключатель языка и
+  счётчик корзины.
+- Сайдбар каталога на десктопе и доступный нативный диалог фильтров на мобильных.
+- Размер, цвет, диапазон цены с включёнными границами и все четыре сортировки
+  backend через `/store/catalog/products`. Дробные размеры сохраняют запятую при
+  повторной выборке. URL хранят выборку, а пагинация сбрасывается при смене
+  фильтров или сортировки.
+- Карточки товара используют `product.catalog.price` и `preferred_variant_id`;
+  реальные товары, остатки, изображения и агрегаты отзывов приходят из Medusa.
+- Галерея и зум товара, выровненный выбор цвета, размеры, количество и действия
+  с корзиной.
+- Каталог и страница товара используют региональный налоговый контекст. Запросы
+  вошедшего покупателя передают и токен покупателя для цен ценовых групп.
+  Форматирование RSD явно сохраняет два знака после запятой, чтобы уйти от
+  различий CLDR на сервере и в браузере.
+- Отзывы сохраняют публикацию и голосование после авторизации, CAPTCHA, ограничение
+  «один отзыв», приватность публичного имени и ручное сворачивание раздела и
+  отдельных отзывов. Отрицательная сумма полезных реакций изначально сворачивает
+  отдельный отзыв; раздел изначально развёрнут.
+- Корзина и оформление следуют тому же дизайну. Оформление показывает суммы,
+  возвращённые Medusa после применения опции доставки, включая стоимость доставки
+  в итоге.
+- Регистрация сохраняет все существующие обязательные поля, CAPTCHA и существующий
+  поток активации кодом на почту. Одно доступное поле с автозаполнением для кода
+  визуально представлено шестью ячейками. Напоминание о папке спама остаётся заметным.
+- Вкладки заказов и профиля в аккаунте, редактирование адреса и профиля, история
+  заказов и повтор заказа.
+- Существующие юридические страницы, управление cookies и SEO-метаданные остаются доступны.
 
-The editorial banner and icon source assets are shared with the Figma work.
-Illustrative product photos and demo reviews are not shipped as product data.
-No backend schema changes, new environment variables or migrations are required
-by this frontend release. Existing Medusa and Turnstile configuration is required.
+Редакционный баннер и исходники иконок общие с работами в Figma. Иллюстративные
+фото товаров и демонстрационные отзывы как данные товаров не поставляются.
+Этот выпуск frontend не требовал изменений схемы backend, новых переменных
+окружения и миграций. Существующая конфигурация Medusa и Turnstile обязательна.
 
-## Validation recorded for the original redesign
+## Проверки, записанные для исходного редизайна (историческая запись)
 
-- Frontend TypeScript, ESLint and production build.
-- 82 automated tests, including the registration bypass regression, OTP,
-  review collapse/privacy, catalog parameter serialization and decimal prices.
-- Chromium checks at 320, 390, 768 and 1440px: overflow, image loading and
-  server/client hydration.
-- Browser flow against an isolated local Store API fixture: filters/sorting,
-  variant selection, review collapse, cart quantities, invalid/valid OTP,
-  review submission and voting, shipping quote and order completion.
-  The browser fixture replaces CAPTCHA and email delivery; it does not send
-  real email, create production accounts or place production orders.
+- TypeScript, ESLint и production-сборка frontend.
+- 82 автоматизированных теста, включая регрессию обхода регистрации, OTP,
+  сворачивание и приватность отзывов, сериализацию параметров каталога и дробные цены.
+- Проверки в Chromium при 320, 390, 768 и 1440 px: выход за границы, загрузка
+  изображений и гидратация на сервере и клиенте.
+- Сценарий в браузере против изолированного локального фикстура Store API:
+  фильтры и сортировка, выбор варианта, сворачивание отзывов, количество в корзине,
+  неверный и верный OTP, публикация отзыва и голосование, расчёт доставки и
+  завершение заказа. Браузерная фикстура заменяет CAPTCHA и доставку писем; реальные
+  письма не отправляются, production-аккаунты не создаются и заказы не оформляются.
 
-## Current deployment
+## Текущий деплой
 
-Follow [DEPLOY.md](../DEPLOY.md). Do not deploy local `.next` output or test
-fixtures. The VPS builds with its own environment, including the public
-Turnstile key. Later backend features require their own setup steps; the
-original frontend-only scope above does not waive those requirements.
+Следуйте [DEPLOY.md](../DEPLOY.md). Не выкладывайте локальную сборку `.next` и
+тестовые фикстуры. VPS собирает приложение со своим окружением, включая публичный
+ключ Turnstile. Более поздние возможности backend требуют собственных шагов
+настройки; исходный объём только по frontend выше не отменяет эти требования.
