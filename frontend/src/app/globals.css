@@ -475,3 +475,24 @@ body { line-height: 1.5; }
   .cart-added-image { flex-basis: 80px; width: 80px; height: 104px; }
   .cart-added-actions { grid-template-columns: 1fr; }
 }
+
+/* Header authentication shares the existing session and form. */
+.header-account { position: relative; min-width: 0; }
+.header-account-trigger { height: 44px; max-width: 210px; }
+.header-account-name { display: block; min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-account-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: 224px; max-width: calc(100vw - 32px); padding: 8px; background: var(--store-bg); border: 1px solid var(--store-border); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.header-account-menu a, .header-account-menu button { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 10px 12px; font-size: 14px; text-align: left; border-radius: 4px; }
+.header-account-menu a:hover, .header-account-menu button:hover { background: var(--store-bg-muted); }
+.header-account-menu p { padding: 12px; font-size: 14px; color: #a51e43; }
+.login-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0 32px 32px; border: 0; border-radius: 8px; color: var(--store-text); background: var(--store-bg); overflow: auto; overscroll-behavior: contain; }
+.login-dialog::backdrop { background: rgb(10 10 10 / 40%); }
+.login-dialog-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 8px; background: var(--store-bg); }
+.login-dialog-heading h2 { font-size: 24px; line-height: 32px; font-weight: 600; }
+.login-dialog-close { display: grid; place-items: center; flex: 0 0 44px; height: 44px; font-size: 28px; border-radius: 4px; }
+.login-dialog-close:hover { background: var(--store-bg-muted); }
+.login-modal-form form { gap: 24px; margin-top: 16px; }
+.login-modal-form input { min-width: 0; width: 100%; font-size: 16px; }
+.login-modal-form button[type=submit] { margin-top: 0; }
+.login-modal-form .login-register-link { margin-top: -12px; width: 100%; font-size: 14px; font-weight: 600; }
+@media (max-width: 900px) { .header-actions { position: relative; } .header-account { position: static; } .header-account-name { max-width: 88px; font-size: 14px; } }
+@media (max-width: 480px) { .login-dialog { padding-inline: 20px; padding-bottom: 20px; } .login-dialog-heading { padding-top: 12px; } }

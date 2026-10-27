@@ -89,7 +89,7 @@
     "login": {
       "title": "Prijava",
       "hint": "Koristite email i lozinku.",
-      "email": "Email",
+      "email": "Email adresa",
       "password": "Lozinka",
       "failed": "Neuspela prijava",
       "tooMany": "Previše neuspešnih pokušaja prijave. Pokušajte ponovo kasnije.",
@@ -97,7 +97,8 @@
       "signIn": "Prijavi se",
       "noAccount": "Nemate nalog?",
       "createOne": "Napravite ga",
-      "profileMissing": "Podaci za prijavu postoje, ali registracija nije završena. Otvorite Kreiraj nalog i ponovo pošaljite podatke sa istim imejlom i lozinkom."
+      "profileMissing": "Podaci za prijavu postoje, ali registracija nije završena. Otvorite Kreiraj nalog i ponovo pošaljite podatke sa istim imejlom i lozinkom.",
+      "signUp": "Registruj se"
     },
     "register": {
       "title": "Napravi nalog",
@@ -438,5 +439,12 @@
     "subtotal": "Ukupno",
     "shipping": "Dostava nije uključena u ovu sumu.",
     "continue": "Nastavi kupovinu"
+  },
+  "headerAuth": {
+    "myAccount": "Moj nalog",
+    "myOrders": "Moje porudžbine",
+    "signOut": "Odjavi se",
+    "signingOut": "Odjavljivanje…",
+    "logoutFailed": "Odjava nije uspela. Pokušajte ponovo."
   }
 }

@@ -2,20 +2,30 @@
 
 import Link from "@/components/i18n/LocalizedLink"
 import { useLocalizedRouter as useRouter } from "@/components/i18n/useLocalizedRouter"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 
-export function LoginForm({ countryCode, next = "account" }: { countryCode: string; next?: "account" | "checkout" }) {
+type LoginFormProps = {
+  countryCode: string
+  next?: "account" | "checkout"
+  modal?: boolean
+  onSuccess?: () => void
+  onNavigate?: () => void
+}
+
+export function LoginForm({ countryCode, next = "account", modal = false, onSuccess, onNavigate }: LoginFormProps) {
   const t = useTranslations()
   const router = useRouter()
   const { login, isMutating } = useAuth()
+  const submitting = useRef(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   return (
-    <div className="auth-panel">
+    <div className={modal ? "login-modal-form" : "auth-panel"}>
+      {!modal && <>
       <h1 className="text-xl font-semibold text-[var(--store-text)]">
         {t("auth.login.title")}
       </h1>
@@ -23,19 +33,25 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
         {t("auth.login.hint")}
       </p>
 
+      </>}
       <form
         className="mt-6 grid gap-4"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (submitting.current || isMutating) return
+          submitting.current = true
           setError(null)
           try {
             await login(email.trim(), password)
-            router.push(`/${countryCode}/${next}`)
+            if (modal) onSuccess?.()
+            else router.push(`/${countryCode}/${next}`)
           } catch (e: unknown) {
             const message = e instanceof Error ? e.message : ""
             if (message === "CUSTOMER_PROFILE_MISSING") setError(t("auth.login.profileMissing"))
             else if (message.includes("TOO_MANY_REQUESTS")) setError(t("auth.login.tooMany"))
             else setError(t("auth.login.failed"))
+          } finally {
+            submitting.current = false
           }
         }}
       >
@@ -46,6 +62,8 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            name="email"
+            autoComplete="username"
             type="email"
             required
             className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
@@ -59,16 +77,18 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            name="password"
+            autoComplete="current-password"
             type="password"
             required
             className="h-12 rounded border border-[var(--store-border)] px-3 text-sm"
           />
         </label>
 
-        <Link className="text-sm font-medium text-[var(--store-accent)] underline" href={`/${countryCode}/account/forgot-password`}>{t("auth.reset.forgot")}</Link>
+        <Link onClick={onNavigate} className="text-sm font-medium text-[var(--store-accent)] underline" href={`/${countryCode}/account/forgot-password`}>{t("auth.reset.forgot")}</Link>
 
         {error ? (
-          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </div>
         ) : null}
@@ -81,7 +101,7 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
           {isMutating ? t("auth.login.signingIn") : t("auth.login.signIn")}
         </button>
 
-        <div className="text-sm text-[var(--store-text-muted)]">
+        {modal ? <Link href={`/${countryCode}/account/register`} onClick={onNavigate} className="button-secondary login-register-link">{t("auth.login.signUp")}</Link> : <div className="text-sm text-[var(--store-text-muted)]">
           {t("auth.login.noAccount")}{" "}
           <Link
             href={`/${countryCode}/account/register`}
@@ -89,7 +109,7 @@ export function LoginForm({ countryCode, next = "account" }: { countryCode: stri
           >
             {t("auth.login.createOne")}
           </Link>
-        </div>
+        </div>}
       </form>
     </div>
   )
