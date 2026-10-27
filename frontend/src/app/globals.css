@@ -53,7 +53,7 @@ body {
 .shop-header { border-bottom: 1px solid var(--store-border); background: white; }
 .shop-header-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 140px; gap: 24px; }
 .brand-link { display: flex; justify-content: center; align-items: center; }
-.brand-logo { width: 120px; height: 76px; display: block; object-fit: contain; }
+.brand-logo { width: 120px; height: 94px; display: block; object-fit: contain; }
 .header-tools, .header-actions, .header-action { display: flex; align-items: center; }
 .header-tools { gap: 20px; min-width: 0; }
 .header-actions { justify-content: flex-end; gap: 16px; }
