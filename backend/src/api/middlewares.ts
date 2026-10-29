@@ -1,3 +1,4 @@
+import { bannerUploadLimit } from "../utils/banner-media"
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
 import { catalogMiddlewares } from "../utils/catalog-http"
 import { loginRateLimit } from "../utils/login-rate-limit"
@@ -7,6 +8,7 @@ function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, 
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/admin/homepage-banners*", bodyParser: { sizeLimit: `${Math.ceil(bannerUploadLimit()*4/3)+4096}b` }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/store/wishlist", methods: ["GET", "POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/store/wishlist/:productId", methods: ["DELETE"], middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/admin/products/:id/localized-url", methods: ["GET", "POST"], bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },

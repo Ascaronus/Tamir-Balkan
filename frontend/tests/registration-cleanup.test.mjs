@@ -4,6 +4,7 @@ import {load} from '../test-support/component-harness.mjs'
 
 test('legacy identity registration and direct customer creation cannot bypass OTP',()=>{
  const routes=load('backend/src/api/middlewares.ts',{
+  '../utils/banner-media':{bannerUploadLimit:()=>5*1024*1024},
   '@medusajs/framework/http':{defineMiddlewares:x=>x,authenticate:()=>()=>{}},
   // Catalog middleware is unrelated to the registration guards under test.
   '../utils/catalog-http':{catalogMiddlewares:[]},

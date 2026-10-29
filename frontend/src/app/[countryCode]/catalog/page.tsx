@@ -1,6 +1,6 @@
+import { HomepageBanners } from "@/components/banners/HomepageBanners"
+import { homepageBanners } from "@/lib/store/banners"
 import { localizedPath } from "@/lib/i18n/paths"
-import Image from "next/image"
-import Link from "@/components/i18n/LocalizedLink"
 import { notFound, permanentRedirect } from "next/navigation"
 import { reviewSummaries } from "@/lib/reviews/server"
 import { normalizeCatalogQuery, queryText, type CatalogQuery } from "@/lib/store/search-params"
@@ -48,7 +48,7 @@ export default async function CatalogPage({ params, searchParams }: {
   if (initial && selection.page > 1 && (selection.page - 1) * 24 >= initial.count) notFound()
   const summaries = initial ? await reviewSummaries(initial.products.map(p => p.id)) : null
   return <StoreShell countryCode="rs" initialCategories={categories} activeCategoryId={selection.category_id} languagePaths={category ? { sr: categoryPath(category, "sr"), en: categoryPath(category, "en") } : {}}><div className="store-container catalog-page">
-    {!selection.category_id && !selection.q && <section className="collection-banner" aria-label={t("design.heroTitle")}><div className="collection-copy"><h2>{t("design.heroTitle")}</h2><p>{t("design.heroSubtitle")}</p><Link href="#catalog-products" className="button-secondary">{t("design.heroAction")}</Link></div><div className="collection-image"><Image src="/design/tamir-family-winter.webp" alt={t("design.heroAlt")} fill sizes="100vw" unoptimized preload /></div></section>}
+    {!selection.category_id && !selection.q && <HomepageBanners carousel={await homepageBanners()} locale={locale} />}
     <CatalogClient key={catalogParams(selection).toString() + locale} initial={initial} selection={selection} basePath={basePath} regionId={region?.id ?? ""} summaries={summaries} title={category?.name || t("sidebar.allProducts")} />
   </div></StoreShell>
 }
