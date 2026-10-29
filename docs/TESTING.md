@@ -264,3 +264,21 @@ Escape, touch, границы viewport, SR/EN, ссылки вариантов, 
 Контракты и синхронизация renderer: [HOMEPAGE-BANNERS.md](HOMEPAGE-BANNERS.md).
 `banner-carousel.test.mjs` и `banner-admin.test.mjs` — component/unit; `homepage-banners.test.cjs` — unit/handler;
 `homepage-banners.integration.cjs` — PostgreSQL; `integration-tests/http/homepage-banners.spec.ts` — Medusa HTTP.
+
+### Checkout и подтверждение заказа
+
+`frontend/tests/checkout-fields.test.mjs`: component-harness проверяет включённое
+по умолчанию согласие, снятие галочки, блокировку отправки и повторное включение.
+Прежние проверки валидации сохранены с явно снятым согласием.
+`backend/tests/order-email.test.cjs`: unit/handler, SMTP и БД заменены заглушками;
+проверяет номер и состав, суммы Medusa v2, двуязычный текст, гостя, повтор события,
+ошибку/отказ SMTP и повторную попытку, сохранение metadata, no_notification.
+Не доказывает реальную доставку почты или SQL-блокировку. Проверка доставки через
+Mailpit и браузерный journey остаются в Tamir-QA-Automation.
+
+Локальная проверка этой правки (2026-10-29): Node 20.20.2 и 24.22.1 — 226
+frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint прошли.
+Сборка Medusa backend/admin прошла. Next production build прошёл с `--webpack`:
+локальный Turbopack отвергает симлинк node_modules за пределы worktree; конфигурация
+сборки в репозитории не менялась. SQL/HTTP-интеграции и реальный SMTP не запускались;
+конкурентность блокировки и доставка в почтовый ящик требуют отдельной проверки.

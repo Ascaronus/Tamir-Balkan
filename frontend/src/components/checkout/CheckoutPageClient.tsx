@@ -57,7 +57,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [postalCode, setPostalCode] = useState("")
   const [notes, setNotes] = useState("")
   const [address1, setAddress1] = useState("")
-  const [consent, setConsent] = useState(false)
+  const [consent, setConsent] = useState(true)
   const [validated, setValidated] = useState(false)
   const [otherCity, setOtherCity] = useState(false)
   const fields = { firstName, lastName, email, phone, country, city, postalCode, address1, notes, consent }

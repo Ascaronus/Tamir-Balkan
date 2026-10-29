@@ -30,6 +30,7 @@ for(const signedIn of [false,true])test(`${signedIn?'account':'guest'} checkout 
  const customer=signedIn?{id:'customer',email:valid.email,first_name:valid.firstName,last_name:valid.lastName,phone:valid.phone,addresses:[{city:'Small village',postal_code:'21000',address_1:'Test 1',country_code:'rs'}]}:null
  const f=setup(customer);f.render();await f.h.flush();f.render()
  assert.equal(find(f.render(),n=>n.type==='form').props.noValidate,true)
+ f.change('consent',false)
  await f.submit();assert.equal(f.calls.length,0);assert.ok(f.focused.length)
  if(signedIn){assert.equal(f.field('city').props.value,'Small village');assert.equal(f.field('city').type,'input')}
  else for(const [key,value] of Object.entries(valid))if(key!=='consent')f.change(key,value)
@@ -45,4 +46,16 @@ test('custom account details and changes to reviewed address require validation 
  await f.submit();f.change('address1','Different 2');await f.submit()
  assert.equal(f.calls.filter(c=>c[0]==='complete').length,0)
  f.change('email','invalid');await f.submit();assert.equal(f.field('email').props['aria-invalid'],true)
+})
+
+test('checkout policy starts checked and unchecking it blocks submission',async()=>{
+ const f=setup();f.render();await f.h.flush()
+ assert.equal(f.field('consent').props.checked,true)
+ for(const [key,value] of Object.entries(valid))if(key!=='consent')f.change(key,value)
+ f.change('consent',false);await f.submit()
+ assert.equal(f.field('consent').props.checked,false)
+ assert.equal(f.field('consent').props['aria-invalid'],true)
+ assert.equal(f.calls.length,0)
+ f.change('consent',true);await f.submit()
+ assert.ok(f.calls.some(c=>c[0]==='address'))
 })
