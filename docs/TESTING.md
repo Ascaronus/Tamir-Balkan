@@ -258,3 +258,9 @@ HTTP validation still requires isolated PostgreSQL and Redis.
 Escape, touch, границы viewport, SR/EN, ссылки вариантов, серверные суммы, empty/loading/error.
 `localized-cart.test.mjs` дополнен проверкой состояния ошибки и явного retry.
 Контракт и границы проверок: [CART-PREVIEW.md](CART-PREVIEW.md).
+
+### Карусель баннеров
+
+Контракты и синхронизация renderer: [HOMEPAGE-BANNERS.md](HOMEPAGE-BANNERS.md).
+`banner-carousel.test.mjs` и `banner-admin.test.mjs` — component/unit; `homepage-banners.test.cjs` — unit/handler;
+`homepage-banners.integration.cjs` — PostgreSQL; `integration-tests/http/homepage-banners.spec.ts` — Medusa HTTP.

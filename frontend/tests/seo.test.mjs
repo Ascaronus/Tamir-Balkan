@@ -77,6 +77,8 @@ test('sitemap includes populated categories and pagination with canonical URLs, 
 })
 function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27,initial=undefined,locale='sr'}={}) {
  return load('frontend/src/app/[countryCode]/catalog/page.tsx',{
+  '@/components/banners/HomepageBanners': { HomepageBanners: 'HomepageBanners' },
+  '@/lib/store/banners': { homepageBanners: async () => ({ banners: [], autoplay: true, interval: 6000 }) },
   'next/image':{},'@/components/i18n/LocalizedLink':{},'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
   '@/lib/reviews/server':{reviewSummaries:async()=>({})},'@/lib/store/search-params':{normalizeCatalogQuery,queryText},
   '@/lib/store/catalog':{...catalog,fetchCatalog:async()=>initial},'@/lib/store/regions':{getRegionByCountry:async()=>initial===undefined?null:{id:'reg_rs'}},
