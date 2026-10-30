@@ -38,12 +38,12 @@ for(const locale of ['sr','en']) {
   provider.toggle=(id,button)=>toggled={id,button}
   let button=FavoriteButton({productId:'prod_a',overlay:true})
   assert.equal(button.type,'button');assert.equal(button.props['aria-pressed'],false)
-  assert.equal(button.props['aria-label'],locale==='sr'?'Dodaj u omiljene':'Add to wishlist');assert.equal(HeartIcon({}).props.fill,'none')
+  assert.equal(button.props['aria-label'],locale==='sr'?'Dodaj u omiljene':'Add to wishlist');assert.equal(HeartIcon({}).props.className,'favorite-heart')
   const trigger={};button.props.onClick({currentTarget:trigger,stopPropagation:()=>stopped++,preventDefault:()=>prevented++})
   assert.equal(stopped,1);assert.equal(prevented,1);assert.deepEqual(toggled,{id:'prod_a',button:trigger})
   provider.ids=['prod_a'];provider.pending=['prod_a'];button=FavoriteButton({productId:'prod_a'})
   assert.equal(button.props['aria-pressed'],true);assert.equal(button.props.disabled,true)
-  assert.equal(button.props['aria-label'],locale==='sr'?'Ukloni iz omiljenih':'Remove from wishlist');assert.equal(HeartIcon({filled:true}).props.fill,'currentColor')
+  assert.equal(button.props['aria-label'],locale==='sr'?'Ukloni iz omiljenih':'Remove from wishlist');assert.equal(HeartIcon({filled:true}).props.className,'favorite-heart favorite-heart-filled')
  })
  test(`component: ${locale} header hides guest link and shows localized count`,()=>{
   let customer=null
@@ -55,6 +55,7 @@ for(const locale of ['sr','en']) {
   assert.equal(link.props['aria-label'],locale==='sr'?'Omiljeno (2)':'Wishlist (2)')
   assert.equal(localizedPath(link.props.href,locale),locale==='sr'?'/rs/wishlist':'/en/wishlist')
   assert.equal(find(link,n=>n.props?.className==='wishlist-count').props.children,2)
+  assert.equal(find(link,n=>n.type==='Heart').props.filled,true)
  })
 }
 test('component: guest action opens existing login and saves once after authenticated account loads',async()=>{
