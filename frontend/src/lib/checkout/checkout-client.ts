@@ -27,14 +27,15 @@ export async function setCartAddresses(params: {
   notes?: string
 }) {
   const { cartId, email, shipping_address, notes } = params
-  return sdk.store.cart.update(
-    cartId,
-    {
-      email,
+  return sdk.client.fetch<HttpTypes.StoreCartResponse>(
+    `/store/carts/${encodeURIComponent(cartId)}`,
+    { method: "POST", body: {
+      email: email.trim() || undefined,
+      additional_data: { tamir_clear_guest_email: !email.trim() },
       shipping_address,
       billing_address: shipping_address,
       metadata: notes ? { notes } : undefined,
-    }
+    } }
   )
 }
 

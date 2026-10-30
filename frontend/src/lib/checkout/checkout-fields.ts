@@ -6,12 +6,13 @@ export type CheckoutFields = {
   notes: string; consent: boolean;
 }
 
-// Apply the same checks to guests, saved addresses and custom account addresses.
-export function checkoutErrors(fields: CheckoutFields): Record<string, string> {
+// Shared address/phone checks; only guest checkout may omit email.
+export function checkoutErrors(fields: CheckoutFields, emailRequired = true): Record<string, string> {
   const errors: Record<string, string> = {}
-  for (const key of ["firstName", "lastName", "email", "phone", "city", "postalCode", "address1"] as const) {
+  for (const key of ["firstName", "lastName", "phone", "city", "postalCode", "address1"] as const) {
     if (!fields[key].trim()) errors[key] = "required"
   }
+  if (emailRequired && !fields.email.trim()) errors.email = "required"
   for (const key of ["firstName", "lastName"] as const) {
     if (fields[key].includes("@") || fields[key].length > 100) errors[key] = "name"
   }

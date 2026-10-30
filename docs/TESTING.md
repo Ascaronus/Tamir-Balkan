@@ -282,3 +282,19 @@ frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint
 локальный Turbopack отвергает симлинк node_modules за пределы worktree; конфигурация
 сборки в репозитории не менялась. SQL/HTTP-интеграции и реальный SMTP не запускались;
 конкурентность блокировки и доставка в почтовый ящик требуют отдельной проверки.
+
+### Гостевой email и удаление из корзины
+
+`checkout-fields.test.mjs` проверяет гостя без email, обязательный телефон, ошибку
+непустого email, обязательность email аккаунта и payload клиента (email опущен, явный флаг
+очистки). `cart-remove.test.mjs` проверяет SR/EN подпись, декоративную SVG-иконку
+и удаление нужной позиции. `guest-cart-email.test.cjs` проверяет helper с
+заменёнными сервисами: очистку гостя, запрет аккаунта/завершённой корзины, откат.
+`integration-tests/http/guest-cart-email.spec.ts` — реальный in-app HTTP/БД: email
+и customer_id очищаются и не восстанавливаются при следующем обновлении.
+
+Проверка 2026-10-30: Node 20.20.2/24.22.1 — frontend 231/231, backend no-db
+71/71; TypeScript обеих частей и ESLint прошли, Medusa backend/admin и Next
+(`--webpack`, из-за внешнего симлинка node_modules в worktree) собраны.
+Новый HTTP/БД-тест локально не запускался: PostgreSQL/Redis здесь недоступны;
+он входит в существующий Jest discovery CI. Живой заказ и SMTP не использовались.

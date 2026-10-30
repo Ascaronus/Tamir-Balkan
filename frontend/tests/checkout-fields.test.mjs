@@ -59,3 +59,30 @@ test('checkout policy starts checked and unchecking it blocks submission',async(
  f.change('consent',true);await f.submit()
  assert.ok(f.calls.some(c=>c[0]==='address'))
 })
+
+test('guest can quote and complete without email; phone remains required and provided email is validated',async()=>{
+ const f=setup();f.render();await f.h.flush()
+ for(const [key,value] of Object.entries(valid))if(key!=='email')f.change(key,value)
+ assert.equal(f.field('email').props.required,false)
+ assert.equal(f.field('phone').props.required,true)
+ f.change('phone','');await f.submit();assert.equal(f.calls.length,0);assert.equal(f.field('phone').props['aria-invalid'],true)
+ f.change('phone',valid.phone);f.change('email','bad@');await f.submit();assert.equal(f.calls.length,0);assert.equal(f.field('email').props['aria-invalid'],true)
+ f.change('email','');await f.submit();assert.equal(f.calls.find(c=>c[0]==='address')[1].email,'')
+ await f.submit();assert.equal(f.calls.filter(c=>c[0]==='complete').length,1)
+})
+test('account checkout still requires email',async()=>{
+ const f=setup({id:'customer',email:valid.email});f.render();await f.h.flush()
+ for(const [key,value] of Object.entries(valid))f.change(key,value)
+ f.change('email','');await f.submit()
+ assert.equal(f.field('email').props.required,true);assert.equal(f.field('email').props['aria-invalid'],true);assert.equal(f.calls.length,0)
+})
+test('checkout client omits empty email and sends explicit guest clearing flag, never an empty or fake email',async()=>{
+ const calls=[]
+ const client=load('frontend/src/lib/checkout/checkout-client.ts',{'@/lib/medusa':{sdk:{client:{fetch:async(url,options)=>calls.push([url,options.body])}}}})
+ const address={phone:'+381641234567',country_code:'rs'}
+ await client.setCartAddresses({cartId:'cart_test',email:'   ',shipping_address:address})
+ assert.equal(calls[0][1].email,undefined);assert.equal(calls[0][1].additional_data.tamir_clear_guest_email,true)
+ assert.equal(calls[0][1].shipping_address.phone,address.phone)
+ await client.setCartAddresses({cartId:'cart_test',email:' shopper@example.com ',shipping_address:address})
+ assert.equal(calls[1][1].email,'shopper@example.com');assert.equal(calls[1][1].additional_data.tamir_clear_guest_email,false)
+})
