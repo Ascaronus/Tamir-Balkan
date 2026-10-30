@@ -177,3 +177,10 @@ test('component: existing account page reports a failed logout without redirecti
  const render=()=>h.render(()=>AccountPageClient({countryCode:'rs'}));await find(render(),n=>n.type==='button'&&n.props.children==='Logout').props.onClick()
  assert.equal(redirected,false);assert.equal(find(render(),n=>n.props?.role==='alert').props.children,'Sign out failed. Please try again.')
 })
+test('component: mouse hover opens account menu; touch does not; keyboard focus keeps it open',()=>{
+ const p=header('en');p.setCustomer({id:'c',first_name:'Igor'})
+ p.render().props.onPointerEnter({pointerType:'touch'});assert.equal(find(p.render(),n=>n.type==='nav'),null)
+ p.render().props.onPointerEnter({pointerType:'mouse'});assert.ok(find(p.render(),n=>n.type==='nav'))
+ p.render().props.onPointerLeave({pointerType:'mouse',currentTarget:{contains:()=>true}});assert.ok(find(p.render(),n=>n.type==='nav'))
+ p.render().props.onPointerLeave({pointerType:'mouse',currentTarget:{contains:()=>false}});assert.equal(find(p.render(),n=>n.type==='nav'),null)
+})
