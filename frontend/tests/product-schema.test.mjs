@@ -75,14 +75,15 @@ test('schema matches tax-inclusive prices and preserves legitimate zero prices',
 })
 
 test('confirmed Serbia shipping is emitted only for RSD offers', () => {
-  const shipping = productJsonLd(product(), 'en', url, null).offers[0].shippingDetails
+  const delivery = { options: [{id:'so_1',name:'Standard',amount:300,currency_code:'rsd'}], requires_checkout:false }
+  const shipping = productJsonLd(product(), 'en', url, null, delivery).offers[0].shippingDetails[0]
   assert.equal(shipping.shippingDestination.addressCountry, 'RS')
   assert.equal(shipping.shippingRate.value, 300)
   assert.equal(shipping.shippingRate.currency, 'RSD')
   assert.equal(shipping.deliveryTime.transitTime.maxValue, 7)
   assert.equal(shipping.deliveryTime.transitTime.unitCode, 'DAY')
   assert.equal('handlingTime' in shipping.deliveryTime, false)
-  const other = productJsonLd(product({ calculated_amount: 15, currency_code: 'eur' }), 'en', url, null)
+  const other = productJsonLd(product({ calculated_amount: 15, currency_code: 'eur' }), 'en', url, null, delivery)
   assert.equal('shippingDetails' in other.offers[0], false)
 })
 
@@ -90,4 +91,11 @@ test('multiple variant offers retain distinct selectable URLs',()=>{
  const p=product();p.variants.push({...p.variants[0],id:'v2',sku:'T-0002'})
  const data=productJsonLd(p,'sr',url,null)
  assert.deepEqual(Array.from(data.offers,o=>o.url),[url+'?v_id=v1',url+'?v_id=v2'])
+})
+
+test('schema uses configured free delivery and omits unknown estimates',()=>{
+ const delivery={options:[{id:'so_1',name:'Standard',amount:0,currency_code:'rsd'}],requires_checkout:false}
+ assert.equal(productJsonLd(product(),'sr',url,null,delivery).offers[0].shippingDetails[0].shippingRate.value,0)
+ for(const estimate of [null,{options:[],requires_checkout:true},{...delivery,requires_checkout:true}])
+  assert.equal('shippingDetails' in productJsonLd(product(),'en',url,null,estimate).offers[0],false)
 })

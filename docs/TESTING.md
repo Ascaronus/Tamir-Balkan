@@ -298,3 +298,23 @@ frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint
 (`--webpack`, из-за внешнего симлинка node_modules в worktree) собраны.
 Новый HTTP/БД-тест локально не запускался: PostgreSQL/Redis здесь недоступны;
 он входит в существующий Jest discovery CI. Живой заказ и SMTP не использовались.
+
+### Доставка в карточке из настроек Medusa
+
+`backend/tests/product-delivery.test.cjs` — handler: контексты страны/региона,
+канала и профиля; 0/платная цена; отсутствие цены; calculated; исключение
+самовывоза/отключённого провайдера; безопасные ошибки. Сервисы подменены.
+`frontend/tests/product-delivery.test.mjs` — unit/component с настоящими SR/EN:
+Besplatno/Free, формат суммы, разные методы, fallback и запрос без кэша.
+`product-schema.test.mjs` сохраняет прежние проверки и проверяет динамическую
+бесплатную доставку и отсутствие неизвестного тарифа в JSON-LD.
+`backend/integration-tests/http/product-delivery.spec.ts` — настоящий HTTP/БД,
+изменение региональной цены 0 → 450, правила метода, публикация товара.
+Контракт и ограничения: [PRODUCT-DELIVERY.md](PRODUCT-DELIVERY.md).
+
+Проверка 2026-10-30: 237/237 frontend и 76/76 backend no-db на Node
+20.20.2/24.22.1; TypeScript frontend/backend, ESLint, Next (`--webpack`),
+Medusa backend/admin и HTTP-проверка локализованных маршрутов прошли.
+Для сборки Medusa использованы одноразовые локальные секреты, как в CI.
+Новый HTTP/БД-тест входит в существующий Jest discovery, но локально не
+запускался из-за отсутствия PostgreSQL/Redis. Боевые данные не изменялись.
