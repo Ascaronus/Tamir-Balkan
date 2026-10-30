@@ -65,12 +65,13 @@ test('client links and router actions actually retain EN while market arguments 
  const {useLocalizedRouter}=load('frontend/src/components/i18n/useLocalizedRouter.ts',{'next/navigation':{useRouter:()=>({push:url=>destination=url})},'./LocaleProvider':context})
  useLocalizedRouter().push('/rs/checkout');assert.equal(destination,'/en/checkout')
 })
-test('switcher remembers selection and navigates to the same translated product with its variant',async()=>{
+test('switcher remembers selection and requests the same translated product and fragment with scroll preservation',async()=>{
  const h=hooks();let saved,destination
  const {LanguageSwitcher}=load('frontend/src/components/i18n/LanguageSwitcher.tsx',{
   react:h.react,'./LanguagePaths':{useLanguagePaths:()=>({sr:'/rs/products/kapa',en:'/en/products/hat'})},
   'next/navigation':{usePathname:()=>'/rs/products/kapa'},'@/lib/i18n/config':config,
   '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'sr',t:k=>k})},'@/lib/medusa':{sdk:{client:{setLocale:()=>{}}}},
+  '@/lib/i18n/locale-scroll':{navigateWithLocaleScroll:url=>destination=url},
  },{fetch:async(_url,options)=>{saved=JSON.parse(options.body).locale;return {ok:true}},window:{location:{search:'?v_id=variant_1',hash:'#reviews',assign:url=>destination=url}}})
  const tree=h.render(LanguageSwitcher)
  await find(tree,node=>node.type==='button'&&node.props.children==='en').props.onClick()

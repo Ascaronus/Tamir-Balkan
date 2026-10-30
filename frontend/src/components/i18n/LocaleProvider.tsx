@@ -5,12 +5,14 @@ import {
   useContext,
   useMemo,
   useEffect,
+  useLayoutEffect,
   type ReactNode,
 } from "react"
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { sdk } from "@/lib/medusa"
 import type { Messages } from "@/lib/i18n/messages"
 import { createTranslator, type TranslateFn } from "@/lib/i18n/translator"
+import { restoreLocaleScroll } from "@/lib/i18n/locale-scroll"
 
 type LocaleContextValue = {
   locale: Locale
@@ -29,6 +31,7 @@ export function LocaleProvider({
   children: ReactNode
 }) {
   useEffect(() => { sdk.client.setLocale(medusaStoreLocale(locale)) }, [locale])
+  useLayoutEffect(() => restoreLocaleScroll(), [locale])
   const value = useMemo(() => {
     const t = createTranslator(messages)
     return { locale, t }
