@@ -1,3 +1,4 @@
+import * as shippingNames from '../src/lib/checkout/shipping-method-name.ts'
 import * as dialogBackdrop from '../src/lib/dialog-backdrop.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -40,7 +41,7 @@ test('payment method request can be retried after failure',async()=>{
   react:h.react,'@/components/i18n/LocalizedLink':'Link','@/components/i18n/useLocalizedRouter':{useLocalizedRouter:()=>({push(){}})},
   '@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true,refresh:async()=>{}})},
   '@/components/cart/CartProvider':{useCart:()=>({cart:{id:'cart',region_id:'region',items:[{id:'i',quantity:1}]},isReady:true,isMutating:false})},
-  '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/cart/cart-client':{},
+  '@/lib/checkout/apply-customer':{},'@/lib/checkout/receipt':{},'@/lib/checkout/shipping-method-name':shippingNames,'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/cart/cart-client':{},
   '@/components/i18n/LocaleProvider':{useTranslations:()=>t},
   '@/lib/checkout/checkout-client':{listPaymentProviders:async()=>{if(++requests===1)throw Error('offline');return [{id:'pp_system_default'}]},setCartAddresses:async()=>{},listShippingOptions:async()=>[{id:'shipping'}],setShippingMethod:async()=>({cart:{id:'cart',total:100,shipping_total:10}})}
  })

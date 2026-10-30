@@ -1,4 +1,11 @@
 {
+  "shippingMethods": {
+    "standard": "Standard Shipping",
+    "express": "Express Shipping",
+    "pickup": "Local pickup",
+    "free": "Free shipping",
+    "delivery": "Delivery"
+  },
   "meta": {
     "title": "Tamir Balkan — clothing store",
     "description": "TAMIR — men's clothing and accessories for everyday wear and special occasions. Explore hats, scarves, shirts and belts, with delivery across Serbia."
