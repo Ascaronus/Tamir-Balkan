@@ -18,7 +18,8 @@ medusaIntegrationTestRunner({ inApp: true, testSuite: ({ api, getContainer }) =>
     await link.create([
       { [Modules.PRODUCT]: { product_id: product.id }, [Modules.SALES_CHANNEL]: { sales_channel_id: channels[0].id } },
       { [Modules.PRODUCT]: { product_id: product.id }, [Modules.FULFILLMENT]: { shipping_profile_id: profile.id } },
-      { [Modules.STOCK_LOCATION]: { stock_location_id: location.id }, [Modules.SALES_CHANNEL]: { sales_channel_id: channels[0].id } },
+      // Medusa link definitions are directional: sales_channel precedes stock_location.
+      { [Modules.SALES_CHANNEL]: { sales_channel_id: channels[0].id }, [Modules.STOCK_LOCATION]: { stock_location_id: location.id } },
       { [Modules.STOCK_LOCATION]: { stock_location_id: location.id }, [Modules.FULFILLMENT]: { fulfillment_set_id: set.id } },
     ])
     const option = await fulfillment.createShippingOptions({ name: "Standard", price_type: "flat", provider_id: "manual_manual", service_zone_id: set.service_zones[0].id, shipping_profile_id: profile.id,
