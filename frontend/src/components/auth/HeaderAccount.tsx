@@ -38,6 +38,8 @@ export function HeaderAccountControl() {
   }, [menuOpen])
 
   return <div className="header-account" ref={container}
+    onPointerEnter={event => { if (event.pointerType === "mouse" && customer) setMenuFor(customer.id) }}
+    onPointerLeave={event => { if (event.pointerType === "mouse" && !event.currentTarget.contains(document.activeElement)) setMenuFor(null) }}
     onKeyDown={event => { if (event.key === "Escape" && menuOpen) { event.preventDefault(); setMenuFor(null); trigger.current?.focus() } }}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuFor(null) }}>
     <button ref={trigger} type="button" className="header-action header-account-trigger" disabled={!isReady}

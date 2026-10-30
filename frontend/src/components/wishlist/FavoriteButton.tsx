@@ -2,7 +2,7 @@
 import { useWishlist } from "./WishlistProvider"
 import { useTranslations } from "@/components/i18n/LocaleProvider"
 export function HeartIcon({ filled = false }: { filled?: boolean }) {
-  return <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="M12 21C10 19 2 13 2 7C2 1 9 0 12 5C15 0 22 1 22 7C22 13 14 19 12 21Z" /></svg>
+  return <span aria-hidden="true" className={`favorite-heart${filled ? " favorite-heart-filled" : ""}`} />
 }
 export function FavoriteButton({ productId, overlay = false }: { productId: string; overlay?: boolean }) {
   const { ids, pending, ready, toggle } = useWishlist()
