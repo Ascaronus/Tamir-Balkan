@@ -7,6 +7,7 @@ import { useState } from "react"
 import { locales, medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { sdk } from "@/lib/medusa"
+import { navigateWithLocaleScroll } from "@/lib/i18n/locale-scroll"
 
 export function LanguageSwitcher() {
   const pathname = usePathname()
@@ -16,7 +17,7 @@ export function LanguageSwitcher() {
   const [error, setError] = useState(false)
 
   async function setLocale(next: Locale) {
-    if (busy) return
+    if (busy || next === locale) return
     setBusy(true)
     setError(false)
     try {
@@ -27,8 +28,7 @@ export function LanguageSwitcher() {
       })
       if (res.ok) {
         sdk.client.setLocale(medusaStoreLocale(next))
-        // Full navigation refreshes the root language, HTML lang and all pricing/localization providers.
-        window.location.assign((paths[next] || localizedPath(pathname, next)) + window.location.search + window.location.hash)
+        navigateWithLocaleScroll((paths[next] || localizedPath(pathname, next)) + window.location.search + window.location.hash)
       } else { setError(true) }
     } catch {
       setError(true)
