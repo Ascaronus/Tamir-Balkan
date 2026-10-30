@@ -1,6 +1,7 @@
 "use client"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { formatMoney } from "@/lib/format-money"
+import { shippingMethodName } from "@/lib/checkout/shipping-method-name"
 import type { ProductDelivery as Delivery } from "@/lib/store/product-delivery"
 
 export function ProductDelivery({ delivery }: { delivery?: Delivery | null }) {
@@ -11,7 +12,7 @@ export function ProductDelivery({ delivery }: { delivery?: Delivery | null }) {
   return <div className="text-[var(--store-text-muted)]">
     {samePrice ? <p>{t("product.deliveryTerms", { price: price(options[0]) })}</p> : options.length > 0 ? <>
       <p>{t("product.deliveryMethods")}</p>
-      <ul>{options.map(option => <li key={option.id}>{option.name}: {price(option)}</li>)}</ul>
+      <ul>{options.map(option => <li key={option.id}>{shippingMethodName(option.name, t)}: {price(option)}</li>)}</ul>
     </> : null}
     {(!options.length || delivery?.requires_checkout) && <p>{t("product.deliveryAtCheckout")}</p>}
   </div>

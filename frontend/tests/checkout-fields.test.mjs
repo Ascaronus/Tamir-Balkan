@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { createTranslator } from '../src/lib/i18n/translator.ts'
+import * as shippingNames from '../src/lib/checkout/shipping-method-name.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { load, hooks, find } from '../test-support/component-harness.mjs'
@@ -10,15 +13,15 @@ test('checkout validates contact details, required fields and consent',()=>{
  for(const [key,value,error] of [['firstName',' ','required'],['email','bad@','email'],['phone','123','phone'],['postalCode','21x00','postalCode'],['city',' ','required'],['address1',' ','required'],['consent',false,'consent']])assert.equal(validation.checkoutErrors({...valid,[key]:value})[key],error)
  assert.equal(Object.keys(validation.checkoutErrors({...valid,phone:'+44 7700 900123'})).length,0)
 })
-function setup(customer=null){
+function setup(customer=null, translations=null, options=[{id:'ship',name:'Dostava',amount:300}]){
  const h=hooks(),calls=[],focused=[]
  const cart={id:'cart_test',region_id:'rs',currency_code:'rsd',items:[{id:'line',quantity:1,unit_price:1500}],item_total:1500}
- const refresh=async()=>{}, t=k=>k
- const api={listPaymentProviders:async()=>[{id:'pp_system_default'}],setCartAddresses:async p=>calls.push(['address',p]),listShippingOptions:async()=>[{id:'ship',name:'Dostava',amount:300}],setShippingMethod:async()=>({cart:{...cart,total:1800,shipping_total:300}}),initiatePaymentSession:async()=>calls.push(['payment']),completeCart:async()=>{calls.push(['complete']);return {type:'order',order:{id:'order_test'}}}}
+ const refresh=async()=>{}, t=translations || (k=>k)
+ const api={listPaymentProviders:async()=>[{id:'pp_system_default'}],setCartAddresses:async p=>calls.push(['address',p]),listShippingOptions:async()=>options,setShippingMethod:async params=>{calls.push(['shipping',params]);return {cart:{...cart,total:1800,shipping_total:300}}},initiatePaymentSession:async()=>calls.push(['payment']),completeCart:async()=>{calls.push(['complete']);return {type:'order',order:{id:'order_test'}}}}
  const {CheckoutPageClient}=load('frontend/src/components/checkout/CheckoutPageClient.tsx',{
  react:h.react,'@/components/i18n/LocalizedLink':{default:'a'},'@/components/i18n/useLocalizedRouter':{useLocalizedRouter:()=>({push:url=>calls.push(['navigate',url])})},
  '@/components/auth/AuthProvider':{useAuth:()=>({customer,isReady:true,refresh})},'@/components/cart/CartProvider':{useCart:()=>({cart,isReady:true,isMutating:false})},
- '@/lib/checkout/apply-customer':account,'@/lib/checkout/checkout-client':api,'@/lib/format-money':{formatMoney:n=>String(n)},'@/lib/checkout/receipt':{saveReceipt:()=>{}},'@/lib/cart/cart-client':{clearCartId:()=>{}},'@/components/i18n/LocaleProvider':{useTranslations:()=>t},'@/lib/checkout/checkout-fields':validation,'@/lib/auth/registration-fields':phone,
+ '@/lib/checkout/apply-customer':account,'@/lib/checkout/checkout-client':api,'@/lib/checkout/shipping-method-name':shippingNames,'@/lib/format-money':{formatMoney:n=>String(n)},'@/lib/checkout/receipt':{saveReceipt:()=>{}},'@/lib/cart/cart-client':{clearCartId:()=>{}},'@/components/i18n/LocaleProvider':{useTranslations:()=>t},'@/lib/checkout/checkout-fields':validation,'@/lib/auth/registration-fields':phone,
  },{document:{getElementById:id=>({focus:()=>focused.push(id)})}})
  const render=()=>h.render(()=>CheckoutPageClient({countryCode:'rs'}))
  const field=id=>find(render(),n=>n.props?.id===`checkout-${id}`)
@@ -85,4 +88,26 @@ test('checkout client omits empty email and sends explicit guest clearing flag, 
  assert.equal(calls[0][1].shipping_address.phone,address.phone)
  await client.setCartAddresses({cartId:'cart_test',email:' shopper@example.com ',shipping_address:address})
  assert.equal(calls[1][1].email,'shopper@example.com');assert.equal(calls[1][1].additional_data.tamir_clear_guest_email,false)
+})
+
+for(const locale of ['sr','en'])test(`component: ${locale} shipping choices and selected summary are translated without changing method IDs`,async()=>{
+ const t=createTranslator(JSON.parse(readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url),'utf8')))
+ const f=setup(null,t,[{id:'ship_standard',name:'Standard Shipping',amount:0},{id:'ship_express',name:'Express Shipping',amount:450},{id:'ship_live',name:' Shipping',amount:0}])
+ f.render();await f.h.flush()
+ for(const [key,value] of Object.entries(valid))f.change(key,value)
+ await f.submit()
+ const standard=locale==='sr'?'Standardna dostava':'Standard Shipping',express=locale==='sr'?'Ekspresna dostava':'Express Shipping'
+ const choice=(id)=>find(f.render(),n=>n.type==='label'&&find(n,c=>c.type==='input'&&c.props.name==='shipping'&&c.props.value===id))
+ const summary=()=>find(f.render(),n=>n.type==='p'&&typeof n.props.children==='string'&&n.props.children.startsWith(t('checkout.shipping')+': ')).props.children
+ assert.equal(find(choice('ship_standard'),n=>n.type==='span').props.children.join(''),standard+' — 0')
+ assert.equal(find(choice('ship_express'),n=>n.type==='span').props.children.join(''),express+' — 450')
+ assert.equal(summary(),t('checkout.shipping')+': '+standard)
+ await find(choice('ship_express'),n=>n.type==='input').props.onChange()
+ assert.equal(summary(),t('checkout.shipping')+': '+express)
+ assert.equal(find(choice('ship_express'),n=>n.type==='input').props.checked,true)
+ assert.equal(f.calls.filter(c=>c[0]==='shipping').at(-1)[1].optionId,'ship_express')
+ await find(choice('ship_live'),n=>n.type==='input').props.onChange()
+ assert.equal(summary(),t('checkout.shipping')+': '+(locale==='sr'?'Dostava':'Delivery'))
+ assert.equal(f.calls.filter(c=>c[0]==='shipping').at(-1)[1].optionId,'ship_live')
+ if(locale==='sr')assert.ok(!JSON.stringify(f.render()).includes('Express Shipping'))
 })

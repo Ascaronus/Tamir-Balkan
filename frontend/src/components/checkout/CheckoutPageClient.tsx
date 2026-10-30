@@ -1,6 +1,7 @@
 "use client"
 
 import { checkoutErrors } from "@/lib/checkout/checkout-fields"
+import { shippingMethodName } from "@/lib/checkout/shipping-method-name"
 import { formatPhone, normalizePhone, registrationCities } from "@/lib/auth/registration-fields"
 import type { HttpTypes } from "@medusajs/types"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -401,7 +402,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
                   }}
                 />
                 <span className="text-sm text-[var(--store-text)]">
-                  {o.name || o.id}{typeof o.amount === "number" ? ` — ${formatMoney(o.amount, cart.currency_code)}` : ""}
+                  {shippingMethodName(o.name, t)}{typeof o.amount === "number" ? ` — ${formatMoney(o.amount, cart.currency_code)}` : ""}
                 </span>
               </label>
             ))
@@ -450,7 +451,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <ul className="my-6 space-y-3 border-b border-[var(--store-border)] pb-6 text-sm">{cart.items.map(item => <li key={item.id} className="flex justify-between gap-4"><span>{item.product_title || item.title} × {item.quantity}</span><span className="shrink-0">{formatMoney(item.total ?? item.unit_price * item.quantity, cart.currency_code)}</span></li>)}</ul>
         <div className="flex justify-between gap-4 text-sm"><span>{t("design.productsSubtotal")}</span><strong>{formatMoney(cart.item_total ?? cart.item_subtotal ?? cart.subtotal ?? 0, cart.currency_code)}</strong></div>
         {deliveryPrepared && quotedCart && <><div className="mt-4 flex justify-between gap-4 text-sm"><span>{t("checkout.shipping")}</span><span>{formatMoney(quotedCart.shipping_total, cart.currency_code)}</span></div><div className="mt-6 flex justify-between gap-4 border-t border-[var(--store-border)] pt-6 text-lg font-semibold"><span>{t("design.total")}</span><span>{formatMoney(quotedCart.total, cart.currency_code)}</span></div></>}
-        <p className="mt-4 text-xs text-[var(--store-text-muted)]">{deliveryPrepared ? t("checkout.shipping") + ": " + (shippingOptions.find(option => option.id === selectedShipping)?.name || t("checkout.shippingRequired")) : t("design.shippingLater")}</p>
+        <p className="mt-4 text-xs text-[var(--store-text-muted)]">{deliveryPrepared ? t("checkout.shipping") + ": " + (selectedShipping ? shippingMethodName(shippingOptions.find(option => option.id === selectedShipping)?.name, t) : t("checkout.shippingRequired")) : t("design.shippingLater")}</p>
         <div className="registration-consent mt-6">
           <input {...fieldProps("consent")} form="checkout-form" type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={loading || isMutating} required />
           <label htmlFor="checkout-consent">{t("auth.validation.agree")} <Link href="/terms" target="_blank">{t("auth.validation.terms")}</Link> {t("auth.validation.and")} <Link href="/privacy" target="_blank">{t("auth.validation.privacy")}</Link>.</label>

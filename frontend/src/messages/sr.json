@@ -1,4 +1,11 @@
 {
+  "shippingMethods": {
+    "standard": "Standardna dostava",
+    "express": "Ekspresna dostava",
+    "pickup": "Lično preuzimanje",
+    "free": "Besplatna dostava",
+    "delivery": "Dostava"
+  },
   "meta": {
     "title": "Tamir Balkan — prodavnica odeće",
     "description": "TAMIR — muška odeća i aksesoari za svakodnevne i posebne prilike. Istražite kape, šalove, košulje i kaiševe, uz dostavu širom Srbije."
