@@ -480,8 +480,8 @@ body { line-height: 1.5; }
 .header-account { position: relative; min-width: 0; }
 .header-account-trigger { height: 44px; max-width: 210px; }
 .header-account-name { display: block; min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.header-account-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; width: 224px; max-width: calc(100vw - 32px); padding: 8px; background: var(--store-bg); border: 1px solid var(--store-border); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
-.header-account-menu a, .header-account-menu button { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 10px 12px; font-size: 14px; text-align: left; border-radius: 4px; }
+.header-account-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; display: flex; flex-direction: column; gap: 12px; width: max-content; max-width: calc(100vw - 32px); padding: 20px; background: var(--store-bg); border: 1px solid var(--store-border); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.header-account-menu a, .header-account-menu button { display: flex; align-items: center; width: 100%; min-height: 22px; padding: 0; font-size: 16px; line-height: 22px; font-weight: 400; text-align: left; border-radius: 4px; }
 .header-account-menu a:hover, .header-account-menu button:hover { background: var(--store-bg-muted); }
 .header-account-menu p { padding: 12px; font-size: 14px; color: #a51e43; }
 .login-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0 32px 32px; border: 0; border-radius: 8px; color: var(--store-text); background: var(--store-bg); overflow: auto; overscroll-behavior: contain; }
@@ -498,7 +498,7 @@ body { line-height: 1.5; }
 @media (max-width: 480px) { .login-dialog { padding-inline: 20px; padding-bottom: 20px; } .login-dialog-heading { padding-top: 12px; } }
 
 /* Wishlist: one state across cards, detail and header. */
-:root { --store-favorite: #eab308; }
+:root { --store-favorite: var(--store-accent); }
 .product-card-media { position: relative; }
 .favorite-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; color: var(--store-text); background: rgb(255 255 255 / 94%); }
 .favorite-button[aria-pressed=true] { color: var(--store-favorite); }
@@ -541,3 +541,13 @@ body { line-height: 1.5; }
 .cart-preview-retry { text-decoration: underline; min-height: 44px; }
 @keyframes cart-preview-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cart-preview { animation: none; } }
+
+/* Figma 203:3611 account menu; 209:3591 / 209:3670 exported heart vectors. */
+.header-account-menu::before { content: ""; position: absolute; inset: -8px 0 auto; height: 8px; }
+.favorite-heart { display: block; width: 26px; height: 27px; flex: 0 0 26px; background: currentColor; mask: url('/design/wishlist/heart-outline.svg') center / 26px 27px no-repeat; }
+.favorite-heart-filled { mask-image: url('/design/wishlist/heart-filled.svg'); color: var(--store-favorite); }
+.header-wishlist { flex: 0 0 auto; font-size: 14px; line-height: 19px; font-weight: 400; gap: 6px; }
+.header-wishlist .header-action-label, .header-wishlist .wishlist-count { flex: 0 0 auto; }
+.header-wishlist .wishlist-count::before { content: "("; }
+.header-wishlist .wishlist-count::after { content: ")"; }
+@media (hover: none) { .header-account-menu a, .header-account-menu button { min-height: 44px; } }
