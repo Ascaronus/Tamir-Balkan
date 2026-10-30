@@ -65,6 +65,7 @@ test('variant URL and language changes refresh selection while preserving reques
  const details=load('frontend/src/components/product/ProductDetails.tsx',{
  '@/components/wishlist/FavoriteButton':{FavoriteButton:'FavoriteButton'},
  '@/lib/dialog-backdrop':dialogBackdrop,
+  './ProductDelivery':{ProductDelivery:'ProductDelivery'},
   './ProductAttributes':{ProductAttributes:'ProductAttributes'},
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},

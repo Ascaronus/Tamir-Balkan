@@ -1,4 +1,5 @@
 import type { HttpTypes } from "@medusajs/types"
+import type { ProductDelivery } from "@/lib/store/product-delivery"
 import type { Locale } from "@/lib/i18n/config"
 import type { ReviewList } from "@/lib/reviews/client"
 import { localizedText } from "@/lib/i18n/content"
@@ -24,24 +25,25 @@ export function validGtin(value: unknown): string | undefined {
   return (10 - sum % 10) % 10 === check ? code : undefined
 }
 
-export function productJsonLd(product: HttpTypes.StoreProduct, locale: Locale, url: string, reviews: ReviewList | null) {
+export function productJsonLd(product: HttpTypes.StoreProduct, locale: Locale, url: string, reviews: ReviewList | null, delivery?: ProductDelivery | null) {
   const variants = product.variants || []
   const offers = variants.flatMap(variant => {
     const price = variant.calculated_price
     const amount = variantAmount(price)
     if (!price || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !price.currency_code || !/^[a-z]{3}$/i.test(price.currency_code)) return []
+    const shipping = delivery?.requires_checkout ? [] : (delivery?.options ?? []).filter(option => option.currency_code.toLowerCase() === price.currency_code?.toLowerCase())
     return [{ "@type": "Offer", price: amount, priceCurrency: price.currency_code.toUpperCase(),
       url: variants.length > 1 ? url + "?v_id=" + encodeURIComponent(variant.id) : url, sku: variant.sku || undefined,
-      ...(price.currency_code.toUpperCase() === "RSD" ? { shippingDetails: {
+      ...(shipping.length ? { shippingDetails: shipping.map(option => ({
         "@type": "OfferShippingDetails",
         shippingDestination: { "@type": "DefinedRegion", addressCountry: "RS" },
-        shippingRate: { "@type": "MonetaryAmount", value: 300, currency: "RSD" },
+        shippingRate: { "@type": "MonetaryAmount", value: option.amount, currency: option.currency_code.toUpperCase() },
         deliveryTime: { "@type": "ShippingDeliveryTime",
           // No separate handling-time promise has been supplied. Transit cannot
           // exceed the merchant's confirmed seven-day total delivery window.
           transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 7, unitCode: "DAY" },
         },
-      } } : {}),
+      })) } : {}),
       availability: "https://schema.org/" + (stockLimit(variant) === 0 ? "OutOfStock" : variant.allow_backorder ? "BackOrder" : "InStock") }]
   })
   const aggregateRating = reviews && Number.isSafeInteger(reviews.count) && reviews.count > 0 && Number.isFinite(reviews.rating) && reviews.rating >= 1 && reviews.rating <= 5

@@ -2,6 +2,8 @@
 import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
 import { FavoriteButton } from "@/components/wishlist/FavoriteButton"
+import { ProductDelivery } from "./ProductDelivery"
+import type { ProductDelivery as Delivery } from "@/lib/store/product-delivery"
 import { ProductAttributes } from "./ProductAttributes"
 import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
@@ -20,7 +22,7 @@ import { formatMoney } from "@/lib/format-money"
 import { canPurchase, stockLimit, matchingVariant, variantAmount } from "@/lib/store/commerce"
 import { localizedText, optionLabel } from "@/lib/i18n/content"
 
-export function ProductDetails(props: { product: HttpTypes.StoreProduct; initialVariantId?: string; ratingSummary?: React.ReactNode }) {
+export function ProductDetails(props: { product: HttpTypes.StoreProduct; delivery?: Delivery | null; initialVariantId?: string; ratingSummary?: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { customer, isReady: authReady } = useAuth()
   const { locale, t } = useLocaleContext()
@@ -45,10 +47,10 @@ export function ProductDetails(props: { product: HttpTypes.StoreProduct; initial
   const product = customer && priced?.context === pricingContext ? priced.product : props.product
   const pricingReady = authReady && (!customer || priced?.context === pricingContext)
   const selectedId = searchParams.get("v_id") ?? props.initialVariantId
-  return <><ProductSelection key={product.id + ":" + locale + ":" + (selectedId ?? "default")} product={product} initialVariantId={selectedId} ratingSummary={props.ratingSummary} pricingReady={pricingReady} />{priceError && customer && <p role="alert" className="mt-4 text-sm text-red-700">{t("common.loadFailed")} <button type="button" className="underline" onClick={() => setRetryPrice(n => n + 1)}>{t("common.retry")}</button></p>}</>
+  return <><ProductSelection key={product.id + ":" + locale + ":" + (selectedId ?? "default")} product={product} delivery={props.delivery} initialVariantId={selectedId} ratingSummary={props.ratingSummary} pricingReady={pricingReady} />{priceError && customer && <p role="alert" className="mt-4 text-sm text-red-700">{t("common.loadFailed")} <button type="button" className="underline" onClick={() => setRetryPrice(n => n + 1)}>{t("common.retry")}</button></p>}</>
 }
 
-function ProductSelection({ product, initialVariantId, ratingSummary, pricingReady }: { product: HttpTypes.StoreProduct; initialVariantId?: string; ratingSummary?: React.ReactNode; pricingReady: boolean }) {
+function ProductSelection({ product, delivery, initialVariantId, ratingSummary, pricingReady }: { product: HttpTypes.StoreProduct; delivery?: Delivery | null; initialVariantId?: string; ratingSummary?: React.ReactNode; pricingReady: boolean }) {
   const { t, locale } = useLocaleContext()
   const { cart, addItem, isReady, isMutating } = useCart()
   const variants = product.variants ?? []
@@ -141,7 +143,7 @@ function ProductSelection({ product, initialVariantId, ratingSummary, pricingRea
       {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
       <ProductAttributes product={product} />
       {(material || care) && <details className="product-policy"><summary>{t("product.compositionCare")}</summary>{material && <p>{material}</p>}{care && <p className="whitespace-pre-line">{care}</p>}</details>}
-      <details className="product-policy"><summary>{t("design.delivery")} / {t("design.returns")}</summary><p className="text-[var(--store-text-muted)]">{t("product.deliveryTerms")}</p>
+      <details className="product-policy"><summary>{t("design.delivery")} / {t("design.returns")}</summary><ProductDelivery delivery={delivery} />
       <p className="mt-1 text-sm leading-6 text-[var(--store-text-muted)]">{t("product.defectReturnTerms")}</p>
       <Link href="/terms" className="product-details-link mt-3">{t("design.delivery")} / {t("design.returns")} →</Link></details>
       <Link href="/rs" className="mt-6 inline-block text-sm underline">{t("product.backToCatalog")}</Link>

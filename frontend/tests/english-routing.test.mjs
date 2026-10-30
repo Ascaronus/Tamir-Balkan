@@ -89,6 +89,7 @@ function productPage(locale, ready=true, {resolverStatus, available=true}={}) {
   '@/lib/medusa':{sdk:{client:{fetch:async()=>{if(resolverStatus)throw Object.assign(Error('RESOLVER_FAILURE'),{status:resolverStatus});return {handle:'bordo-kapa'}}}}},
   '@/lib/store/products':{listProductsByCountry:async({handle,countryCode,locale:requested})=>{assert.equal(countryCode,'rs');assert.equal(requested,locale);return {products:available&&handle==='bordo-kapa'?[product]:[],count:1}}},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/lib/i18n/server':{getTranslations:async()=>({locale,t:k=>k})},
+  '@/lib/store/product-delivery':{getProductDelivery:async()=>null},
   '@/components/product/RelatedProducts':{},'@/components/product/ProductDetails':{},
  })
 }
