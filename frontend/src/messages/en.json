@@ -49,6 +49,7 @@
     "firstName": "First name *",
     "lastName": "Last name *",
     "email": "Email *",
+    "emailOptional": "Email (optional)",
     "phone": "Phone *",
     "delivery": "Delivery",
     "country": "Country *",

@@ -61,7 +61,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [validated, setValidated] = useState(false)
   const [otherCity, setOtherCity] = useState(false)
   const fields = { firstName, lastName, email, phone, country, city, postalCode, address1, notes, consent }
-  const fieldErrors = validated ? checkoutErrors(fields) : {}
+  const fieldErrors = validated ? checkoutErrors(fields, Boolean(customer)) : {}
   const fieldProps = (name: string) => ({ id: `checkout-${name}`, name, "aria-invalid": Boolean(fieldErrors[name]), "aria-describedby": fieldErrors[name] ? `checkout-${name}-error` : undefined })
   const fieldError = (name: string) => fieldErrors[name] ? <span id={`checkout-${name}-error`} className="field-error">{t(`auth.validation.${fieldErrors[name]}`)}</span> : null
 
@@ -190,7 +190,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         onSubmit={async (e) => {
           e.preventDefault()
           if (submitLock.current || isMutating) return
-          const errors = checkoutErrors(fields)
+          const errors = checkoutErrors(fields, Boolean(customer))
           setValidated(true)
           if (Object.keys(errors).length) {
             document.getElementById(`checkout-${Object.keys(errors)[0]}`)?.focus()
@@ -309,9 +309,9 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <div className="checkout-field-row">
           <label className="grid gap-2">
             <span className="text-sm font-medium text-[var(--store-text)]">
-              {t("checkout.email")}
+              {t(customer ? "checkout.email" : "checkout.emailOptional")}
             </span>
-            <input {...fieldProps("email")} autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} type="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" required className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
+            <input {...fieldProps("email")} autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))} type="email" inputMode="email" autoCapitalize="none" spellCheck={false} placeholder="name@example.com" required={Boolean(customer)} className="h-12 rounded border border-[var(--store-border)] px-3 text-sm" />
             {fieldError("email")}
           </label>
           <label className="grid gap-2">
