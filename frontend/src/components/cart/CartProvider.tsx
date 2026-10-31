@@ -8,6 +8,7 @@ import { stableItems } from "@/lib/store/commerce"
 import { AddedToCartDialog, type AddedProductDisplay, type CartAddition } from "./AddedToCartDialog"
 import { usePathname } from "next/navigation"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
+import { internalStorePath, localizedPath } from "@/lib/i18n/paths"
 
 import { useLocalizedCartState } from "./useLocalizedCart"
 
@@ -39,6 +40,8 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   const [error, setError] = useState<string | null>(null)
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const generation = useRef(0)
+  const route = internalStorePath(localizedPath(pathname, "sr"))
+  const previousRoute = useRef(route)
   const commit = useCallback((next: Cart) => {
     setCart(previous => ({ ...next, items: stableItems(next.items ?? [], previous?.id === next.id ? previous.items ?? [] : []) }))
     return next
@@ -68,6 +71,8 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     const initialize = () => {
       generation.current += 1
       setAddition(null)
+      setCart(null)
+      setError(null)
       setIsReady(false)
       void refresh().catch(() => undefined).finally(() => { if (mounted) setIsReady(true) })
     }
@@ -75,6 +80,18 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     window.addEventListener("tb-cart-reset", initialize)
     return () => { mounted = false; generation.current += 1; window.removeEventListener("tb-cart-reset", initialize) }
   }, [refresh, authReady])
+
+  useEffect(() => {
+    if (!authReady || previousRoute.current === route) return
+    previousRoute.current = route
+    // Revalidate prices on entry without replacing the visible cart with a loader.
+    // Language-only navigation resolves to the same market route.
+    let active = true
+    if (route === "/rs/cart" || route === "/rs/checkout") {
+      void Promise.resolve().then(() => { if (active) return refresh() }).catch(() => undefined)
+    }
+    return () => { active = false }
+  }, [route, authReady, refresh])
 
   if (addition && (addition.path !== pathname || addition.locale !== locale)) setAddition(null)
   const display = useLocalizedCartState(cart)

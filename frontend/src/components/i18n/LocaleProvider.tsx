@@ -11,6 +11,8 @@ import {
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { sdk } from "@/lib/medusa"
 import type { Messages } from "@/lib/i18n/messages"
+import { getMessages } from "@/lib/i18n/messages"
+import { usePathname } from "next/navigation"
 import { createTranslator, type TranslateFn } from "@/lib/i18n/translator"
 import { restoreLocaleScroll } from "@/lib/i18n/locale-scroll"
 
@@ -30,12 +32,19 @@ export function LocaleProvider({
   messages: Messages
   children: ReactNode
 }) {
-  useEffect(() => { sdk.client.setLocale(medusaStoreLocale(locale)) }, [locale])
-  useLayoutEffect(() => restoreLocaleScroll(), [locale])
+  const pathname = usePathname()
+  // Root layouts persist across client navigation; their server props can be old.
+  const activeLocale = pathname ? (pathname === "/en" || pathname.startsWith("/en/") ? "en" : "sr") : locale
+  const activeMessages = activeLocale === locale ? messages : getMessages(activeLocale)
+  useEffect(() => { sdk.client.setLocale(medusaStoreLocale(activeLocale)) }, [activeLocale])
+  useLayoutEffect(() => {
+    document.documentElement.lang = activeLocale
+    return restoreLocaleScroll()
+  }, [activeLocale, pathname])
   const value = useMemo(() => {
-    const t = createTranslator(messages)
-    return { locale, t }
-  }, [locale, messages])
+    const t = createTranslator(activeMessages)
+    return { locale: activeLocale, t }
+  }, [activeLocale, activeMessages])
 
   return (
     <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>

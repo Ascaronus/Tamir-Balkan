@@ -167,5 +167,6 @@ export async function removeLineItem(params: {
 
 export async function clearCartId() {
   clearStoredCartId()
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("tb-cart-reset"))
 }
 
