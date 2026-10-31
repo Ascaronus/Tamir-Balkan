@@ -1,9 +1,9 @@
 "use client"
 
 import { useLanguagePaths } from "./LanguagePaths"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { localizedPath } from "@/lib/i18n/paths"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { locales, medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { useLocaleContext } from "@/components/i18n/LocaleProvider"
 import { sdk } from "@/lib/medusa"
@@ -11,13 +11,15 @@ import { navigateWithLocaleScroll } from "@/lib/i18n/locale-scroll"
 
 export function LanguageSwitcher() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const paths = useLanguagePaths()
   const { locale, t } = useLocaleContext()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
 
   async function setLocale(next: Locale) {
-    if (busy || next === locale) return
+    if (busy || pending || next === locale) return
     setBusy(true)
     setError(false)
     try {
@@ -28,7 +30,7 @@ export function LanguageSwitcher() {
       })
       if (res.ok) {
         sdk.client.setLocale(medusaStoreLocale(next))
-        navigateWithLocaleScroll((paths[next] || localizedPath(pathname, next)) + window.location.search + window.location.hash)
+        startTransition(() => navigateWithLocaleScroll((paths[next] || localizedPath(pathname, next)) + window.location.search + window.location.hash, router.push))
       } else { setError(true) }
     } catch {
       setError(true)
@@ -48,7 +50,7 @@ export function LanguageSwitcher() {
         <button
           key={code}
           type="button"
-          disabled={busy}
+          disabled={busy || pending}
           aria-pressed={locale === code}
           onClick={() => setLocale(code)}
           className={`min-h-11 px-1.5 text-xs uppercase transition ${

@@ -27,7 +27,7 @@ function setup(customer=null, translations=null, options=[{id:'ship',name:'Dosta
  const field=id=>find(render(),n=>n.props?.id===`checkout-${id}`)
  const change=(id,value)=>field(id).props.onChange({target:{value,checked:value}})
  const submit=()=>find(render(),n=>n.type==='form').props.onSubmit({preventDefault(){}})
- return {h,calls,focused,render,field,change,submit}
+ return {h,calls,focused,render,field,change,submit,api}
 }
 for(const signedIn of [false,true])test(`${signedIn?'account':'guest'} checkout validates then quotes before completing`,async()=>{
  const customer=signedIn?{id:'customer',email:valid.email,first_name:valid.firstName,last_name:valid.lastName,phone:valid.phone,addresses:[{city:'Small village',postal_code:'21000',address_1:'Test 1',country_code:'rs'}]}:null
@@ -110,4 +110,39 @@ for(const locale of ['sr','en'])test(`component: ${locale} shipping choices and 
  assert.equal(summary(),t('checkout.shipping')+': '+(locale==='sr'?'Dostava':'Delivery'))
  assert.equal(f.calls.filter(c=>c[0]==='shipping').at(-1)[1].optionId,'ship_live')
  if(locale==='sr')assert.ok(!JSON.stringify(f.render()).includes('Express Shipping'))
+})
+
+for(const locale of ['sr','en'])test(`component: ${locale} delivery update retains form, choices and confirmed quote until success or failure`,async()=>{
+ const t=createTranslator(JSON.parse(readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url),'utf8')))
+ const f=setup(null,t,[{id:'a',name:'Shipping',amount:300},{id:'b',name:'Express',amount:500}])
+ f.render();await f.h.flush();for(const [key,value] of Object.entries(valid))f.change(key,value)
+ await f.submit();const addressCalls=f.calls.filter(c=>c[0]==='address').length
+ let resolve,reject,requests=0
+ f.api.setShippingMethod=()=>{requests++;return new Promise((a,b)=>{resolve=a;reject=b})}
+ const radio=id=>find(f.render(),n=>n.type==='input'&&n.props.name==='shipping'&&n.props.value===id)
+ let pending=radio('b').props.onChange()
+ assert.equal(find(f.render(),n=>n.type==='form').props['aria-busy'],true)
+ assert.equal(f.field('address1').props.value,valid.address1)
+ assert.equal(radio('a').props.checked,true);assert.ok(radio('b'))
+ assert.ok(find(f.render(),n=>n.type==='button'&&n.props.children===t('checkout.updatingShipping')))
+ assert.equal(find(f.render(),n=>n.type==='button'&&n.props.children===t('checkout.placingOrder')),null)
+ reject(Error('offline'));await pending
+ assert.equal(radio('a').props.checked,true);assert.ok(find(f.render(),n=>n.props?.role==='alert'))
+ pending=radio('b').props.onChange();resolve({cart:{id:'cart_test',shipping_total:500,total:2000}});await pending
+ assert.equal(radio('b').props.checked,true);assert.equal(f.field('address1').props.value,valid.address1)
+ await radio('b').props.onChange();assert.equal(requests,2)
+ assert.equal(f.calls.filter(c=>c[0]==='address').length,addressCalls)
+ assert.equal(f.calls.filter(c=>c[0]==='complete'||c[0]==='navigate').length,0)
+})
+
+test('component: initial payment loading keeps form mounted without flashing an unavailable error or retry',async()=>{
+ const f=setup();let resolve,requests=0
+ f.api.listPaymentProviders=()=>{requests++;return new Promise(r=>resolve=r)}
+ let tree=f.render();assert.ok(find(tree,n=>n.type==='form'))
+ assert.equal(find(tree,n=>n.props?.children==='checkout.retryPayment'),null)
+ assert.equal(find(tree,n=>n.props?.children==='checkout.noPaymentProviders'),null)
+ await f.h.flush();f.change('firstName','Igor');f.render();await f.h.flush();assert.equal(requests,1)
+ resolve([{id:'pp_system_default'}]);await f.h.flush();tree=f.render()
+ assert.equal(f.field('firstName').props.value,'Igor')
+ assert.equal(find(tree,n=>n.type==='input'&&n.props.name==='payment').props.checked,true)
 })

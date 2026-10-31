@@ -42,7 +42,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const { cart, isReady, isMutating } = useCart()
   const { customer, isReady: authReady, refresh: refreshAuth } = useAuth()
 
-  const [loading, setLoading] = useState(false)
+  const [operation, setOperation] = useState<"prepare" | "shipping" | "order" | null>(null)
+  const loading = operation !== null
   const [error, setError] = useState<string | null>(null)
   const [addressSource, setAddressSource] = useState<"account" | "custom">(
     "account"
@@ -73,7 +74,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
   const [quotedCart, setQuotedCart] = useState<HttpTypes.StoreCart | null>(null)
 
   const [paymentAttempt, setPaymentAttempt] = useState(0)
-  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(true)
   const [paymentError, setPaymentError] = useState(false)
   const [paymentProviders, setPaymentProviders] = useState<{ id: string }[]>([])
   const providers = useMemo(() => pickProviders(paymentProviders), [paymentProviders])
@@ -198,7 +199,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             return
           }
           submitLock.current = true
-          setLoading(true)
+          setOperation(deliveryPrepared ? "order" : "prepare")
           setError(null)
           try {
             // 1) set addresses + email
@@ -243,7 +244,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             setError(e instanceof Error ? e.message : t("checkout.failed"))
           } finally {
             submitLock.current = false
-            setLoading(false)
+            setOperation(null)
           }
         }}
       >
@@ -381,7 +382,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <h2 className="checkout-section-title mt-8">
           {t("checkout.shipping")}
         </h2>
-        <div className="mt-4 grid gap-2">
+        <div className="checkout-delivery-methods mt-4 grid gap-2" aria-busy={operation === "prepare" || operation === "shipping"}>
           {deliveryPrepared && shippingOptions.length ? (
             shippingOptions.map((o) => (
               <label key={o.id} className="flex items-center gap-3 rounded border border-[var(--store-border)] px-3 py-3">
@@ -392,13 +393,13 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
                   checked={selectedShipping === o.id}
                   disabled={loading || isMutating}
                   onChange={async () => {
-                    if (submitLock.current) return
-                    submitLock.current = true; setLoading(true); setError(null)
+                    if (submitLock.current || o.id === selectedShipping) return
+                    submitLock.current = true; setOperation("shipping"); setError(null)
                     try {
                       const { cart: quoted } = await setShippingMethod({ cartId: cart.id, optionId: o.id })
                       setQuotedCart(quoted); setSelectedShipping(o.id)
                     } catch { setError(t("checkout.failed")) }
-                    finally { submitLock.current = false; setLoading(false) }
+                    finally { submitLock.current = false; setOperation(null) }
                   }}
                 />
                 <span className="text-sm text-[var(--store-text)]">
@@ -417,7 +418,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           {t("checkout.payment")}
         </h2>
         <div className="mt-4 grid gap-2">
-          {(paymentError || !paymentProviders.length) && <button type="button" disabled={paymentLoading || loading} onClick={() => setPaymentAttempt(n => n + 1)} className="rounded border px-4 py-2">{t("checkout.retryPayment")}</button>}
+          {!paymentLoading && (paymentError || !paymentProviders.length) && <button type="button" disabled={loading} onClick={() => setPaymentAttempt(n => n + 1)} className="rounded border px-4 py-2">{t("checkout.retryPayment")}</button>}
           <label className="flex items-center gap-3 rounded border border-[var(--store-border)] px-3 py-3">
             <input
               type="radio"
@@ -428,10 +429,10 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
               disabled={!canCod}
             />
             <span className="text-sm text-[var(--store-text)]">
-              {t("checkout.paymentCod")}
+              {t(paymentLoading ? "checkout.loadingPayment" : "checkout.paymentCod")}
             </span>
           </label>
-          {!paymentProviders.length ? (
+          {!paymentLoading && !paymentProviders.length ? (
             <div className="text-sm text-[var(--store-text-muted)]">
               {t("checkout.noPaymentProviders")}
             </div>
@@ -450,7 +451,8 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
         <h2>{t("design.summary")}</h2>
         <ul className="my-6 space-y-3 border-b border-[var(--store-border)] pb-6 text-sm">{cart.items.map(item => <li key={item.id} className="flex justify-between gap-4"><span>{item.product_title || item.title} × {item.quantity}</span><span className="shrink-0">{formatMoney(item.total ?? item.unit_price * item.quantity, cart.currency_code)}</span></li>)}</ul>
         <div className="flex justify-between gap-4 text-sm"><span>{t("design.productsSubtotal")}</span><strong>{formatMoney(cart.item_total ?? cart.item_subtotal ?? cart.subtotal ?? 0, cart.currency_code)}</strong></div>
-        {deliveryPrepared && quotedCart && <><div className="mt-4 flex justify-between gap-4 text-sm"><span>{t("checkout.shipping")}</span><span>{formatMoney(quotedCart.shipping_total, cart.currency_code)}</span></div><div className="mt-6 flex justify-between gap-4 border-t border-[var(--store-border)] pt-6 text-lg font-semibold"><span>{t("design.total")}</span><span>{formatMoney(quotedCart.total, cart.currency_code)}</span></div></>}
+        <div className="mt-4 flex justify-between gap-4 text-sm"><span>{t("checkout.shipping")}</span><span>{deliveryPrepared && quotedCart ? formatMoney(quotedCart.shipping_total, cart.currency_code) : "—"}</span></div>
+        <div className="mt-6 flex justify-between gap-4 border-t border-[var(--store-border)] pt-6 text-lg font-semibold"><span>{t("design.total")}</span><span>{deliveryPrepared && quotedCart ? formatMoney(quotedCart.total, cart.currency_code) : "—"}</span></div>
         <p className="mt-4 text-xs text-[var(--store-text-muted)]">{deliveryPrepared ? t("checkout.shipping") + ": " + (selectedShipping ? shippingMethodName(shippingOptions.find(option => option.id === selectedShipping)?.name, t) : t("checkout.shippingRequired")) : t("design.shippingLater")}</p>
         <div className="registration-consent mt-6">
           <input {...fieldProps("consent")} form="checkout-form" type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={loading || isMutating} required />
@@ -464,7 +466,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
           disabled={loading || paymentLoading || isMutating || (deliveryPrepared && (!canCod || !selectedShipping || !quotedCart))}
           className="button-primary checkout-submit mt-8 w-full disabled:opacity-60"
         >
-          {loading ? t(deliveryPrepared ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}
+          {loading ? t(operation === "shipping" ? "checkout.updatingShipping" : operation === "order" ? "checkout.placingOrder" : "checkout.preparingDelivery") : t(deliveryPrepared ? "checkout.placeOrder" : "checkout.prepareDelivery")}
         </button>
       </aside>
     </div>

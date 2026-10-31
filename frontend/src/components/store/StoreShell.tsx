@@ -8,15 +8,12 @@ import { ShopHeader } from "./ShopHeader"
 import { StoreFooter } from "./StoreFooter"
 import { CategoryNavigation, CategoryProvider } from "./CategoryNavigation"
 import { DesignIcon } from "./DesignIcon"
-import { CartProvider } from "@/components/cart/CartProvider"
-import { WishlistProvider } from "@/components/wishlist/WishlistProvider"
-import { AuthProvider } from "@/components/auth/AuthProvider"
 import type { HttpTypes } from "@medusajs/types"
 
 export function StoreShell({ children, countryCode, initialCategories, activeCategoryId, languagePaths = {} }: { children: React.ReactNode; countryCode?: "rs"; initialCategories?: HttpTypes.StoreProductCategory[]; activeCategoryId?: string; languagePaths?: Partial<Record<Locale, string>> }) {
   const menu = useRef<HTMLDialogElement>(null)
   const t = useTranslations()
-  return <LanguagePaths.Provider value={languagePaths}><AuthProvider><WishlistProvider><CartProvider countryCode={countryCode ?? "rs"}><CategoryProvider initialCategories={initialCategories} activeCategoryId={activeCategoryId}>
+  return <LanguagePaths.Provider value={languagePaths}><CategoryProvider initialCategories={initialCategories} activeCategoryId={activeCategoryId}>
     <div className="store-shell">
       <ShopHeader countryCode={countryCode} onOpenCatalog={() => menu.current?.showModal()} />
       <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event)} ref={menu} id="store-sidebar" className="navigation-drawer" aria-label={t("header.catalog")}>
@@ -26,5 +23,5 @@ export function StoreShell({ children, countryCode, initialCategories, activeCat
       <main id="main-content" className="store-main">{children}</main>
       <StoreFooter />
     </div>
-  </CategoryProvider></CartProvider></WishlistProvider></AuthProvider></LanguagePaths.Provider>
+  </CategoryProvider></LanguagePaths.Provider>
 }

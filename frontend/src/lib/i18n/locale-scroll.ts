@@ -3,8 +3,8 @@ const maxAge = 60_000
 
 type SavedPosition = { path: string; hash: string; x: number; y: number; savedAt: number }
 
-// Keep the full reload: the root HTML language and all server providers must refresh.
-export function navigateWithLocaleScroll(path: string) {
+// Fetch the localized route through Next, without unloading the document/session.
+export function navigateWithLocaleScroll(path: string, navigate: (href: string, options: { scroll: false }) => void) {
   const target = new URL(path, window.location.origin)
   const position: SavedPosition = {
     path: target.pathname + target.search,
@@ -16,8 +16,8 @@ export function navigateWithLocaleScroll(path: string) {
   try { window.sessionStorage.setItem(storageKey, JSON.stringify(position)) } catch {
     // Storage restrictions must not prevent changing language.
   }
-  // A fragment on a document navigation would scroll to the old catalogue/review anchor.
-  window.location.assign(position.path)
+  // Restore the fragment only after navigation, without jumping to its anchor.
+  navigate(position.path, { scroll: false })
 }
 
 export function restoreLocaleScroll(): (() => void) | undefined {

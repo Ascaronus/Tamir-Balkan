@@ -10,6 +10,7 @@ function fixture() {
   const before = { id: "cart_1", region_id: "region_rs", items: [] }
   const after = { ...before, items: [{ id: "line_1", quantity: 2 }] }
   const calls = []
+  const events = []
   const cart = {
     createLineItem: async (...args) => { calls.push(["add", ...args]); return { cart: after } },
     updateLineItem: async (...args) => { calls.push(["update", ...args]); return { cart: after } },
@@ -36,12 +37,17 @@ function fixture() {
   const source = readFileSync(new URL("../src/lib/cart/cart-client.ts", import.meta.url), "utf8")
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
   const exports = {}
-  runInNewContext(outputText, { exports, require: name => {
+  runInNewContext(outputText, { exports, Event, window: { dispatchEvent: event => events.push(event.type) }, require: name => {
     if (!(name in modules)) throw Error("Unexpected dependency: " + name)
     return modules[name]
   } })
-  return { api: exports, cart, after, calls, clear: () => { cartId = null } }
+  return { api: exports, cart, after, calls, events, stored:()=>cartId, clear: () => { cartId = null } }
 }
+
+test('completed checkout clears storage and notifies the persistent cart provider',async()=>{
+ const f=fixture();await f.api.clearCartId()
+ assert.equal(f.stored(),null);assert.deepEqual(f.events,['tb-cart-reset']);assert.equal(f.calls.length,0)
+})
 for (const [method, args, action] of [
   ["addToCart", { variantId: "variant_1", quantity: 2 }, "add"],
   ["updateLineItem", { lineItemId: "line_1", quantity: 2 }, "update"],

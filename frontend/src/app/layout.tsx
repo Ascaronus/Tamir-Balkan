@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { CookieConsent } from "@/components/privacy/CookieConsent"
 import { Manrope } from "next/font/google"
 import { LocaleProvider } from "@/components/i18n/LocaleProvider"
+import { StoreProviders } from "@/components/store/StoreProviders"
 import { getLocale } from "@/lib/i18n/server"
 import { getMessages } from "@/lib/i18n/messages"
 import "./globals.css"
@@ -41,7 +42,7 @@ export default async function RootLayout({
 
       <body className="min-h-full font-sans">
         <LocaleProvider locale={locale} messages={messages}>
-          {children}
+          <StoreProviders>{children}</StoreProviders>
           <CookieConsent />
         </LocaleProvider>
       </body>

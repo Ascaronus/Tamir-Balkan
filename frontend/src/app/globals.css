@@ -356,6 +356,7 @@ body { line-height: 1.5; }
 .cart-remove { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 16px; text-decoration: underline; text-underline-offset: 4px; }
 .checkout-fields { min-width: 0; border: 0; padding: 0; }
 .checkout-section-title { font-size: 24px; line-height: 32px; font-weight: 600; }
+.checkout-delivery-methods { min-height: 56px; align-content: start; }
 .checkout-field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; margin-top: 24px; }
 .checkout-form label { min-width: 0; }
 .checkout-form label > span:not(.field-error) { font-size: 16px; line-height: 24px; }

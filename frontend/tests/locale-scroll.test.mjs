@@ -7,7 +7,7 @@ function browser({ y = 0, blocked = false, ready = 'complete' } = {}) {
  const storage = new Map(), scrolls = [], urls = [], events = new Map(), frames = new Map()
  let nextFrame = 0
  const window = {
-  location: { origin: 'https://tamir.rs', pathname: '/rs', search: '?page=2', hash: '#catalog-products', assign: url => urls.push(url) },
+  location: { origin: 'https://tamir.rs', pathname: '/rs', search: '?page=2', hash: '#catalog-products', assign: () => { throw Error('Document navigation is forbidden') } },
   scrollX: 0, scrollY: y,
   sessionStorage: {
    setItem: (key, value) => { if (blocked) throw Error('Storage blocked'); storage.set(key, value) },
@@ -23,7 +23,7 @@ function browser({ y = 0, blocked = false, ready = 'complete' } = {}) {
  }
  const document = { readyState: ready }
  const api = load('frontend/src/lib/i18n/locale-scroll.ts', {}, { window, document })
- return { ...api, window, document, storage, scrolls, urls, events, frames,
+ return { ...api, navigateWithLocaleScroll: path => api.navigateWithLocaleScroll(path, (url, options) => { assert.equal(options.scroll, false); urls.push(url) }), window, document, storage, scrolls, urls, events, frames,
   flush: () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(fn => fn()) } }
 }
 for (const [path, y] of [['/en?page=2#catalog-products', 0], ['/rs?page=2#catalog-products', 840], ['/en/products/hat?v_id=variant_1#reviews', 650]]) {
@@ -59,8 +59,8 @@ test('unit: restricted storage still changes language without jumping to an anch
 for (const locale of ['sr', 'en']) test(`component: ${locale} current language is a no-op and failed switch does not navigate`, async () => {
  const h = hooks(); let requests = 0, navigations = 0
  const { LanguageSwitcher } = load('frontend/src/components/i18n/LanguageSwitcher.tsx', {
-  react: h.react, './LanguagePaths': { useLanguagePaths: () => ({}) },
-  'next/navigation': { usePathname: () => locale === 'sr' ? '/rs' : '/en' },
+  react: {...h.react, useTransition:()=>[false,fn=>fn()]}, './LanguagePaths': { useLanguagePaths: () => ({}) },
+  'next/navigation': { usePathname: () => locale === 'sr' ? '/rs' : '/en', useRouter:()=>({push(){}}) },
   '@/lib/i18n/config': config, '@/components/i18n/LocaleProvider': { useLocaleContext: () => ({ locale, t: key => key }) },
   '@/lib/medusa': { sdk: { client: { setLocale: () => {} } } },
   '@/lib/i18n/locale-scroll': { navigateWithLocaleScroll: () => navigations++ },
