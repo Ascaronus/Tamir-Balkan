@@ -9,8 +9,9 @@ export async function listRegions(): Promise<HttpTypes.StoreRegion[]> {
       `/store/regions`,
       {
         method: "GET",
-        // Без кэша, чтобы новые регионы/страны из админки сразу отражались.
-        cache: "no-store",
+        // Регионы/страны меняются редко: 60 с серверного кэша Next снимают
+        // повторные удары по бэкенду; правка из админки видна почти сразу.
+        next: { revalidate: 60 },
         signal: t.signal,
       }
     )
