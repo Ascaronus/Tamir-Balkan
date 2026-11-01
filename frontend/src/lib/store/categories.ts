@@ -7,9 +7,14 @@ import type { HttpTypes } from "@medusajs/types"
 const CATEGORY_FIELDS =
   "id,name,handle,metadata,parent_category_id,rank,*category_children"
 
-function localeHeaders(locale?: Locale) {
-  if (!locale) return undefined
-  return { "x-medusa-locale": medusaStoreLocale(locale) }
+/**
+ * Локаль едет в URL (`?locale=`), а не в заголовке `x-medusa-locale`:
+ * Next ключует fetch-кэш только по URL/методу/телу, поэтому заголовочная
+ * локаль склеила бы sr- и en-ответы в одну кэш-запись. Middleware Medusa
+ * (applyLocale на всём /store) читает `?locale=` и удаляет его из фильтров.
+ */
+function localeQuery(locale?: Locale) {
+  return locale ? { locale: medusaStoreLocale(locale) } : {}
 }
 
 /** Категории витрины (как в админке → Product Categories). */
@@ -23,7 +28,11 @@ export async function listStoreProductCategories(
   try {
     for (;;) {
       const result = await sdk.client.fetch<{ product_categories: HttpTypes.StoreProductCategory[]; count: number }>("/store/product-categories", {
-        method: "GET", query: { limit: 100, offset, fields: CATEGORY_FIELDS }, headers: localeHeaders(locale), cache: "no-store", signal: t.signal,
+        method: "GET", query: { limit: 100, offset, fields: CATEGORY_FIELDS, ...localeQuery(locale) },
+        // Дерево категорий правится админкой нечасто: 60 с серверного кэша Next,
+        // ключ кэша различает локали благодаря localeQuery выше.
+        next: { revalidate: 60 },
+        signal: t.signal,
       })
       all.push(...result.product_categories)
       offset += result.product_categories.length
@@ -49,9 +58,10 @@ async function getStoreProductCategory(
         ...selector,
         limit: 1,
         fields: "id,name,handle,metadata",
+        ...localeQuery(locale),
       },
-      headers: localeHeaders(locale),
-      cache: "no-store",
+      // Тот же selective revalidate, что и в списке категорий.
+      next: { revalidate: 60 },
       signal: t.signal,
     })
 
