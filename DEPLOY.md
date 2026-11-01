@@ -23,7 +23,7 @@ Workflow использует ограниченный SSH-доступ `tamir-d
 3. Сохраняет в `/root/tamir-backups/<UTC>-<SHA>` PostgreSQL custom dump, env, прежнюю PM2-конфигурацию и архивы public/private media.
 4. Устанавливает зависимости и собирает backend/frontend в новом каталоге; выполняет frontend lint/tests и конфигурационный preflight CAPTCHA/SMTP.
 5. Сохраняет доступ к существующим media через symlink. Выполняет `setup-reviews.ts`, проверку SMTP без отправки письма и `setup-decimal-attributes.ts`.
-6. Обновляет checkout fast-forward и передаёт релиз `activate-release.sh`: переключает два PM2-процесса, проверяет health/robots/sitemap, сохраняет PM2.
+6. Передаёт релиз `activate-release.sh`: переключает два PM2-процесса, проверяет health/robots/sitemap, сохраняет PM2. При сбое активации процессы откатываются на прежний релиз, а checkout `main` на VPS остаётся на предыдущем коммите. Fast-forward checkout выполняется только после успешной активации; короткий простой витрины при переключении PM2 считается принятым (fork-режим npm-скриптов не поддерживает `pm2 reload`).
 7. Уже после активации выполняет `normalize-rozetka-products.ts` с apply и `prepare-english-store.ts`: native-переводы, адреса и опции.
 
 Скрипт не запускает общую `medusa db:migrate` автоматически. При добавлении новых Medusa-миграций нужен отдельный план их применения и совместимости. Текущие пользовательские таблицы/дробные поля подготавливаются явно указанными скриптами.
@@ -33,7 +33,7 @@ Workflow использует ограниченный SSH-доступ `tamir-d
 ## Ручной запуск через SSH
 
 ```bash
-ssh root@178.104.108.200
+ssh root@tamir.rs
 cd /root/tamir_balkan
 git fetch origin main
 git show origin/main:scripts/deploy-vps.sh > /tmp/tamir-deploy.sh
