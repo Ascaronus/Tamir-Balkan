@@ -166,10 +166,12 @@ const decimals = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scri
 })
 if (decimals.status !== 0) process.exit(decimals.status || 1)
 JS
-# Keep the source checkout aligned with the release; no reset/force or credentials changes.
-git merge --ff-only "$target"
 trap - ERR
 bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
+# Advance the source checkout only after the new release is live: activate-release.sh
+# rolls the PM2 apps back on failure, and main on the VPS must then still point at the
+# previous release. No reset/force or credentials changes.
+git merge --ff-only "$target"
 # Repair existing imported text/URLs only once the new redirect-capable release is live.
 node <<'JS'
 const path = require('node:path'), { spawnSync } = require('node:child_process')
