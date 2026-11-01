@@ -28,10 +28,8 @@ ROZETKA_NORMALIZE_APPLY=false npx medusa exec ./src/scripts/normalize-rozetka-pr
 
 | Файл | Ограничение |
 | --- | --- |
-| `seed.ts` | Демо-магазин/товары/настройки; `npm run seed`. Только отдельная учебная база, не регулярное обновление production |
+| `seed.ts` | Демо-магазин/товары/настройки; `npm run seed:dev`. УДАЛЯЕТ данные магазина; в production отказывается без `TAMIR_ALLOW_SEED=1`. Только отдельная учебная база, не регулярное обновление production |
 | `add-balkan-regions.ts` | Создание предопределённых регионов; сначала изучите валюты и существующие настройки, не добавляйте новые рынки для EN-версии Сербии |
 | `add-rsd-prices-to-variants.ts` | Демо-массовая установка RSD-цены **1200** вариантам первых 500 товаров; не применять как конвертацию рабочих цен |
-| `link-stub-fulfillment-to-locations.ts` | Связь stub provider `test_test` со складами (до 200); это не подключение реального перевозчика |
-| `test-fulfillment-provider.ts` | Экспорт ModuleProvider, подключённый конфигурацией. Несмотря на каталог, это не CLI-функция для `medusa exec` |
 
 [Окружение](../../../docs/ENVIRONMENT.md) · [Тесты](../../../docs/TESTING.md) · [Локализация](../../../docs/LOCALIZATION.md).

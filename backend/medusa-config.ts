@@ -1,4 +1,3 @@
-import path from "node:path"
 import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
 import { decimalAdminConfig } from "./src/utils/admin-decimal-vite"
 
@@ -12,9 +11,6 @@ function authSecret(name: "JWT_SECRET" | "COOKIE_SECRET"): string {
   }
   return value
 }
-
-/** Абсолютный путь от `medusa-config.js`: и dev (`backend/`), и prod (`.medusa/server/`). */
-const testFulfillmentStub = path.join(__dirname, "src", "scripts", "test-fulfillment-provider")
 
 /**
  * Флаг `Secure` для auth cookie. В production витрина и админка работают по HTTPS
@@ -54,11 +50,6 @@ module.exports = defineConfig({
           {
             resolve: "@medusajs/medusa/fulfillment-manual",
             id: "manual",
-          },
-          /** Заглушка для админки / тестов (id в БД: `test_test`). Файл должен попасть в бандл — см. `src/api/store/custom/route.ts`. */
-          {
-            resolve: testFulfillmentStub,
-            id: "test",
           },
         ],
       },
