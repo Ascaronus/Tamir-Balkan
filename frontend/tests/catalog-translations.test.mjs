@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {load,hooks} from '../test-support/component-harness.mjs'
 import {createTranslator} from '../src/lib/i18n/translator.ts'
+import * as fetchTimeout from '../src/lib/store/fetch-timeout.ts'
 const {localizeCatalogFacets}=load('backend/src/utils/catalog-translations.ts')
 test('option translations change labels, preserve canonical filter keys and prefer exact locale',async()=>{
  const filters={colors:[{value:'black',label:'Black',count:2},{value:'custom',label:'Custom',count:1}],sizes:[]}
@@ -24,6 +25,7 @@ const catalog=load('frontend/src/lib/store/catalog.ts',{
  '@/lib/medusa':{sdk:{client:{fetch:async()=>({products:[],count:0})}}},
  '@/lib/i18n/config':{medusaStoreLocale:locale=>locale},
  './search-params':{queryText:value=>(Array.isArray(value)?value[0]:value)?.trim()||''},
+ './fetch-timeout':fetchTimeout,
 })
 const copy={
  en:{'sidebar.title':'Catalog','design.color':'Color','design.size':'Size','design.price':'Price','design.from':'From','design.to':'To','design.apply':'Apply filters','design.reset':'Reset filters','design.filters':'Filters','design.noOptions':'No available options','common.close':'Close'},

@@ -1,5 +1,6 @@
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { sdk } from "@/lib/medusa"
+import { timedSignal } from "./fetch-timeout"
 import { getRegionByCountry } from "@/lib/store/regions"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -37,18 +38,21 @@ export async function listProductsByCountry(params: {
   if (handle) query.handle = handle
   if (categoryId) query.category_id = categoryId
 
-  const res = await sdk.client.fetch<{
-    products: HttpTypes.StoreProduct[]
-    count: number
-  }>(`/store/products`, {
-    method: "GET",
-    query,
-    headers: { ...(locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : {}) },
-    signal: params.signal,
-    // Важно: иначе изменения из админки могут не появляться на витрине.
-    cache: "no-store",
-  })
-
-  return res
+  const t = timedSignal(params.signal)
+  try {
+    return await sdk.client.fetch<{
+      products: HttpTypes.StoreProduct[]
+      count: number
+    }>(`/store/products`, {
+      method: "GET",
+      query,
+      headers: { ...(locale ? { "x-medusa-locale": medusaStoreLocale(locale) } : {}) },
+      signal: t.signal,
+      // Важно: иначе изменения из админки могут не появляться на витрине.
+      cache: "no-store",
+    })
+  } finally {
+    t.done()
+  }
 }
 

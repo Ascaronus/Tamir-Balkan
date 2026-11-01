@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { load } from '../test-support/component-harness.mjs'
 import { createTranslator } from '../src/lib/i18n/translator.ts'
 import { formatMoney } from '../src/lib/format-money.ts'
+import * as fetchTimeout from '../src/lib/store/fetch-timeout.ts'
 const option=(amount,name='Standard')=>({id:name,name,amount,currency_code:'rsd'})
 for(const locale of ['sr','en']){
  const t=createTranslator(JSON.parse(readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url),'utf8')))
@@ -23,8 +24,8 @@ for(const locale of ['sr','en']){
 }
 test('unit: product delivery requests live configuration without a cart and degrades safely on failure',async()=>{
  let request
- const {getProductDelivery}=load('frontend/src/lib/store/product-delivery.ts',{'@/lib/medusa':{sdk:{client:{fetch:async(url,options)=>{request={url,options};return {options:[option(0)],requires_checkout:false}}}}}})
- assert.equal((await getProductDelivery('prod_a')).options[0].amount,0);assert.equal(request.options.cache,'no-store');assert.equal(request.options.query.product_id,'prod_a');assert.equal(request.url,'/store/product-delivery')
- const failed=load('frontend/src/lib/store/product-delivery.ts',{'@/lib/medusa':{sdk:{client:{fetch:async()=>{throw Error('offline')}}}}})
+ const {getProductDelivery}=load('frontend/src/lib/store/product-delivery.ts',{'@/lib/medusa':{sdk:{client:{fetch:async(url,options)=>{request={url,options};return {options:[option(0)],requires_checkout:false}}}}},'./fetch-timeout':fetchTimeout})
+ assert.equal((await getProductDelivery('prod_a')).options[0].amount,0);assert.equal(request.options.cache,'no-store');assert.equal(request.options.query.product_id,'prod_a');assert.equal(request.url,'/store/product-delivery');assert.ok(request.options.signal instanceof AbortSignal)
+ const failed=load('frontend/src/lib/store/product-delivery.ts',{'@/lib/medusa':{sdk:{client:{fetch:async()=>{throw Error('offline')}}}},'./fetch-timeout':fetchTimeout})
  assert.equal(await failed.getProductDelivery('prod_a'),null)
 })

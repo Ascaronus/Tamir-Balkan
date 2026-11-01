@@ -24,8 +24,9 @@ test("canonical URLs use the configured public origin", () => {
 })
 
 import { load, find } from '../test-support/component-harness.mjs'
+import * as fetchTimeout from '../src/lib/store/fetch-timeout.ts'
 const catalog = load('frontend/src/lib/store/catalog.ts', {
- '@/lib/medusa': {}, '@/lib/i18n/config': {}, './search-params': { queryText },
+ '@/lib/medusa': {}, '@/lib/i18n/config': {}, './search-params': { queryText }, './fetch-timeout': fetchTimeout,
 })
 test('public legal pages explicitly allow indexing',async()=>{
  for(const [page,contentKey] of [['privacy','privacyPolicy'],['terms','terms']]) {
