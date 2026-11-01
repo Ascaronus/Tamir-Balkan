@@ -36,8 +36,8 @@ test('gallery retains all product photos and prioritizes explicit variant photos
   const product={images:[{id:'a',url:'https://tamir.ua/a.jpg'},{id:'b',url:'https://tamir.ua/b.jpg'}],thumbnail:'https://tamir.ua/a.jpg',variants:[{id:'v',images:[{id:'b',url:'https://tamir.ua/b.jpg'},{id:'c',url:'https://tamir.ua/c.jpg'}]}]}
   assert.deepEqual(getImagesForVariant(product,'v').map(x=>x.id),['b','c','a'])
   assert.equal(normalizeImageUrl('javascript:alert(1)'),undefined)
-  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL='http://178.104.108.200:9000'
-  assert.equal(normalizeImageUrl('http://localhost:9000/static/a.jpg'),'http://178.104.108.200:9000/static/a.jpg')
+  process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL='http://api.example.net:9000'
+  assert.equal(normalizeImageUrl('http://localhost:9000/static/a.jpg'),'http://api.example.net:9000/static/a.jpg')
 })
 test('legacy text metadata is supported without hidden category translations',()=>{
   assert.equal(localizedText({metadata:{i18n:{sr:{name:'Košulje'}}}},'name','Shirts','sr'),'Košulje')
@@ -73,7 +73,7 @@ test('legacy upload URLs use HTTPS without rewriting external image hosts', () =
   const previous = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
   try {
     process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL = 'https://api.tamir.rs'
-    assert.equal(normalizeImageUrl('http://178.104.108.200:9000/static/a.jpg?x=1'), 'https://api.tamir.rs/static/a.jpg?x=1')
+    assert.equal(normalizeImageUrl('http://127.0.0.1:9000/static/a.jpg?x=1'), 'https://api.tamir.rs/static/a.jpg?x=1')
     assert.equal(normalizeImageUrl('https://tamir.ua/a.jpg'), 'https://tamir.ua/a.jpg')
     assert.equal(stockLimit({manage_inventory:true,inventory_quantity:NaN}),0)
     assert.equal(stockLimit({manage_inventory:true,inventory_quantity:Infinity}),0)

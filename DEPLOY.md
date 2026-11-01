@@ -33,7 +33,7 @@ Workflow использует ограниченный SSH-доступ `tamir-d
 ## Ручной запуск через SSH
 
 ```bash
-ssh root@178.104.108.200
+ssh root@tamir.rs
 cd /root/tamir_balkan
 git fetch origin main
 git show origin/main:scripts/deploy-vps.sh > /tmp/tamir-deploy.sh
