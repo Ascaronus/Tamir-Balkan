@@ -172,6 +172,13 @@ bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
 # rolls the PM2 apps back on failure, and main on the VPS must then still point at the
 # previous release. No reset/force or credentials changes.
 git merge --ff-only "$target"
+# Keep only the newest 14 release backups (name: <UTC timestamp>-<sha>). This glob
+# cannot match manual files such as cleanup-test_test-*.sql or backend.env.bak-*,
+# which stay untouched.
+ls -1dt /root/tamir-backups/[0-9]*T[0-9]*Z-*/ 2>/dev/null | tail -n +15 | while IFS= read -r old; do
+  echo "Pruning old backup: $old"
+  rm -rf -- "$old"
+done
 # Repair existing imported text/URLs only once the new redirect-capable release is live.
 node <<'JS'
 const path = require('node:path'), { spawnSync } = require('node:child_process')
@@ -187,4 +194,4 @@ const english = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scrip
 if (english.status !== 0) process.exit(english.status || 1)
 JS
 trap - ERR
-echo "Deployment complete. Release: $release_dir Backup: $backup_dir"
+echo "Deployment complete. Release: $release_dir Backup: $backup_dir (kept last 14 release backups)"

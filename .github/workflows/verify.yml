@@ -70,8 +70,8 @@ jobs:
       ADMIN_CORS: http://localhost:9000
       AUTH_CORS: http://localhost:3000,http://localhost:9000
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -124,12 +124,13 @@ jobs:
         working-directory: backend
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-reports-node-${{ matrix.node }}
           path: backend/reports/
           retention-days: 14
           if-no-files-found: ignore
       - run: node test-support/verify-deploy-dispatch.mjs
-      - run: bash -n scripts/deploy-vps.sh
+      - run: |
+          for sh in scripts/*.sh; do bash -n "$sh"; done
       - run: node test-support/verify-deploy-pin.mjs
