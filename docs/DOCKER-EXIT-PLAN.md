@@ -113,7 +113,7 @@ Backend Medusa и frontend Next.js уже работают напрямую на
 | `DEPLOY.md`, `README.md`, `docs/ENVIRONMENT.md`, `docs/README.md` | Установка через APT, systemd, секреты, диагностика, backup/restore, запуск без Docker |
 | `scripts/deploy-vps.sh` | Проверка нативных зависимостей и совместимого `pg_dump`; сохранить блокировку, бэкапы, релизы и media. Проверить, что env предыдущего PM2 не переопределяет новые секреты |
 | `scripts/activate-release.sh` и откат релизов | Проверить доступ к системным службам и отсутствие восстановления устаревших env при rollback |
-| `.github/workflows/deploy.yml` | Учесть, что любой push в main сейчас запускает production-deploy; публикацию документации и реализацию миграции планировать отдельно |
+| `.github/workflows/deploy.yml` | Актуально на 01.11: production-deploy идёт только через гейт `workflow_run` после успешного `Verify` на коммите main; push в main только с документацией (`docs/**`, `openspec/**`, `**.md`) не запускает ни Verify, ни Deploy. Реализацию миграции по-прежнему планировать отдельно от документации |
 | `.github/workflows/verify.yml` | Заменить PostgreSQL service container на установку/запуск PostgreSQL 16 непосредственно на runner; явно задавать версию, порт, тестовую БД и проверки готовности; сохранить тесты Node 20/24 |
 | Локальная разработка | Описать запуск нативных PostgreSQL/Redis, для Windows — в WSL; убрать обязательность Compose |
 | `docker-compose.yml` и остальные Docker-ссылки | Удалить из активной конфигурации после завершения отката; исторические отчёты могут сохранять сведения о Docker |
