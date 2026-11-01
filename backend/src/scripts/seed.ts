@@ -55,7 +55,23 @@ const updateStoreCurrencies = createWorkflow(
   }
 );
 
+/**
+ * M2 (аудит 23.10): seed.ts УДАЛЯЕТ данные магазина и пересоздаёт демо-магазин.
+ * В production-окружении запуск возможен только с явным согласием — переменной
+ * `TAMIR_ALLOW_SEED=1`. Это защита от случайного `medusa exec ./src/scripts/seed.ts`
+ * на живой базе. В обычном dev-режиме (NODE_ENV!=production) guard не мешает.
+ */
 export default async function seedDemoData({ container }: ExecArgs) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.TAMIR_ALLOW_SEED !== "1"
+  ) {
+    throw new Error(
+      "seed.ts refuses to run in production: it deletes existing store data and recreates the demo store. " +
+        "Set TAMIR_ALLOW_SEED=1 only if this destructive action is intentional."
+    );
+  }
+
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
   const link = container.resolve(ContainerRegistrationKeys.LINK);
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
@@ -169,16 +185,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
     [Modules.FULFILLMENT]: {
       fulfillment_provider_id: "manual_manual",
-    },
-  });
-
-  /** Без связи склад↔провайдер админка не показывает провайдер в выпадающем списке (GET /admin/fulfillment-providers?stock_location_id=… фильтрует по link). */
-  await link.create({
-    [Modules.STOCK_LOCATION]: {
-      stock_location_id: stockLocation.id,
-    },
-    [Modules.FULFILLMENT]: {
-      fulfillment_provider_id: "test_test",
     },
   });
 
