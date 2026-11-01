@@ -33,6 +33,8 @@ backend/.medusa/
 backend/build/
 backend/.cache/
 backend/uploads/
+backend/static/
+backend/private-static/
 
 # Logs & OS
 *.log
