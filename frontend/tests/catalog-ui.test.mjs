@@ -1,11 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { load } from '../test-support/component-harness.mjs'
+import * as fetchTimeout from '../src/lib/store/fetch-timeout.ts'
 const requests=[]
 const catalog=load('frontend/src/lib/store/catalog.ts',{
  '@/lib/medusa':{sdk:{client:{fetch:async(path,options)=>{requests.push({path,options});return {products:[],count:0}}}}},
  '@/lib/i18n/config':{medusaStoreLocale:locale=>locale},
  './search-params':{queryText:value=>(Array.isArray(value)?value[0]:value)?.trim()||''},
+ './fetch-timeout':fetchTimeout,
 })
 test('localized khaki and burgundy retain the same swatches as English in every shared color control',()=>{
  for(const value of ['Kaki',' KAKI ','Каки','Хакі']) assert.equal(catalog.colorSwatch(value),catalog.colorSwatch('Khaki'))
@@ -25,8 +27,21 @@ test('catalog sends repeated decimal sizes, comma prices, zero, regional pricing
  assert.equal(url.searchParams.get('min_price'),'0');assert.equal(url.searchParams.get('max_price'),'9999,5')
  assert.equal(url.searchParams.get('region_id'),'reg-rs');assert.equal(url.searchParams.get('country_code'),'rs')
  assert.equal(url.searchParams.get('offset'),'24');assert.equal(url.searchParams.has('page'),false)
- assert.equal(request.options.headers.authorization,undefined);assert.equal(request.options.signal,controller.signal)
+ assert.equal(request.options.headers.authorization,undefined);assert.ok(request.options.signal instanceof AbortSignal)
  assert.equal(request.options.cache,'no-store')
+})
+test('catalog request gets its own deadline signal and relays the caller abort',async()=>{
+ const controller=new AbortController()
+ const pending=catalog.fetchCatalog(catalog.catalogSelection({}),'reg-rs','sr',{signal:controller.signal})
+ const request=requests.at(-1)
+ assert.notEqual(request.options.signal,controller.signal)
+ assert.equal(request.options.signal.aborted,false)
+ controller.abort()
+ assert.equal(request.options.signal.aborted,true)
+ assert.equal(request.options.signal.reason.name,'AbortError')
+ await pending
+ await catalog.fetchCatalog(catalog.catalogSelection({}),'reg-rs','en')
+ assert.equal(requests.at(-1).options.signal.aborted,false)
 })
 test('changing catalog page preserves all filters and sort without comma splitting',()=>{
  const s=catalog.catalogSelection({q:' suit ',category_id:'cat',size:'42,5',min_price:'100,5',sort:'popularity',page:'3'})

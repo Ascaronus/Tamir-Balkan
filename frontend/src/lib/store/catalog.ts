@@ -2,6 +2,7 @@ import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import { queryText, type CatalogQuery } from "./search-params"
+import { timedSignal } from "./fetch-timeout"
 
 export const catalogSorts = ["newest", "price_asc", "price_desc", "popularity"] as const
 export type CatalogSort = typeof catalogSorts[number]
@@ -38,7 +39,12 @@ export async function fetchCatalog(selection: CatalogSelection, regionId: string
   query.delete("page")
   query.set("region_id", regionId); query.set("country_code", "rs"); query.set("limit", String(limit)); query.set("offset", String((selection.page - 1) * limit))
   // Repeated size/color parameters deliberately preserve decimal sizes such as 42,5.
-  return sdk.client.fetch<CatalogResult>(`/store/catalog/products?${query}`, { method: "GET", cache: "no-store", signal: options?.signal, headers: { "x-medusa-locale": medusaStoreLocale(locale) } })
+  const t = timedSignal(options?.signal)
+  try {
+    return await sdk.client.fetch<CatalogResult>(`/store/catalog/products?${query}`, { method: "GET", cache: "no-store", signal: t.signal, headers: { "x-medusa-locale": medusaStoreLocale(locale) } })
+  } finally {
+    t.done()
+  }
 }
 export function colorSwatch(value: string): string | undefined {
   const colors: Record<string, string> = { black: "#0a0a0a", crna: "#0a0a0a", черный: "#0a0a0a", white: "#ffffff", bela: "#ffffff", белый: "#ffffff", navy: "#1b2b44", tamnoplava: "#1b2b44", blue: "#335d8a", plava: "#335d8a", gray: "#777777", grey: "#777777", siva: "#777777", beige: "#bba88a", bež: "#bba88a", bez: "#bba88a", brown: "#72513d", braon: "#72513d", green: "#546748", zelena: "#546748", red: "#9c3333", crvena: "#9c3333" }

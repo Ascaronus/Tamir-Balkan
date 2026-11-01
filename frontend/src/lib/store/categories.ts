@@ -1,4 +1,5 @@
 import { matchesCategoryHandle } from "./category-url"
+import { timedSignal } from "./fetch-timeout"
 import { sdk } from "@/lib/medusa"
 import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import type { HttpTypes } from "@medusajs/types"
@@ -17,13 +18,19 @@ export async function listStoreProductCategories(
 ): Promise<HttpTypes.StoreProductCategory[]> {
   const all: HttpTypes.StoreProductCategory[] = []
   let offset = 0
-  for (;;) {
-    const result = await sdk.client.fetch<{ product_categories: HttpTypes.StoreProductCategory[]; count: number }>("/store/product-categories", {
-      method: "GET", query: { limit: 100, offset, fields: CATEGORY_FIELDS }, headers: localeHeaders(locale), cache: "no-store",
-    })
-    all.push(...result.product_categories)
-    offset += result.product_categories.length
-    if (offset >= result.count || result.product_categories.length === 0) break
+  // Один дедлайн на всю пагинацию, а не на каждую страницу.
+  const t = timedSignal()
+  try {
+    for (;;) {
+      const result = await sdk.client.fetch<{ product_categories: HttpTypes.StoreProductCategory[]; count: number }>("/store/product-categories", {
+        method: "GET", query: { limit: 100, offset, fields: CATEGORY_FIELDS }, headers: localeHeaders(locale), cache: "no-store", signal: t.signal,
+      })
+      all.push(...result.product_categories)
+      offset += result.product_categories.length
+      if (offset >= result.count || result.product_categories.length === 0) break
+    }
+  } finally {
+    t.done()
   }
   return all
 }
@@ -32,21 +39,27 @@ async function getStoreProductCategory(
   selector: { id: string[] } | { handle: string[] },
   locale?: Locale
 ): Promise<HttpTypes.StoreProductCategory | null> {
-  const { product_categories } = await sdk.client.fetch<{
-    product_categories: HttpTypes.StoreProductCategory[]
-  }>(`/store/product-categories`, {
-    method: "GET",
-    query: {
-      ...selector,
-      limit: 1,
-      fields: "id,name,handle,metadata",
-    },
-    headers: localeHeaders(locale),
-    cache: "no-store",
-  })
+  const t = timedSignal()
+  try {
+    const { product_categories } = await sdk.client.fetch<{
+      product_categories: HttpTypes.StoreProductCategory[]
+    }>(`/store/product-categories`, {
+      method: "GET",
+      query: {
+        ...selector,
+        limit: 1,
+        fields: "id,name,handle,metadata",
+      },
+      headers: localeHeaders(locale),
+      cache: "no-store",
+      signal: t.signal,
+    })
 
-  const category = product_categories?.[0]
-  return category ?? null
+    const category = product_categories?.[0]
+    return category ?? null
+  } finally {
+    t.done()
+  }
 }
 
 export function getStoreProductCategoryById(id: string, locale?: Locale) {
