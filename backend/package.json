@@ -14,7 +14,7 @@
   "scripts": {
     "build": "medusa build",
     "postbuild": "node ./scripts/postbuild-server.mjs",
-    "seed": "medusa exec ./src/scripts/seed.ts",
+    "seed:dev": "medusa exec ./src/scripts/seed.ts",
     "store-locales": "medusa exec ./src/scripts/add-store-locales.ts",
     "start": "node ./scripts/start-server.mjs",
     "dev": "medusa develop",
