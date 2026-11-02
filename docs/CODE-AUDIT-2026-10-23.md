@@ -479,7 +479,7 @@ ff-merge в откате не участвует. Предохранитель �
   уже были с дедлайном `api/medusa/[...path]/route.ts:110-116`,
   `api/auth/login/route.ts:62-68` и `lib/reviews/server.ts:17`.
 - везде `cache: "no-store"` → регионы и категории переfetch'иваются на каждый хит;
-  **сделано — PR #70 (ветка `fix/audit-m8-revalidate`, влит merge-коммитом `b3ad97a`,
+  **✅ Сделано — PR #70 (ветка `fix/audit-m8-revalidate`, влит merge-коммитом `b3ad97a`,
   в проде с 02.11):** `regions.ts` и
   `categories.ts` (список с пагинацией и фетч одной категории) переходят на
   `next: { revalidate: 60 }`, `banners.ts` — на `next: { revalidate: 300 }`.
@@ -528,7 +528,8 @@ M8 закрыт.
   `frontend/.env.example`;
 - `admin@tamir.local` зашит в `backend/src/utils/review-validation.ts:28`.
 
-**Статус на 02.11: закрывается этим PR #66.** Пункт про публичный IP был закрыт
+**✅ Готово — PR #66 (ветка `docs/audit-m9`, влит merge-коммитом `4e62d00`, 02.11).**
+Пункт про публичный IP был закрыт
 раньше, PR #62 (M5): ssh-строка в `DEPLOY.md` — `ssh root@tamir.rs`. Дальше:
 
 - `DEPLOY.md`: дата обновлена на «2 ноября 2026», добавлен подраздел «known_hosts
