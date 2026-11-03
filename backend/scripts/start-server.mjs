@@ -21,7 +21,16 @@ if (!existsSync(envProd) && existsSync(join(backendRoot, ".env"))) {
   console.log("Скопировано backend/.env → .medusa/server/.env.production")
 }
 
-const r = spawnSync("npx", ["medusa", "start", "-H", "0.0.0.0"], {
+// Прод-прослушивание только loopback: публичный вход — за nginx (контрольный аудит
+// 03.11, HIGH-1). На VPS `api.tamir.rs` слушает nginx (`listen 443` + `listen [::]:443`),
+// проксирует на 9000, и весь `*-CORS` в pm2-окружении — это origin'ы браузеров, а не
+// адрес прослушивания. Medusa же без `-H` слушает `0.0.0.0`, поэтому до 03.11 и API, и
+// витрина торчали наружу на `0.0.0.0:9000` и `0.0.0.0:3000` в обход nginx, TLS и
+// rate-limit'ов. `MEDUSA_BACKEND_HOST` оставляем переменной только для режимов, где
+// витрина и API живут на разных узлах.
+const backendHost = process.env.MEDUSA_BACKEND_HOST || "127.0.0.1"
+
+const r = spawnSync("npx", ["medusa", "start", "-H", backendHost], {
   cwd: serverDir,
   stdio: "inherit",
   shell: true,

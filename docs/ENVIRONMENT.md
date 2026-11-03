@@ -32,6 +32,7 @@ MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 | `REVIEW_RATE_SECRET` | Необязательный отдельный секрет HMAC; иначе используется `JWT_SECRET` |
 | `STORE_LOCALE_CODES` | Только скрипт подготовки локалей; по умолчанию `en,sr,sr-RS`. Витрина использует фиксированные `sr-RS`/`en` |
 | `ROZETKA_STOCK_LOCATION_ID` | Предпочитаемый склад импорта; проверьте выбор в форме |
+| `MEDUSA_BACKEND_HOST`, `MEDUSA_BACKEND_PORT` | Только прод-старт (`backend`, `npm start`): адрес и порт, на котором слушает Medusa. Значения по умолчанию — `127.0.0.1:9000`: публичный вход — за nginx (`api.tamir.rs`). Менять только если витрина и API живут на разных узлах |
 
 Другие `ROZETKA_*` относятся к [CLI-режиму](IMPORT-MODES.md), а не к сохранённым настройкам страницы админки.
 
@@ -47,6 +48,8 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=REPLACE_WITH_SITE_KEY
 Для production: API `https://api.tamir.rs`, origin витрины `https://tamir.rs`, реальные publishable/Turnstile site keys. Publishable key привязывается к каналу продаж. Admin secret key вместо него использовать нельзя.
 
 `TAMIR_PRIVACY_EMAIL` — серверная почта для публичной политики конфиденциальности. Старые `TAMIR_SELLER_*` / `TAMIR_TERMS_PUBLISHED` не включают реквизиты в текущие terms; см. [правовой статус документов](LEGAL-AND-COOKIES.md).
+
+Адрес прод-прослушивания витрины задаёт скрипт `start` в `frontend/package.json` (`next start -H 127.0.0.1`), а не `.env.local`: CLI-флаг `-H` перекрывает `HOSTNAME` из PM2-экосистемы, поэтому в `ecosystem.config.cjs` и в `.env.local` переменных `HOSTNAME`/`PORT` для биндинга держать не нужно. Публичный вход — за nginx (`tamir.rs`); то же правило для API — `backend/scripts/start-server.mjs` передаёт `-H` в `medusa start`.
 
 ## Изменения на VPS
 
