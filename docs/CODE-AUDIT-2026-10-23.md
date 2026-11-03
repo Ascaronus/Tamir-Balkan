@@ -39,22 +39,26 @@ merge-коммитом, после зелёных `verify (20.20.2)`/`verify (24
 02.11 — кириллизацию (`sr-Cyrl`) в ближайшее время не заводим.** M8 был разбит на два
 PR: **#69** — сетевые дедлайны в `frontend/src/lib/store/*` (влит merge-коммитом
 `714f12e`, в проде), **#70** — выборочный `revalidate` (влит merge-коммитом
-`b3ad97a`, в проде). Ориентиры на 02.11:
-HEAD `main` — `b3ad97a` (мерж #70), прод-релиз `20261102T000452Z-b3ad97a395af`
-(код `b3ad97a` — мерж
-#70; док-PR #64, #65, #68 и #71 на прод не деплоятся: `verify.yml`/`deploy.yml` игнорируют
-`docs/**`, `openspec/**` и `**.md`), checkout `main` на VPS — `b3ad97a`. Оба
-pm2-процесса онлайн, backend крутится уже с `NODE_ENV=production` из
+`b3ad97a`, в проде). По контрольному аудиту 03.11 закрыт **HIGH-2** — PR **#72**
+(security-заголовки витрины, влит merge-коммитом `0b2e106`, в проде с 03.11).
+Ориентиры на 03.11:
+HEAD `main` — `0b2e106` (мерж #72), прод-релиз `20261103T161930Z-0b2e1061febc`
+(код `0b2e106` — мерж
+#72; док-PR #64, #65, #68, #71 и этот на прод не деплоятся: `verify.yml`/`deploy.yml` игнорируют
+`docs/**`, `openspec/**` и `**.md`), checkout `main` на VPS — `0b2e106`
+(ff-merge деплоем `b3ad97a..0b2e106`). Оба
+pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend крутится уже с `NODE_ENV=production` из
 `backend/.env`.
-03.11 добавлен раздел «Контрольный аудит 03.11» — по нему идут отдельные PR,
-начиная с **#72** (security-заголовки витрины).
+03.11 добавлен раздел «Контрольный аудит 03.11» — по нему идут отдельные PR:
+**#72** (HIGH-2, security-заголовки витрины) влит; этот док-PR забирает себе
+**#73**, а PR периметра (HIGH-1) возьмёт **#74**.
 Работа продолжается по одному маленькому PR на исправление.
 
 ---
 
 ## Как продолжить работу
 
-1. `git fetch origin` и сверка с `origin/main` (на 02.11 это `b3ad97a`). Напоминание:
+1. `git fetch origin` и сверка с `origin/main` (на 03.11 это `0b2e106`). Напоминание:
    24.10 история `main` перезаписана (force-push) — `git pull --ff-only` на старых
    клонах упадёт; вместо него `git reset --hard origin/main` (локальных правок в main
    всё равно быть не должно). Все аудитные ветки влиты: H1–H4 шли в ветках
@@ -78,7 +82,8 @@ pm2-процесса онлайн, backend крутится уже с `NODE_ENV=
    SHA для #67 — **#68** (влит `980380e`); дедлайны store-фетчей — **#69** (влит `714f12e`);
    выборочный `revalidate` — **#70** (влит `b3ad97a`); статус этого файла — **#71**
    (влит `037986a`); security-заголовки витрины по контрольному аудиту 03.11 (HIGH-2) —
-   **#72** (этот PR); следующая свободная карточка **#73**
+   **#72** (влит `0b2e106`), его статус — этот документ
+   (док-PR, возьмёт **#73**); следующая свободная карточка **#74**
    (номер всё равно уточнить при создании — нумерация общая для репозитория).
 3. Ветка `fix/<slug>`, один коммит, PR, ждать `verify` (обязательные проверки
    `verify (20.20.2)` и `verify (24)`, строгие).
@@ -694,8 +699,9 @@ reserved.») — решение владельца от 02.11.
 для #67 — **#68** (влит `980380e`), дедлайны store-фетчей — **#69** (влит `714f12e`),
 выборочный `revalidate` — **#70** (влит `b3ad97a`), статус этого файла — **#71**
 (влит `037986a`); security-заголовки витрины по контрольному аудиту 03.11 (HIGH-2) —
-**#72** (этот PR); следующая свободная карточка **#73** (номер
-всё равно уточнить при создании — нумерация общая для репозитория).
+**#72** (влит `0b2e106`), его статус — этот документ (док-PR,
+возьмёт **#73**); следующая свободная карточка **#74** (номер всё равно уточнить
+при создании — нумерация общая для репозитория).
 
 | PR | Предмет | Приоритет | Статус |
 |----|---------|-----------|--------|
@@ -722,8 +728,9 @@ reserved.») — решение владельца от 02.11.
 | — | M8-3: «`unoptimized`» у баннера каталога и `next/font/google` | LOW | ✅ не делать: пункты устарели (см. раздел M8) |
 | #67 | LOW-микроправки (пины actions SHA, `.gitattributes`, `LICENSE`, ротация бэкапов, мёртвые ассеты, `@medusajs/types`, `bash -n` по `scripts/*.sh`) (`chore/audit-low`) | LOW | ✅ влит merge-коммитом `e241a4b` (02.11) |
 | #68 | docs: SHA merge-коммита PR #67 в этом файле (`docs/audit-low-sha`) | LOW | ✅ влит merge-коммитом `980380e` (02.11) |
-| #72 | HIGH-2 (контрольный аудит 03.11): security-заголовки витрины — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP, `X-Permitted-Cross-Domain-Policies`, HSTS без `includeSubDomains` + `poweredByHeader: false` (`fix/storefront-security-headers`) | HIGH | 🚧 открыт (этот PR) |
-| — | Следующий свободный номер PR: **#73** | — | — |
+| #72 | HIGH-2 (контрольный аудит 03.11): security-заголовки витрины — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP, `X-Permitted-Cross-Domain-Policies`, HSTS без `includeSubDomains` + `poweredByHeader: false` (`fix/storefront-security-headers`) | HIGH | ✅ в проде (merge-коммит `0b2e106`, релиз `20261103T161930Z-0b2e1061febc`, 03.11) |
+| — | статус этого файла по #72 (`docs/audit-h2-sha`) — следующий док-PR, возьмёт **#73** | LOW | 🚧 открыт (этот PR) |
+| — | Следующий свободный номер PR: **#74** | — | — |
 
 Порядок мержей: **#59 → #60 → #61 → #62 → #63 → #64 → #65** — все влиты 01.11
 по одному,
@@ -790,7 +797,25 @@ Next публиковал `X-Powered-By`. Исправление — тольк�
 `'unsafe-eval'` по `NODE_ENV`, следование origin за `NEXT_PUBLIC_MEDUSA_BACKEND_URL` и
 согласование `img-src` с `images.remotePatterns`.
 
-### HIGH-1. Периметр — PR #73 (в работе)
+**Прод-подтверждение (03.11).** Мерж — merge-коммит `0b2e106`; деплой-ран
+`Deploy TAMIR` `41672984401` (`completed success`), релиз
+`/root/tamir-releases/20261103T161930Z-0b2e1061febc`, ff-merge VPS-чекаута `main`
+`b3ad97a..0b2e106`, pm2-процессы пересозданы (`tamir-backend` id 0,
+`tamir-frontend` id 1). Публичные пробы — только `https://tamir.rs` со своей машины
+(`api.tamir.rs` не трогали, SSH к VPS не понадобился): на `200 /rs`, `200 /`,
+странице товара, `404 /zzz-does-not-exist` и `/_next/static/chunks/*.js` приходят
+
+- `Content-Security-Policy` (в `connect-src` и `img-src` — `https://api.tamir.rs`,
+  `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`);
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`;
+- `Referrer-Policy: strict-origin-when-cross-origin`;
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()`;
+- `Cross-Origin-Opener-Policy: same-origin`,
+  `X-Permitted-Cross-Domain-Policies: none`;
+- `Strict-Transport-Security: max-age=31536000` (без `includeSubDomains`);
+- `X-Powered-By` нет ни на одном ответе.
+
+### HIGH-1. Периметр — PR #74 (в работе)
 
 Правка в репозитории, не в `ufw`: `-H 127.0.0.1` в `backend/scripts/start-server.mjs`
 и `next start -H 127.0.0.1` в `frontend/package.json`. Публичный вход остаётся за
