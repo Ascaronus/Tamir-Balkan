@@ -134,3 +134,4 @@ jobs:
       - run: |
           for sh in scripts/*.sh; do bash -n "$sh"; done
       - run: node test-support/verify-deploy-pin.mjs
+      - run: node test-support/verify-perimeter-bind.mjs

@@ -41,7 +41,7 @@ Verify обязан (MUST) выполнить в `backend/` `npm ci`, ровно
 - **THEN** тест сразу падает с ошибкой «Set TEST_REVIEWS_DB_URL to an isolated test PostgreSQL database» и не подключается к `DATABASE_URL`
 
 ### Requirement: Защитные проверки CI целостности выпуска
-Verify обязан (MUST) после тестов выполнить `node test-support/verify-deploy-dispatch.mjs` (ручной запуск Deploy разрешён только из `refs/heads/main`, job обязан стоять за окружением `production`), `bash -n scripts/deploy-vps.sh` (синтаксис) и `node test-support/verify-deploy-pin.mjs` (пиннинг SHA в workflow и скрипте), иначе job обязан (MUST) упасть.
+Verify обязан (MUST) после тестов выполнить `node test-support/verify-deploy-dispatch.mjs` (ручной запуск Deploy разрешён только из `refs/heads/main`, job обязан стоять за окружением `production`), `bash -n scripts/deploy-vps.sh` (синтаксис), `node test-support/verify-deploy-pin.mjs` (пиннинг SHA в workflow и скрипте) и `node test-support/verify-perimeter-bind.mjs` (прод-старты биндятся только на loopback, контроль аудита HIGH-1), иначе job обязан (MUST) упасть.
 
 #### Scenario: Ослабление guard'а в diff
 - **WHEN** pull request меняет `deploy.yml` так, что `workflow_dispatch` больше не ограничен `main`, или снимает environment

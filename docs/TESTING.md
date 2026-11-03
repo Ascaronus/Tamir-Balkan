@@ -169,6 +169,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | backend/integration-tests/http/auth-negative.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP без сессии администратора | Граница аутентификации на реальном HTTP: списки товаров и заказов в admin отклоняются без сессии |
 | backend/tests/rozetka-native.ts | scenario (`medusa exec`, база `*_import_test`) | Только эта база | Реальные import-workflow создают товары/варианты/переводы; отказ дубль-handles. В CI не запускался до этого change |
 | frontend/test-support/verify-localized-routes.mjs | http-integration (собранный `next start` на 127.0.0.1:3137) + статическая фаза по дереву маршрутов | Реальный production-сбор Next; статическая фаза сервера не требует | Парность `/rs`/`/en` и headers на реальном сервере; до подъёма сервера сверяет симметрию дерева `en/*` ↔ корневых маршрутов (асимметрия падает без сборки/сервера); уже в CI |
+| test-support/verify-perimeter-bind.mjs | статический CI-guard (файлы только читаются, процессы не поднимаются) | тексты `backend/scripts/start-server.mjs` и `frontend/package.json` | Прод-старт биндится только на loopback: `-H` + дефолт `127.0.0.1` у Medusa, `next start -H 127.0.0.1` у витрины, хардкод `0.0.0.0` запрещён (контрольный аудит HIGH-1); в CI |
 
 ### Отметки и план усиления
 
