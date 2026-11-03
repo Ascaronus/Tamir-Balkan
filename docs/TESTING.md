@@ -17,6 +17,8 @@
 
 После перевода на discovery-helper (прогон #145, ветка `chore/modernize-existing-tests`, обе джобы `success`): Node 20.20.2 — 4 мин 19 с, Node 24 — 4 мин 12 с. Прирост ~30–40 с на джоб объясняется новыми шагами: изолированный `_import_test`-прогон `rozetka-native.ts` (создание БД, `db:migrate`, `setup-reviews`, exec) и Jest-шаг `test:integration:http`; артефакты отчётов — `test-reports-node-*` (junit XML + jest JSON, `retention-days: 14`).
 
+Контрольный замер 03.11 (run `main` `41686882135`, мерж #74; `gh api .../actions/runs/{id}/jobs`): `verify (20.20.2)` — 5 мин 48 с, `verify (24)` — 3 мин 42 с, суммарно прогон 9–11,5 минут (PR-прогоны тех же дней — 10 м 53 с и 11 м 34 с). Числа выше (26–27.10) больше не ориентир: с переводом матрицы в общую очередь `verify-global` (`max-parallel: 1`) джобы идут строго последовательно, и полное время прогона — сумма двух джобов. Эти числа по-прежнему не SLA.
+
 ## Frontend
 
 ```bash
@@ -29,7 +31,7 @@ node test-support/verify-localized-routes.mjs
 ```
 
 `npm test` подключает TypeScript loader (нужен установленный dev-пакет `typescript`
-из `npm ci`) и запускает `tests/*.test.mjs`. Последний проход на ветке `chore/modernize-existing-tests`: 166 тестов;
+из `npm ci`) и запускает `tests/*.test.mjs`. Замер 03.11: 42 файла, 280 тестов, все проходят;
 число не является контрактом и меняется вместе с набором тестов; точный список обязательных прогонов — в CI.
 
 Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень с браузерным языком и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Перед подъёмом сервера он выполняет статическую фазу — сверку симметрии дерева маршрутов `en/*` ↔ корневых (работает без сборки и падает на асимметрии). Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
@@ -93,7 +95,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 
 Слой: `unit` — чистые функции/модули; `handler` — обработчик маршрута без сетевого HTTP (фейковые `req/res` либо `NextResponse`); `component` — логика UI на harness; `db-integration` — реальная PostgreSQL; `http-integration` — реальный HTTP в процессе; `scenario` — скриптовый сценарий на одноразовой базе. Имя с ⚠ не означает сетевой/реальный слой — смотри колонку границ.
 
-### Frontend (`frontend/tests/`, 29 файлов)
+### Frontend (`frontend/tests/`, 42 файла)
 
 Среда: `node --test` + TypeScript loader (`test-support/register.mjs`); браузер, dev/live-сервер и реальная Medusa не участвуют.
 
@@ -101,9 +103,13 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 |---|---|---|---|
 | account-recovery.test.mjs | unit | Medusa API, почта | Логика восстановления пароля (запросы, коды) |
 | admin-option-translations.test.mjs | handler | Сеть, БД (через `next/server`) | Перевод опций в admin-маршруте |
+| banner-admin.test.mjs | handler | admin API, БД (harness) | Баннеры в админке: превью несохранённой формы без публикации, Save Draft, публикация только с подтверждением |
+| banner-carousel.test.mjs | unit + компонент (harness) | таймеры, pointer/touch-события | Герой-карусель: неизменяемость общего источника превью, цикличность ротации, пауза (hover/focus/скрытая вкладка/reduced motion/autoplay off), свайп, индикаторы, превью одного неактивного черновика |
 | browser-locale.test.mjs | unit | — | Выбор локали по cookie/Accept-Language |
 | cart-client.test.mjs ⚠ | unit | Medusa SDK, HTTP/fetch, storage | Добавление/замена/удаление позиций, гонки создания корзины; живое поведение корзины — нет |
 | cart-confirmation.test.mjs | unit | Платёж/почта | Сборка receipt подтверждения, «Ukupno» |
+| cart-preview.test.mjs | unit + компонент (harness) | таймеры открытия/закрытия, pointer/keyboard | Превью корзины по наведению: задержки и отмена случайного hover, позиция внутри узкого вьюпорта, суммы без пересчёта скидок, тач не открывает |
+| cart-remove.test.mjs | компонент (harness) | `CartProvider`, `AuthProvider`, API | Удаление строки корзины: локализованная подпись кнопки, декоративная иконка (`aria-hidden`), удаление правильной позиции |
 | catalog-pagination.test.mjs | unit | API | Границы страниц и параметры URL |
 | catalog-translations.test.mjs | unit + компонентный рендер (harness) | Реальные `src/messages/en.json`/`sr.json`; API-клиент подменён | Сопоставление переводов при поиске + рендер `CatalogFilters` с реальными en/sr-строками витрины (заголовок, legend, кнопки, labels диалога), параллельно `en`/`sr` (проверяемые ключи различаются в двух языках, sr-редакция латиницей без кириллицы); расхождение строк в `messages/` роняет тест |
 | catalog-ui.test.mjs ⚠ | unit | API-клиент (подготовленные ответы) | Фильтры, аргументы URL, свотчи цветов; живые товары/цены — нет |
@@ -112,10 +118,13 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | cookie-consent.test.mjs | unit | — | Состояния согласия на cookie |
 | dialog-backdrop.test.mjs | unit | DOM (фейковый `getBoundingClientRect`) | Закрытие необязательных диалогов кликом по подложке; контент/drag/клавиатура/правая кнопка — не закрывают |
 | english-routing.test.mjs | unit | Сервер (только чистые URL) | Канонический вид `/en`/`rs`-ссылок |
+| header-authentication.test.mjs | компонент (harness) | auth API, сессия, `document`/focus | Шапка авторизации: одна авторизационная заявка при повторных отправках, имя пользователя, обрезка длинного имени, `Escape` и нативная модальная фокус-капсула |
+| locale-scroll.test.mjs | unit | `document`, `sessionStorage`, scroll | Позиция скролла при смене локали: ожидание layout, очистка эффекта, отсутствие прыжка на чужих страницах и при истёкшем сторадже |
 | localized-cart.test.mjs | unit | API | Локализованные URL корзины |
 | order-history.test.mjs | unit | API | Маппинг истории заказов |
 | product-attributes.test.mjs | unit | — | Атрибуты + next-intl на реальных en/sr-сообщениях |
 | product-card-colors.test.mjs | unit | — | Цвета карточки и фильтрация |
+| product-delivery.test.mjs | unit | Store API | Доставка на карточке товара без корзины: живая конфигурация, безопасная деградация при отказе |
 | product-reviews.test.mjs | unit | — | Отзывы, модерационные слова |
 | product-schema.test.mjs | unit | — | Product JSON-LD/schema |
 | profile-fields.test.mjs | unit | — | Валидация profile-полей |
@@ -127,9 +136,15 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | reorder-import.test.mjs | unit | API | Переупорядочивание импорта, native option values |
 | review-collapse.test.mjs | unit | — | UI-складывание списка отзывов |
 | review-regressions.test.mjs | unit | API | Регрессии: review-query, модерация, список, телефон, schema |
+| security-headers.test.mjs ⚠ | unit | `next.config.ts` (`headers()` без живого сервера) | Полный набор security-заголовков прод-ответов, CSP ровно по фактически загружаемым origin, `unsafe-eval` только в dev, HSTS не отдаётся в development, `poweredByHeader: false`; фактически отдаваемый HTML — вне теста (это закрывает `verify-localized-routes.mjs`) |
 | seo.test.mjs ⚠ | unit | Данные-фикстуры (audit: без живого HTTP) | Sitemap, robots, canonical, metadata; фактически отдаваемый HTML — нет |
+| shipping-method-name.test.mjs | unit | — | Названия служб доставки в языке витрины (sr↔en в обе стороны), кастомные имена сохраняются, пустые значения → дефолт |
+| stable-updates.test.mjs | компонент (harness) | API товаров, роутер, локализованный провайдер | Стабильные обновления: удаление из wishlist/корзины без перезагрузки каталога, догрузка только новых товаров, отброс поздних ответов при смене аккаунта/локали |
+| store-fetch-cache.test.mjs | unit | Next data-cache (подменный `fetch`) | `revalidate` 60 с для регионов/категорий и 300 с для баннеров, локаль категории в query `?locale=` вместо заголовка (PR #70) |
+| store-fetch-timeout.test.mjs | unit | `AbortController`, таймеры | Единый дедлайн `timedSignal` для store-фетчей, `TimeoutError` по истечении, ретрансляция внешнего abort, aborted-вызывающий не начинает запрос (PR #69) |
+| wishlist.test.mjs | unit + компонент (harness) | Medusa wishlist API | Состояние wishlists: одна загрузка и синхронизация подписчиков, защита от двойного клика, сохранность сердечка при сбое сохранения, гость → существующий login и один сохран после входа |
 
-### Backend unit (`backend/tests/*.test.cjs`, 8 файлов)
+### Backend unit (`backend/tests/*.test.cjs`, 14 файлов)
 
 Среда: `node --test` + ts-node; PostgreSQL не требуется (мок SMTP/Google/`fetch` там, где указано).
 
@@ -139,12 +154,18 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | auth-secrets.test.cjs | unit | — | Отказ weak/template-секретов; Secure-cookie в production |
 | catalog-http.test.cjs ⚠ | handler | Фейковые `req/res`, container/graph (audit p.46) | Реальный Medusa-middleware и правила маршрута: скоуп канала, сортировка, счётчики; сетевого HTTP нет |
 | catalog.test.cjs | unit | — | Утилиты каталога: фасеты, связи «размер+цвет+цена», поиск с диакритикой |
+| guest-cart-email.test.cjs | unit | `Modules.CART`/customer — подменный `container` | Очистка email гостевой корзины: отвязка клиента без изменения клиента, compensation (`restore`), повторный вызов без email; зарегистрированный клиент и завершённая корзина не очищаются |
 | guard-env.test.cjs | unit | Строки env (реального подключения к БД нет) | Гард изоляции: боевые строки подключения отвергаются, пропускаются только базы `_test`; helper относит файл к БД-категории по маркеру `postgres://` в содержимом |
+| homepage-banners.test.cjs | unit + handler | фейковые `req/res` с подменным `query`/scope, upload без FS | Валидация баннеров: обязательные оба языка, картинка и парный CTA, границы настроек; URL-гарды (script/data/protocol-relative/credentials/управляющие символы); immutability перестановки; upload — подпись, заявленный MIME, base64, размер, отказ SVG; права администратора; public handler — только активные опубликованные данные, ETag-перевалидация без утечки черновиков |
 | option-autotranslate.test.cjs | handler | Google Translate (заменён `fetch`), req/res | Preview до оплаты, отказ чужим option ID, пакетный перевод |
+| order-email.test.cjs | unit (subscriber) | `nodemailer.createTransport` заменён, env SMTP | Письмо-квитанция заказа: номер, варианты, количества и итог со скидками в major единицах; гостям — одна отправка; сбой SMTP — retryable ошибка без секретов |
+| product-delivery.test.cjs | handler | фейковые `req/res`, `query`/graph подменён | Доставка на карточке: неизвестная/несовпадающая опция ≠ «бесплатно», pickup и отключённые провайдеры, невалидные/неопубликованные/вне канала товары, отсутствие профиля доставки |
 | registration-email.test.cjs ⚠ | unit | `nodemailer.createTransport` заменён (audit p.48) | Требования SMTP-конфига, двуязычное письмо welcome, retry subscriber; реальный SMTP — нет |
 | rozetka-admin.test.cjs ⚠ | unit/orchestration | Medusa-workflow, внешний `fetch` (audit p.47) | XML-парсер, валидация импорта, workflow-оркестрация; реально сохранённых товаров — нет |
+| subscriber-tracker.test.cjs | unit (тестовый helper) | таймеры/`setImmediate` | Observer подписчиков ждёт реальную асинхронную работу перед cleanup; падение подписчика фиксируется и пробрасывается |
+| wishlist.test.cjs | handler | фейковые `req/res`, `query`/graph подменён | Wishlist API: auth-скоуп по `actor_id`, запрет инъекции `customer_id` в теле, private-заголовки кэша, валидация `product_id`, безопасная (без деталей) ошибка при сбое БД |
 
-### Backend db-integration (`backend/tests/*.integration.cjs`, 9 файлов)
+### Backend db-integration (`backend/tests/*.integration.cjs`, 11 файлов)
 
 Все требуют отдельную PostgreSQL (`TEST_REVIEWS_DB_URL`). Имя `integration` = реальный SQL, а не реальный HTTP.
 
@@ -154,11 +175,13 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | category-localization.integration.cjs | db-integration | HTTP | Бэкфилл нативных переводов, уникальность адресов |
 | decimal-attributes.integration.cjs | db-integration | HTTP | Идемпотентность миграции decimal-атрибутов |
 | deleted-customer-registration.integration.cjs | db-integration | HTTP, emailpass-callback | Повторная регистрация удалённого клиента, конкурентный cleanup |
+| homepage-banners.integration.cjs | db-integration | HTTP | SQL-черновики баннеров, атомарная публикация (в т.ч. конкурентная), публикация одного баннера и settings/order не публикуют чужие черновики, деактивация, delete/rollback и возврат удалённого опубликованного баннера |
 | login-rate-limit.integration.cjs ⚠ | db-integration + middleware | Фейковые HTTP req/res/logger (audit p.50) | Троттлинг login по email+IP, XFF за nginx; живого Nginx/HTTP — нет |
 | password-reset.integration.cjs | db-integration | Отправка письма симулирована | Коды сброса: срок, lockout, повторный запрос, конкурентные подтверждения |
 | product-urls.integration.cjs | db-integration | HTTP | Уникальные EN-URL при импорте, алиасы, redirect-маршрут |
 | registration-code.integration.cjs ⚠ | db-integration | Обратный вызов письма симулирован (audit p.49) | OTP: хеш при хранении, срок, 5 попыток, конкурентные confirm |
 | reviews.integration.cjs | db-integration + handler | Turnstile через подменный `global.fetch` (audit p.51) | Полный отзывный lifecycle на реальной схеме; живого Turnstile — нет |
+| wishlist.integration.cjs | db-integration | HTTP | SQL: параллельные сохранения идемпотентны (без дублей), аккаунты изолированы, повторные delete корректны; physical delete товара/клиента каскадом чистит записи, soft delete остаётся удаляемым |
 
 ### Backend http-integration и сценарии
 
