@@ -1,6 +1,6 @@
 # TAMIR backend
 
-Medusa **2.13.1**, PostgreSQL, Redis, TypeScript. Backend обслуживает обе языковые версии одной витрины; отдельной EN-базы или магазина нет.
+Medusa **2.13.6**, PostgreSQL, Redis, TypeScript. Backend обслуживает обе языковые версии одной витрины; отдельной EN-базы или магазина нет.
 
 ## Локальная подготовка
 

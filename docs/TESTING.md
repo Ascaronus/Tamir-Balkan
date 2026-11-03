@@ -249,7 +249,7 @@ by itself establish the cause of intermittent runner cleanup timeouts.
 
 ### Await event subscribers before catalog cleanup
 
-Medusa 2.13.1's local event bus emits via EventEmitter without awaiting async
+Medusa 2.13.6's local event bus emits via EventEmitter without awaiting async
 listeners. Its integration runner waits for workflow executions, then truncates
 tables; workflow completion does not imply subscriber completion. The catalog
 suite observes the **real** product-localized-url handler via a Jest module wrapper,
