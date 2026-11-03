@@ -19,7 +19,7 @@
 
 ## Стек и структура
 
-- `frontend/`: Next.js 16.2.2, React 19, TypeScript, Tailwind CSS 4, Manrope.
+- `frontend/`: Next.js 16.4.5, React 19, TypeScript, Tailwind CSS 4, Manrope.
 - `backend/`: Medusa 2.13.1, стандартный модуль переводов, расширения админки и API.
 - `docker-compose.yml`: PostgreSQL 16 и Redis 7 для разработки.
 - `scripts/`: проверка конфигурации, сборка и активация релиза на VPS.

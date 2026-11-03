@@ -59,7 +59,7 @@
 
 ### Requirement: Frontend собирается и тестируется средствами Next.js и `node --test`
 
-`frontend/package.json` (MUST) задавать `dev` как `next dev --webpack`, `build` как `next build`, `start` как `next start -H 127.0.0.1`, `lint` как `eslint` и `test` как `node --import ./test-support/register.mjs --test tests/*.test.mjs`; зависимости (MUST) включать `next` и `eslint-config-next` версии `16.2.2`, `react` и `react-dom` версии `19.2.4`, `@medusajs/js-sdk` и `@medusajs/types` версии `^2.13.5`.
+`frontend/package.json` (MUST) задавать `dev` как `next dev --webpack`, `build` как `next build`, `start` как `next start -H 127.0.0.1`, `lint` как `eslint` и `test` как `node --import ./test-support/register.mjs --test tests/*.test.mjs`; зависимости (MUST) включать `next` и `eslint-config-next` версии `16.4.5`, `react` и `react-dom` версии `19.2.4`, `@medusajs/js-sdk` и `@medusajs/types` версии `^2.13.5`.
 
 #### Scenario: Тесты витрины в CI
 
