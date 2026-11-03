@@ -25,8 +25,9 @@ discovery-раннер `backend/test-support/run-tests.mjs`, `verify.yml` бол
 (`fix/audit-m3`, мерж `10fbffd`), #61 (`fix/audit-m4`, мерж `1a530c0`), #62
 (`fix/audit-m5`, мерж `83675f6`), #63 (`fix/audit-m6`, мерж `de5af3f`) — каждый
 merge-коммитом, после зелёных `verify (20.20.2)`/`verify (24)`, с деплоем на прод.
-Обновление этого документа — PR #64 (мерж `b65897d`), #65 (мерж `228f071`), #71 (мерж
-`037986a`), #73 (мерж `01bbbd9`), #75 (мерж `d833a75`) и этот PR.
+Обновление этого документа — PR #64 (мерж `b65897d`), #65 (мерж `228f071`), #68 (мерж
+`980380e`), #71 (мерж `037986a`), #73 (мерж `01bbbd9`), #75 (мерж `d833a75`), #77 (мерж
+`19df5a3`) и этот PR (забирает #79).
 Плановые номера PR #29–#33,
 названные в исходном тексте аудита, не действовали: они израсходованы фича- и
 док-PR 24.10–31.10 (см. таблицу «Порядок PR»). **Ops-хвосты тоже выполнены:**
@@ -43,29 +44,32 @@ PR: **#69** — сетевые дедлайны в `frontend/src/lib/store/*` (�
 `b3ad97a`, в проде). По контрольному аудиту 03.11 закрыты **HIGH-2** — PR **#72**
 (security-заголовки витрины, влит merge-коммитом `0b2e106`, в проде с 03.11),
 **HIGH-1** — PR **#74** (сетевой периметр: прод-старты слушают только `127.0.0.1`,
-влит merge-коммитом `40868cb`, в проде с 03.11) и прод-зависимости витрины — PR
+влит merge-коммитом `40868cb`, в проде с 03.11), прод-зависимости витрины — PR
 **#76** (`next`/`eslint-config-next` `16.2.2` → `16.4.5`, влит merge-коммитом
-`acb4e6c`, в проде с 03.11).
+`acb4e6c`, в проде с 03.11) и прод-зависимости бэкенда — PR **#78** (частично:
+`@medusajs/*` `2.13.1` → `2.13.6`, в prod-дереве 0 критичных, влит merge-коммитом
+`ef4727b`, в проде с 03.11).
 Ориентиры на 03.11:
-HEAD `main` — `acb4e6c` (мерж #76), прод-релиз `20261103T191930Z-acb4e6c9eafb`
-(код `acb4e6c` — мерж
-#76; док-PR #64, #65, #68, #71, #73, #75 и этот на прод не деплоятся: `verify.yml`/`deploy.yml` игнорируют
-`docs/**`, `openspec/**` и `**.md`), checkout `main` на VPS — `acb4e6c`
-(ff-merge деплоем `40868cb..acb4e6c`). Оба
+HEAD `main` — `ef4727b` (мерж #78), прод-релиз `20261103T211318Z-ef4727b388a5`
+(код `ef4727b` — мерж
+#78; док-PR #64, #65, #68, #71, #73, #75, #77 и этот на прод не деплоятся: `verify.yml`/`deploy.yml` игнорируют
+`docs/**`, `openspec/**` и `**.md`), checkout `main` на VPS — `ef4727b`
+(ff-merge деплоем `acb4e6c..ef4727b`). Оба
 pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend крутится уже с `NODE_ENV=production` из
 `backend/.env`; витрина и Store API слушают только `127.0.0.1:3000` и `127.0.0.1:9000`,
 витрина работает как `next-server (v16.4.5)`.
 03.11 добавлен раздел «Контрольный аудит 03.11» — по нему идут отдельные PR:
 **#72** (HIGH-2) и **#74** (HIGH-1) влиты; статус #72 — док-PR **#73** (влит
 `01bbbd9`), статус #74 — док-PR **#75** (влит `d833a75`); прод-зависимости витрины —
-**#76** (влит `acb4e6c`), его статус — этот док-PR, он забирает **#77**. Следующая
-свободная карточка — **#78**. Работа продолжается по одному маленькому PR на исправление.
+**#76** (влит `acb4e6c`), его статус — док-PR **#77** (влит `19df5a3`); прод-зависимости
+бэкенда — **#78** (влит `ef4727b`), его статус — этот док-PR, он забирает **#79**.
+Следующая свободная карточка — **#80**. Работа продолжается по одному маленькому PR на исправление.
 
 ---
 
 ## Как продолжить работу
 
-1. `git fetch origin` и сверка с `origin/main` (на 03.11 это `40868cb`). Напоминание:
+1. `git fetch origin` и сверка с `origin/main` (на 03.11 это `ef4727b`). Напоминание:
    24.10 история `main` перезаписана (force-push) — `git pull --ff-only` на старых
    клонах упадёт; вместо него `git reset --hard origin/main` (локальных правок в main
    всё равно быть не должно). Все аудитные ветки влиты: H1–H4 шли в ветках
@@ -81,7 +85,9 @@ pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend �
    `docs/audit-h2-sha` (#73, влит `01bbbd9`); периметр (HIGH-1) — `fix/network-perimeter`
    (#74, влит `40868cb`), статус этого файла по #74 — `docs/audit-h1-status` (#75, влит
    `d833a75`); прод-зависимости витрины — `fix/next-advisories` (#76, влит `acb4e6c`),
-   статус этого файла по #76 — `docs/audit-next-status` (этот PR, #77);
+   статус этого файла по #76 — `docs/audit-next-status` (#77, влит `19df5a3`);
+   прод-зависимости бэкенда — `fix/backend-prod-deps` (#78, влит `ef4727b`), статус
+   этого файла по #78 — `docs/audit-pr78` (этот PR, #79);
    предыдущие были созданы
    от `7be4a9c`, уже после перезаписи истории.
 2. Открыть таблицу «Порядок PR» ниже и взять первый незакрытый номер. Плановая
@@ -97,8 +103,10 @@ pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend �
    (влит `037986a`); security-заголовки витрины по контрольному аудиту 03.11 (HIGH-2) —
    **#72** (влит `0b2e106`), его статус — док-PR **#73** (влит `01bbbd9`); сетевой
    периметр (HIGH-1) — **#74** (влит `40868cb`), его статус — док-PR **#75** (влит
-   `d833a75`); прод-зависимости витрины — **#76** (влит `acb4e6c`), его статус — этот
-   документ (док-PR, возьмёт **#77**); следующая свободная карточка **#78**
+   `d833a75`); прод-зависимости витрины — **#76** (влит `acb4e6c`), его статус — док-PR
+   **#77** (влит `19df5a3`); прод-зависимости бэкенда — **#78** (влит `ef4727b`, закрыто
+   частично), его статус — этот документ (док-PR, возьмёт **#79**); следующая свободная
+   карточка **#80**
    (номер всё равно уточнить при создании — нумерация общая для репозитория).
 3. Ветка `fix/<slug>`, один коммит, PR, ждать `verify` (обязательные проверки
    `verify (20.20.2)` и `verify (24)`, строгие).
@@ -416,6 +424,12 @@ ops-шагом после мержа #59** (бэкап + транзакция с
 регенерации лок-файла. Проверено: `npm install --package-lock-only --dry-run`
 даёт «up to date» (лок-файл консистентен манифесту).
 
+Позже, в PR **#78**, пин `knex` в `devDependencies` заменён с `^3.1.0` на **точный
+`3.2.8`**: `^`/`~` приводил к тому, что `@mikro-orm/knex` тянул свою копию `knex`, и
+в `src/index.ts:41` тип `Knex` не совпадал (`TS2345` в `tamir-catalog-popularity`).
+С `3.2.8` в `node_modules` одна копия (`npm ls knex` → `knex@3.2.8` +
+`@mikro-orm/knex@6.6.12 → knex@3.2.8 deduped`), `tsc --noEmit` зелёный.
+
 ### M4. Неатомарный cutover и простой
 
 Файлы: `scripts/deploy-vps.sh:157-159`, `scripts/activate-release.sh`.
@@ -718,7 +732,9 @@ reserved.») — решение владельца от 02.11.
 **#72** (влит `0b2e106`), его статус — док-PR **#73** (влит `01bbbd9`); сетевой периметр
 (HIGH-1) — **#74** (влит `40868cb`), его статус — док-PR **#75** (влит `d833a75`);
 прод-зависимости витрины по прод-аудиту — **#76** (влит `acb4e6c`), его статус —
-док-PR **#77**; следующая свободная карточка **#78** (номер всё равно уточнить при
+док-PR **#77** (влит `19df5a3`); прод-зависимости бэкенда по прод-аудиту — **#78**
+(влит `ef4727b`, закрыто частично), его статус — этот документ (док-PR, возьмёт
+**#79**); следующая свободная карточка **#80** (номер всё равно уточнить при
 создании — нумерация общая для репозитория).
 
 | PR | Предмет | Приоритет | Статус |
@@ -751,7 +767,8 @@ reserved.») — решение владельца от 02.11.
 | #74 | HIGH-1 (контрольный аудит 03.11): сетевой периметр — `-H 127.0.0.1` в `backend/scripts/start-server.mjs` (default `MEDUSA_BACKEND_HOST=127.0.0.1`), `next start -H 127.0.0.1`, CI-самопроверка `test-support/verify-perimeter-bind.mjs`, дельта спеки «Прод-старт» (`fix/network-perimeter`) | HIGH | ✅ в проде (merge-коммит `40868cb`, релиз `20261103T175238Z-40868cb39688`, 03.11) |
 | #75 | статус этого файла по #74 + чистка устаревших данных в `docs/TESTING.md` (`docs/audit-h1-status`) | LOW | ✅ влит merge-коммитом `d833a75` (03.11) |
 | #76 | прод-зависимости витрины (контрольный аудит 03.11, prod-аудит `npm audit --omit=dev`): `next`/`eslint-config-next` `16.2.2` → `16.4.5`, транзитивные `qs` → `6.17.1` и `source-map-js` → `1.2.2`; `react-hooks/set-state-in-effect` понижен до `warn` (`fix/next-advisories`) | MEDIUM (в prod-аудите `next` — critical) | ✅ в проде (merge-коммит `acb4e6c`, релиз `20261103T191930Z-acb4e6c9eafb`, 03.11) |
-| — | Следующий свободный номер PR: **#78** | — | — |
+| #78 | прод-зависимости бэкенда (контрольный аудит 03.11, prod-аудит `npm audit --omit=dev`): `@medusajs/admin-sdk`/`cli`/`framework`/`medusa` + dev `@medusajs/test-utils` `2.13.1` → `2.13.6`, `fast-xml-parser` `^5.12.0`, `nodemailer` `^10.3.1`, `overrides.lodash: ^4.18.1`, dev-`knex` точный `3.2.8`, лок-файл перегенерирован (`fix/backend-prod-deps`) | MEDIUM (3 критичных в prod-дереве) | ✅ в проде (merge-коммит `ef4727b`, релиз `20261103T211318Z-ef4727b388a5`, 03.11) — **закрыто частично**, остаток см. раздел «Прод-зависимости бэкенда — закрыто частично PR #78» |
+| — | Следующий свободный номер PR: **#80** (этот док-PR забирает **#79**) | — | — |
 
 Порядок мержей: **#59 → #60 → #61 → #62 → #63 → #64 → #65** — все влиты 01.11
 по одному,
@@ -773,8 +790,10 @@ reserved.») — решение владельца от 02.11.
 витрины и Store API), **HIGH-2 — отсутствие security-заголовков у витрины**, и
 список MEDIUM/LOW. Отдельные PR по темам, начиная с **#72**. Оба HIGH закрыты
 и в проде 03.11 (#72 — security-заголовки, #74 — периметр); из MEDIUM/LOW закрыт
-прод-аудит зависимостей витрины — **#76** (влит `acb4e6c`, в проде 03.11);
-остальные пункты пойдут следующими PR, начиная с **#78**.
+прод-аудит зависимостей витрины — **#76** (влит `acb4e6c`, в проде 03.11) и
+прод-аудит зависимостей бэкенда — **#78** (влит `ef4727b`, в проде 03.11; закрыт
+**частично**: 3 критичных advisory снято, остальные цепочки — отдельные задачи);
+остальные пункты пойдут следующими PR, начиная с **#80**.
 
 Что сознательно вне объёма (решения владельца, не пересматривать без команды):
 
@@ -872,7 +891,8 @@ Loopback-пробы с самого VPS: `http://127.0.0.1:9000/health` — 200,
 |--------|-----------------|-----------|
 | `frontend/` до PR #76 | 7 (`next` critical, `sharp`/`nanoid`/`postcss`/`source-map-js` high, `qs`/`baseline-browser-mapping` moderate) | 1 |
 | `frontend/` после PR #76 | **0** | 0 |
-| `backend/` | 155 | 3 (`@mikro-orm/core`, `protobufjs`, `proxy-addr`) |
+| `backend/` до PR #78 | 155 | 3 (`@mikro-orm/core`, `protobufjs`, `proxy-addr`) |
+| `backend/` после PR #78 | 123 (`4 low`, `93 moderate`, `26 high`) | **0** |
 
 Существенный пункт — `next` 16.2.2: в этом диапазоне 34 advisory, включая
 **неаутентифицированное RCE в Image Optimization API** на SVG (`GHSA-2464-fhr4-w9xw`)
@@ -916,8 +936,9 @@ self-hosted `next start` (не Vercel), App Router, `ƒ Proxy (Middleware)` и
 `eslint-config-next@0.2.4`). Отдельная задача по обновлению линт-стека.
 
 Бэкенд-дерево (155 advisory, 3 критичных) при закреплённых `@medusajs/*` `2.13.1` —
-отдельный PR: там обновления упираются в ядро Medusa и требуют проверки миграций и
-HTTP-тестов, в этот PR не входит.
+отдельная задача: обновления упираются в ядро Medusa и требуют проверки миграций и
+HTTP-тестов. Она закрыта частично PR **#78** — см. раздел «Прод-зависимости бэкенда —
+закрыто частично PR #78» ниже.
 
 **Локальная проверка PR #76.** `npm test` в `frontend/` — 280/280;
 `npm run lint -- --quiet` — 0 ошибок (14 warning'ов); `npm run build` на Next 16.4.5 —
@@ -944,6 +965,111 @@ Image Optimization через nginx: локальный ассет `/_next/image
 сохраняется на `/rs` и на 404-странице; `/rs/` отвечает 308 на `/rs` без заголовков —
 так же, как до мержа. Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не
 трогались.
+
+### Прод-зависимости бэкенда — закрыто частично PR #78
+
+Контрольный аудит 03.11 показал в prod-дереве бэкенда 155 advisory, из них 3 критичных.
+Обновления упирались в ядро Medusa, поэтому это была отдельная задача. Сделана
+**частично**: ветка `fix/backend-prod-deps`, влит merge-коммитом `ef4727b`, в проде с
+03.11.
+
+Что именно изменено в `backend/package.json`:
+
+- `@medusajs/admin-sdk`, `cli`, `framework`, `medusa` и dev-зависимость
+  `@medusajs/test-utils`: `2.13.1` → `2.13.6` (в пределах ветки `2.13.x`, чтобы не
+  трогать поведение ядра и миграции);
+- `fast-xml-parser` → `^5.12.0`, `nodemailer` → `^10.3.1`;
+- `overrides` — только `"lodash": "^4.18.1"` (у `lodash@4.17.20` 12 advisory от
+  `@medusajs/utils`, `@mikro-orm/cli` и `jsonwebtoken`, и он попадает в рантайм-бандл);
+- dev-зависимость `knex` из M3 — с `^3.1.0` на **точный `3.2.8`**: при `^`/`~` npm
+  ставит второй `knex` внутрь `@mikro-orm/knex`, из-за чего типы расходятся
+  (`src/index.ts:41` → `TS2345` в `tamir-catalog-popularity`);
+- `package-lock.json` пересобран с нуля. При инкрементальной пересборке `@mikro-orm/*`
+  легло вложенной копией в `node_modules/@medusajs/deps`, а `@medusajs/product`,
+  `@medusajs/promotion` и др. делают `require('@mikro-orm/core')`, не объявляя
+  зависимости (расчёт на hoisting). На чистом `npm ci` в CI это давало
+  `Cannot find module '@mikro-orm/core'` на шаге миграций и на Rozetka-шаге. Итоговая
+  раскладка совпадает с `main`: `@mikro-orm/{core,knex,postgresql,cli,migrations}`
+  `6.6.12` одним слоем сверху, вложенных копий нет.
+
+Прод-срез `npm audit --omit=dev` по лок-файлам репозитория:
+
+| Срез | Advisory в prod | Критичных | Уникальные advisory |
+|------|-----------------|-----------|---------------------|
+| `backend/` до #78 (`acb4e6c`) | 155 | 3 | 150 |
+| `backend/` после #78 (`ef4727b`) | 123 (`4 low`, `93 moderate`, `26 high`) | **0** | 33 |
+
+Снято **117 advisory** (3 критичных, 54 high, 54 moderate, 6 low), новых — 0.
+Снятые критичные: `GHSA-gwhv-j974-6fxm` (`@mikro-orm/core` <6.6.10),
+`GHSA-xq3m-2v4x-88gg` (`protobufjs` <7.5.5), `GHSA-jqcg-44mw-7w3h`
+(`proxy-addr` >=1.1.0 <2.0.8).
+
+Что осталось (33 advisory) и почему не сделано здесь — всё это отдельные задачи:
+
+- **`@mikro-orm/knex` `GHSA-cfw5-68c4-ffqp` (`<=6.6.13`)** — единственный оставшийся
+  high. Фикс — `6.6.14`, но Medusa `2.13.6` держит `6.6.12`. Форс через `overrides`
+  (`@mikro-orm/core`/`knex`/`postgresql` `>=6.6.14`) даёт `6.7.3` + `knex@3.2.8`, и
+  `npx medusa db:migrate` падает в `preparePopulate` (`QueryHelper`): `kind`
+  разворачиваемого поля читается из `meta.properties[field].kind` и даёт
+  `Cannot read properties of undefined` в `loadRelationCountAndSelect`
+  (`@medusajs/product`) — ORM расходится с тем API, под который Medusa `2.13.6`
+  собирает схему. Закроется вместе с ядром Medusa `2.22.x` (см. задачу по апгрейду
+  ядра), не отдельным `overrides`.
+- кросс-мажорные цепочки, где «фикс» из `npm audit` — major со сломанным API:
+  OTel (`@opentelemetry/{core,propagator-jaeger,exporter-prometheus,
+  sdk-tracer-node,instrumentation-pg}`, `resources@2.7.1` требует и
+  `@opentelemetry/resources ^2`, так что partial-форс `resources ^1.30.1` даёт
+  `TypeError: This method is not implemented` уже при загрузке раннера);
+  `@graphql-tools/utils` (`GHSA-7mx3-vvmw-hjmv`, `GHSA-c4qx-w738-7hr3`);
+  `zod` (чинится только в `zod@4`, у нас `^3.25.76` — M3-пин); `vite` (7 advisory,
+  все ≤6.4.3); `react-router`/`@remix-run/router`/`react-router-dom`; `esbuild`,
+  `ajv`, `csv-parse`, `uuid`, `minimatch`, `glob`, `deepmerge`,
+  `i18next-http-backend`.
+
+**Локальная проверка PR #78 (Docker, паритет с `verify.yml`).** Контейнер `node:20`
+(`v20.20.2`, npm `10.8.2`) с кодом `ef4727b` в общей network-namespace с `postgres:16`
+(`16.13`, `ssl=off`) и `redis` (`+PONG`) — env дословно как в `verify.yml`
+(`DB_HOST=localhost`, `DB_PORT=5432`, `REDIS_URL=redis://localhost:6379`,
+`NODE_ENV=test`, без `sslmode`), одноразовые `JWT_SECRET`/`COOKIE_SECRET` =
+`randomBytes(32).hex`. Все шаги зелёные: `guard-env.cjs` (exit 0), `npm ci`
+(1356 пакетов), `npm run test:cjs -- --no-db` (13 файлов, JUnit `testcase=76`,
+0 failures, 0 skips), `db:migrate` (`MIGRATING UP` ×156, откатов 0, строк `Can't open`
+и `ECONNREFUSED` 0), `setup-reviews`, `rozetka-native`
+(`ROZETKA_NATIVE_INTEGRATION_OK`), `npm run test:cjs -- --db-only` (12 файлов,
+`testcase=76`, 0/0), `npm run test:integration:http` (Jest: **7 suites, 17 tests —
+все прошли**), `npm run build` и `tsc --noEmit` (exit 0). Дополнительно:
+`npm ls knex` → `knex@3.2.8` + `@mikro-orm/knex@6.6.12 → knex@3.2.8 (deduped)`;
+`require.resolve('@mikro-orm/core')` из `@medusajs/product/dist/services`,
+`@medusajs/modules-sdk/dist` и `@medusajs/promotion/dist` → один hoisted пакет
+`6.6.12` (не вложенный `@medusajs/deps`); `npm audit --omit=dev` — 123 advisory,
+0 критичных, и тот же срез по `node_modules` собранного `.medusa/server`; `\dt` в БД
+импорта — 149 таблиц, `mikro_orm_migrations` = 160, таблицы `tamir_review`,
+`tamir_review_audit`, `tamir_review_rate`, `tamir_review_vote` на месте, `mkm_review`
+нет. По этому прогону надо поправить формулировку: в сообщении коммита `d38efd8`
+написано «только в CI (нет Docker и локального Postgres)» — это неверно, локальная
+проверка выполнена через Docker (в теле PR #78 текст исправлен; сам коммит не
+переписывается, чтобы не перезапускать CI).
+
+**CI и прод-подтверждение (03.11).** PR-ран `Verify` `41716910696` — зелёный (обе
+матрицы). Push-ран на `main` `41718328718` — зелёный: витрина `# tests 280 / # pass 280`,
+`[run-tests] no-db: 13 file(s)`, `[run-tests] db: 12 file(s)`, Jest
+`Test Suites: 7 passed`, `Tests: 17 passed`. Мерж — merge-коммит `ef4727b`;
+`Deploy TAMIR` `41719775468` (`completed success`), релиз
+`/root/tamir-releases/20261103T211318Z-ef4727b388a5`, ff-merge VPS-чекаута `main`
+`acb4e6c..ef4727b`. Замеры на VPS: пины релиза — `@medusajs/*` `2.13.6`,
+`fast-xml-parser ^5.12.0`, `nodemailer ^10.3.1`, dev-`knex 3.2.8`,
+`overrides` = `{"lodash": "^4.18.1"}`; `node_modules/knex` = `3.2.8` и
+`@mikro-orm/knex → knex@3.2.8 (deduped)`; `.medusa/server/node_modules/@mikro-orm/*`
+(и вложенный `@medusajs/deps/node_modules/@mikro-orm/*`) = `6.6.12`; `npm audit
+--omit=dev` по дереву релиза — **123 advisory, 0 критичных** (тот же срез, что и по
+лок-файлам). Периметр после деплоя: `ss -lntp` — из наших процессов только
+`127.0.0.1:3000` (`next-server`) и `127.0.0.1:9000`, строк `0.0.0.0` нет; pm2
+`tamir-backend`/`tamir-frontend` онлайн, restarts 0, unstable 0. HTTP: loopback
+`http://127.0.0.1:3000/rs` — 200, `http://127.0.0.1:9000/health` — 200; снаружи
+`https://tamir.rs/rs` — 200, `https://tamir.rs/en` — 200, `https://api.tamir.rs/health`
+— 200 `OK` с полным набором security-заголовков из #72 (CSP, HSTS,
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`).
+Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не трогались.
 
 ---
 
