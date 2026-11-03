@@ -126,7 +126,8 @@ test("every next/image remote origin is also allowed by CSP img-src", async () =
       assert.ok(parts["img-src"].includes(origin), `img-src must keep ${origin}`)
     }
     for (const pattern of nextConfig.images.remotePatterns) {
-      const origin = `${pattern.protocol}://${pattern.hostname}`
+      // `remotePatterns` описывает origin без пути, но с портом — CSP сверяем в том же виде.
+      const origin = `${pattern.protocol}://${pattern.hostname}${pattern.port ? `:${pattern.port}` : ""}`
       assert.ok(parts["img-src"].includes(origin), `next/image грузит ${origin}, а CSP его запрещает`)
     }
   })
