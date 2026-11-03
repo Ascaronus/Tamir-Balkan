@@ -1,7 +1,7 @@
 # security-access-control Specification
 
 ## Purpose
-Фиксирует текущий уровень безопасности tamir.rs: маршрутную таблицу middleware с аутентификацией и лимитами тела запросов, блокировку legacy-регистрации, троттлинг входа, HMAC-хэширование счётчиков, доверенное определение IP клиента и проверку капчи.
+Фиксирует текущий уровень безопасности tamir.rs: маршрутную таблицу middleware с аутентификацией и лимитами тела запросов, блокировку legacy-регистрации, троттлинг входа, HMAC-хэширование счётчиков, доверенное определение IP клиента, проверку капчи и security-заголовки витрины.
 
 ## Requirements
 
@@ -124,3 +124,42 @@ HMAC-SHA256 от составного значения, а не в открыт�
 
 - **WHEN** `NODE_ENV=development` и `COOKIE_SECURE=false`
 - **THEN** auth-cookie выдаются без флага `Secure`, сохраняя `sameSite=lax`
+
+### Requirement: Витрина раздаёт security-заголовки на каждом маршруте
+
+`frontend/next.config.ts` обязан (MUST) через `headers()` назначать на правиле `/:path*`
+набор security-заголовков: `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
+`Permissions-Policy` (запрещены `camera`, `microphone`, `geolocation`, `payment`, `usb`,
+`interest-cohort`), `Cross-Origin-Opener-Policy: same-origin` и
+`X-Permitted-Cross-Domain-Policies: none`; там же обязан (MUST) стоять
+`poweredByHeader: false`, чтобы Next не публиковал `X-Powered-By`.
+Базовые директивы CSP обязаны (MUST) быть `default-src 'self'`, `frame-ancestors 'none'`,
+`base-uri 'self'`, `form-action 'self'`, `font-src 'self'`; внешние origin в CSP обязаны (MUST)
+ограничиваться тем, что витрина грузит фактически: `https://www.googletagmanager.com` (GA4 после
+согласия), `https://challenges.cloudflare.com` (Turnstile — `script-src`, `connect-src`, `frame-src`)
+и origin Store API из `NEXT_PUBLIC_MEDUSA_BACKEND_URL` (`connect-src`, `img-src`).
+
+#### Scenario: Заголовки приходят и на успешной странице, и на ошибке маршрута
+
+- **WHEN** браузер запрашивает существующий маршрут витрины и несуществующий
+- **THEN** оба ответа содержат `Content-Security-Policy`, `X-Frame-Options: DENY` и `X-Content-Type-Options: nosniff`
+- **AND** ни один ответ не содержит `X-Powered-By`
+
+#### Scenario: HSTS не распространяется на поддомены
+
+- **WHEN** витрина отвечает в `production`
+- **THEN** приходит `Strict-Transport-Security: max-age=31536000` без `includeSubDomains`, поэтому правило браузера не затрагивает `vpn.tamir.rs`
+- **AND** в `development` этот заголовок не отправляется, потому что локальная витрина отвечает по `http://localhost`
+
+#### Scenario: CSP разрешает только те картинки, которые загружает next/image
+
+- **WHEN** в `images.remotePatterns` описан удалённый origin
+- **THEN** директива `img-src` разрешает этот же origin
+
+#### Scenario: Инлайновый скрипт остаётся рабочим
+
+- **WHEN** CSP собран для `production`
+- **THEN** `script-src` и `style-src` содержат `'unsafe-inline'` (инлайновый бутстрап роутера Next, JSON-LD товара и inline-стили Tailwind), но не содержат `'unsafe-eval'`
+- **AND** в `development` `'unsafe-eval'` добавляется, потому что HMR-раннер `next dev` исполняет модули через `eval`
+
