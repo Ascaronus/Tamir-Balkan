@@ -635,8 +635,9 @@ reserved.») — решение владельца от 02.11.
 
 ## Проверено и чисто (не флагать повторно)
 
-- Next закрепплён на `16.2.2`, react `19.2.4` — претензии про CVE из Next 15.x **не**
-  применимы.
+- Next на момент аудита был закреплён на `16.2.2`, react `19.2.4` — претензии про CVE из
+  Next 15.x **не** применимы. (На 03.11 витрина обновлена до `16.4.5` — см. раздел
+  «Контрольный аудит 03.11», пункт «Прод-зависимости витрины».)
 - `proxy.ts` — соглашение Next 16, корректно перезаписывает `x-tamir-locale`.
 - В `NEXT_PUBLIC_*` секретов нет.
 - Turnstile проверется на сервере для регистрации, восстановления пароля и отзывов
@@ -708,9 +709,10 @@ reserved.») — решение владельца от 02.11.
 выборочный `revalidate` — **#70** (влит `b3ad97a`), статус этого файла — **#71**
 (влит `037986a`); security-заголовки витрины по контрольному аудиту 03.11 (HIGH-2) —
 **#72** (влит `0b2e106`), его статус — док-PR **#73** (влит `01bbbd9`); сетевой периметр
-(HIGH-1) — **#74** (влит `40868cb`), его статус — этот документ (док-PR,
-возьмёт **#75**); следующая свободная карточка **#76** (номер всё равно уточнить
-при создании — нумерация общая для репозитория).
+(HIGH-1) — **#74** (влит `40868cb`), его статус — док-PR **#75** (влит `d833a75`);
+прод-зависимости витрины по прод-аудиту — **#76** (`fix/next-advisories`); следующая
+свободная карточка **#77** (номер всё равно уточнить при создании — нумерация общая
+для репозитория).
 
 | PR | Предмет | Приоритет | Статус |
 |----|---------|-----------|--------|
@@ -740,8 +742,9 @@ reserved.») — решение владельца от 02.11.
 | #72 | HIGH-2 (контрольный аудит 03.11): security-заголовки витрины — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP, `X-Permitted-Cross-Domain-Policies`, HSTS без `includeSubDomains` + `poweredByHeader: false` (`fix/storefront-security-headers`) | HIGH | ✅ в проде (merge-коммит `0b2e106`, релиз `20261103T161930Z-0b2e1061febc`, 03.11) |
 | #73 | статус этого файла по #72 (`docs/audit-h2-sha`) | LOW | ✅ влит merge-коммитом `01bbbd9` (03.11) |
 | #74 | HIGH-1 (контрольный аудит 03.11): сетевой периметр — `-H 127.0.0.1` в `backend/scripts/start-server.mjs` (default `MEDUSA_BACKEND_HOST=127.0.0.1`), `next start -H 127.0.0.1`, CI-самопроверка `test-support/verify-perimeter-bind.mjs`, дельта спеки «Прод-старт» (`fix/network-perimeter`) | HIGH | ✅ в проде (merge-коммит `40868cb`, релиз `20261103T175238Z-40868cb39688`, 03.11) |
-| #75 | статус этого файла по #74 + чистка устаревших данных в `docs/TESTING.md` (`docs/audit-h1-status`) | LOW | 🚧 открыт (этот PR) |
-| — | Следующий свободный номер PR: **#76** | — | — |
+| #75 | статус этого файла по #74 + чистка устаревших данных в `docs/TESTING.md` (`docs/audit-h1-status`) | LOW | ✅ влит merge-коммитом `d833a75` (03.11) |
+| #76 | прод-зависимости витрины (контрольный аудит 03.11, prod-аудит `npm audit --omit=dev`): `next`/`eslint-config-next` `16.2.2` → `16.4.5`, транзитивные `qs` → `6.17.1` и `source-map-js` → `1.2.2`; `react-hooks/set-state-in-effect` понижен до `warn` (`fix/next-advisories`) | MEDIUM (в prod-аудите `next` — critical) | 🚧 открыт (этот PR) |
+| — | Следующий свободный номер PR: **#77** | — | — |
 
 Порядок мержей: **#59 → #60 → #61 → #62 → #63 → #64 → #65** — все влиты 01.11
 по одному,
@@ -852,6 +855,69 @@ Loopback-пробы с самого VPS: `http://127.0.0.1:9000/health` — 200,
 через nginx цел: `https://tamir.rs/robots.txt` — 200, `https://api.tamir.rs/health` —
 200. Внешние TCP-пробы `tamir.rs:3000`/`tamir.rs:9000` до мержа устанавливались,
 после — нет. Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не трогались.
+
+### Прод-зависимости витрины — PR #76
+
+Прод-аудит `npm audit --omit=dev` по лок-файлам репозитория (снимался 03.11):
+
+| Дерево | Advisory в prod | Критичных |
+|--------|-----------------|-----------|
+| `frontend/` до PR #76 | 7 (`next` critical, `sharp`/`nanoid`/`postcss`/`source-map-js` high, `qs`/`baseline-browser-mapping` moderate) | 1 |
+| `frontend/` после PR #76 | **0** | 0 |
+| `backend/` | 155 | 3 (`@mikro-orm/core`, `protobufjs`, `proxy-addr`) |
+
+Существенный пункт — `next` 16.2.2: в этом диапазоне 34 advisory, включая
+**неаутентифицированное RCE в Image Optimization API** на SVG (`GHSA-2464-fhr4-w9xw`)
+и AVIF (`GHSA-2xp9-vwfh-vxw4`), DoS в том же API (`GHSA-h64f-5h5j-jqjh`), SSRF в Image
+Optimization (`GHSA-cjq9-62q9-8jv4`), обходы Middleware/Proxy (`GHSA-267c-6grr-h53f`,
+`GHSA-492v-c6pp-mqqv`), отравление кэша SSG/ISR при self-hosted-сборке
+(`GHSA-4jqv-mc3x-m676`, `GHSA-mcj8-r9mp-w47p`) и утечку внутренних Server Function
+endpoints (`GHSA-955p-x3mx-jcvp`). Профиль прод-витрины под эти advisory подходит:
+self-hosted `next start` (не Vercel), App Router, `ƒ Proxy (Middleware)` и
+активный Image Optimization (`next/image` + `images.remotePatterns`).
+
+Что сделано в PR:
+
+- `next` и `eslint-config-next` — закреплённые `16.2.2` → `16.4.5`
+  (`npm install --save-exact`), это patch/minor-обновление внутри той же мажорной
+  ветки 16;
+- транзитивные `qs` `6.15.0` → `6.17.1` (через `@medusajs/js-sdk`) и `source-map-js`
+  `1.2.1` → `1.2.2` (через `@tailwindcss/postcss`/`postcss`) — `npm update`, то есть
+  строго внутри уже объявленных semver-диапазонов, `package.json` не меняется;
+- `@medusajs/js-sdk`/`@medusajs/types` **не** тронуты: остаётся `2.13.5` в тон
+  бэкенду `2.13.x`, отдельно тянуть SDK `2.21` в витрину без обновления бэкенда
+  неправильно;
+- `frontend/package-lock.json` перегенерирован (`npm ci`-совместим).
+
+Побочный эффект обновления: `eslint-config-next` 16.4 включает новое правило
+`react-hooks/set-state-in-effect` (по умолчанию `error`), и на нём падают три
+существующих места — два эффекта предзаполнения формы в
+`src/components/checkout/CheckoutPageClient.tsx` (строки 97 и 114) и загрузка списка
+отзывов в `src/components/reviews/ProductReviews.tsx` (строка 48). Рефакторинг этих
+эффектов — отдельная задача (это поведение checkout и отзывов, а не зависимости),
+поэтому в `frontend/eslint.config.mjs` правило понижено до `warn` с комментарием:
+`npm run lint -- --quiet` остаётся зелёным, нарушения видны как warning'и.
+
+`npm audit` как шаг CI не добавляем: база advisory меняется ежедневно, из-за чего
+проверки стали бы нестабильными, а dev-цепочки (см. ниже) красили бы CI сразу.
+Закрываем точечно и по существу через лок-файл.
+
+Что осталось в дереве витрины и принято сознательно: 19 advisory только в dev-зависимостях
+(цепочки `eslint`/`@typescript-eslint`/`@eslint/*`, `brace-expansion`). В прод-бандл они
+не попадают, а «фикс» из `npm audit` — major-переход на `eslint@4` (или абсурдный
+`eslint-config-next@0.2.4`). Отдельная задача по обновлению линт-стека.
+
+Бэкенд-дерево (155 advisory, 3 критичных) при закреплённых `@medusajs/*` `2.13.1` —
+отдельный PR: там обновления упираются в ядро Medusa и требуют проверки миграций и
+HTTP-тестов, в этот PR не входит.
+
+**Локальная проверка PR #76.** `npm test` в `frontend/` — 280/280;
+`npm run lint -- --quiet` — 0 ошибок (14 warning'ов); `npm run build` на Next 16.4.5 —
+успешен, набор маршрутов не изменился (16 статических страниц, `ƒ Proxy (Middleware)`);
+`node test-support/verify-localized-routes.mjs` — PASS;
+`node test-support/verify-perimeter-bind.mjs` — PASS (`next start -H 127.0.0.1` не тронут);
+`npm audit --omit=dev` — `found 0 vulnerabilities`. `next@16.4.5` требует Node
+`>=20.9.0` — матрица CI (`20.20.2`, `24`) этому соответствует.
 
 ---
 

@@ -1,6 +1,6 @@
 # TAMIR storefront
 
-Next.js 16.2.2 / React 19 / TypeScript / Tailwind CSS 4. Витрина SR/EN обслуживает один рынок Сербии и цены RSD. Шрифт — Manrope через `next/font`, не шаблонный Geist.
+Next.js 16.4.5 / React 19 / TypeScript / Tailwind CSS 4. Витрина SR/EN обслуживает один рынок Сербии и цены RSD. Шрифт — Manrope через `next/font`, не шаблонный Geist.
 
 ## Запуск
 
