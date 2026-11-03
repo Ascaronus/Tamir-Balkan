@@ -111,7 +111,7 @@ export function decimalAdminConfig(backendRoot: string) {
       name: "tamir-admin-decimals", enforce: "pre" as const,
       buildStart() {
         const version = JSON.parse(readFileSync(path.join(dashboardDir, "package.json"), "utf8")).version
-        if (version !== "2.13.1") throw new Error("Review decimal field compatibility before upgrading Medusa dashboard")
+        if (version !== "2.13.6") throw new Error("Review decimal field compatibility before upgrading Medusa dashboard")
         const seen = new Set<string>()
         for (const file of readdirSync(path.join(dashboardDir, "dist"))) {
           if (file.endsWith(".mjs")) transformDecimalDashboard(readFileSync(path.join(dashboardDir, "dist", file), "utf8"), helperDir, seen)
