@@ -13,7 +13,26 @@ flock -n 9 || { echo "Another deployment is running." >&2; exit 1; }
   echo "Tracked source files have local changes. Commit them before deploying." >&2
   exit 1
 }
-git fetch origin main
+# GitHub's SSH front end intermittently rejects this deploy key from the VPS
+# (measured 2026-11-04: four consecutive "Permission denied (publickey)" failures on
+# `git fetch origin main`, then a successful fetch within two minutes). The fetch is
+# read-only, so repeating it is safe; only a run that fails every attempt is aborted.
+fetch_ok=0
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  if git fetch origin main; then
+    fetch_ok=1
+    break
+  fi
+  echo "git fetch origin main failed (attempt ${attempt}/12)." >&2
+  if (( attempt < 12 )); then
+    echo "Retrying in 15 seconds." >&2
+    sleep 15
+  fi
+done
+if (( fetch_ok == 0 )); then
+  echo "git fetch origin main failed after 12 attempts; check the VPS deploy key and network." >&2
+  exit 1
+fi
 # The release must be the exact commit that passed CI; a bare branch head is refused,
 # because origin/main can move between the verified run and the start of this deploy.
 if [[ $# -ne 1 || ! $1 =~ ^[0-9a-f]{40}$ ]]; then
