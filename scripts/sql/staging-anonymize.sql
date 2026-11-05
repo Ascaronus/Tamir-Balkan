@@ -47,6 +47,10 @@ DECLARE
     'api_key','sales_channel','store','region','country','shipping_option',
     'tax_region','price_list','product','product_variant','collection','category'
   ];
+  -- Staging-собственные аккаунты (@tamir.local): их создаёт deploy-staging.sh (администратор
+  -- админки), это не персональные данные прода. Если их маскировать, стенд теряет вход в
+  -- /app, а проверка ниже считала бы их «остатком» прода-почты.
+  staging_email text := '%@tamir.local';
 BEGIN
   FOR r IN
     SELECT c.table_name, c.column_name
@@ -76,7 +80,8 @@ BEGIN
       ELSE expr := '''ANON''';
     END CASE;
     BEGIN
-      EXECUTE format('UPDATE %s SET %s = %s WHERE %s IS NOT NULL', rel, col, expr, col);
+      EXECUTE format('UPDATE %s SET %s = %s WHERE %s IS NOT NULL AND %s NOT LIKE %L',
+                     rel, col, expr, col, col, staging_email);
       GET DIAGNOSTICS affected = ROW_COUNT;
       EXECUTE $ins$INSERT INTO tamir_staging.anonymized_column (relation, column_name, rows_masked)
                    VALUES ($1, $2, $3)
@@ -134,6 +139,59 @@ BEGIN
 END
 $auth$;
 
+-- Медиа-ссылки. Файлы static/ переносятся на стенд в shared/uploads, но в дампе прода
+-- адреса остаются продными (https://api.tamir.rs/static/...) или локальными (localhost:9000).
+-- Оставить их нельзя: витрина стенда тянула бы картинки с прода (нарушение изоляции, ТЗ §3),
+-- а после переноса файлов стенд показывал бы 404. Поэтому префиксы переписываются на
+-- staging-домен. Колонки ищем по information_schema, чтобы не пропустить новую таблицу Medusa;
+-- чужие префиксы (tamir.ua/images/uploads, S3-демо Medusa) не трогаем - эти файлы мертвы и на проде.
+DO $media$
+DECLARE
+  r record;
+  src text;
+  affected integer;
+  total integer := 0;
+  dst text := 'https://test-api.tamir.rs/static/';
+  src_prefixes text[] := ARRAY[
+    'https://api.tamir.rs/static/',
+    'http://api.tamir.rs/static/',
+    'https://tamir.rs/static/',
+    'http://localhost:9000/static/',
+    'https://localhost:9000/static/',
+    'http://127.0.0.1:9000/static/',
+    'https://127.0.0.1:9000/static/'
+  ];
+BEGIN
+  FOR r IN
+    SELECT c.table_name, c.column_name
+    FROM information_schema.columns c
+    JOIN information_schema.tables t
+      ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+    WHERE c.table_schema = 'public'
+      AND c.column_name IN ('url', 'thumbnail', 'thumbnail_url', 'image_url')
+      AND c.data_type IN ('character varying', 'text')
+    ORDER BY c.table_name, c.column_name
+  LOOP
+    FOREACH src IN ARRAY src_prefixes LOOP
+      BEGIN
+        EXECUTE format(
+          'UPDATE %I SET %I = %L || substr(%I, length(%L) + 1) WHERE %I LIKE %L',
+          r.table_name, r.column_name, dst, r.column_name, src, r.column_name, src || '%'
+        );
+        GET DIAGNOSTICS affected = ROW_COUNT;
+        IF affected > 0 THEN
+          total := total + affected;
+          RAISE NOTICE 'media %.%: % строк переведены на %', r.table_name, r.column_name, affected, dst;
+        END IF;
+      EXCEPTION WHEN others THEN
+        RAISE NOTICE 'skip media %.%: %', r.table_name, r.column_name, SQLERRM;
+      END;
+    END LOOP;
+  END LOOP;
+  RAISE NOTICE 'медиа-ссылки: всего переведено на staging-домен % строк', total;
+END
+$media$;
+
 -- Контроль результата: ни одной строки с оригинальным email быть не должно.
 DO $verify$
 DECLARE
@@ -150,8 +208,8 @@ BEGIN
   LOOP
     BEGIN
       EXECUTE format(
-        'SELECT count(*) FROM %I WHERE email IS NOT NULL AND email NOT LIKE %L',
-        r.table_name, '%@anon.invalid'
+        'SELECT count(*) FROM %I WHERE email IS NOT NULL AND email NOT LIKE %L AND email NOT LIKE %L',
+        r.table_name, '%@anon.invalid', '%@tamir.local'
       ) INTO leftover;
       total_leftover := total_leftover + leftover;
       IF leftover > 0 THEN

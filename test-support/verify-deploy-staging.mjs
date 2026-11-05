@@ -117,4 +117,30 @@ assert.match(
   /git merge-base --is-ancestor "\$target" origin\/main/,
   'deploy-staging.sh must verify ancestry against the freshly fetched origin/main'
 )
+// Медиа-симлинки обязаны появляться ПОСЛЕ сборок. `npm run build` в backend вызывает
+// `medusa build`, который пересоздаёт `.medusa/server`; симлинк, созданный до сборки,
+// стирается вместе с каталогом, и /static начинает отдавать 404 (замерено на стенде 05.11).
+const backendBuild = script.indexOf('staging_note "Сборка backend"')
+const storefrontBuild = script.indexOf('staging_note "Сборка витрины"')
+const mediaLinks = script.indexOf('Медиа-симлинки релиза')
+assert.notStrictEqual(backendBuild, -1, 'deploy-staging.sh must build the backend in the release')
+assert.notStrictEqual(storefrontBuild, -1, 'deploy-staging.sh must build the storefront in the release')
+assert.notStrictEqual(mediaLinks, -1, 'deploy-staging.sh must attach the release media symlinks')
+assert.ok(
+  backendBuild < storefrontBuild && storefrontBuild < mediaLinks,
+  'media symlinks must be created after both builds: medusa build rewrites .medusa/server and deletes earlier symlinks'
+)
+// start-server.mjs запускает `medusa start` с cwd .medusa/server - раздает /static он оттуда,
+// поэтому одного симлинка в корне релиза недостаточно.
+assert.match(
+  script,
+  /\['backend',\s*'backend\/\.medusa\/server'\]/,
+  'media symlinks must cover both the release root and backend/.medusa/server where medusa actually serves /static'
+)
+// Картинки с чужих хостов означают, что стенд зависит от прода (ТЗ §3).
+assert.match(
+  script,
+  /\$STAGING_SHARED_UPLOADS\/static/,
+  'release media must point at the staging shared uploads directory, never at prod files'
+)
 console.log('Staging deploy guard verified: green-Verify-only triggers, gated SHA, no PR code on the runner')
