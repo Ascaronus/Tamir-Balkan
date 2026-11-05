@@ -18,7 +18,8 @@ PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
 - Push в `main` запускает `Verify storefront and backend` (`.github/workflows/verify.yml`).
 - После зелёного Verify на push в `main` автоматически стартует **Deploy to Staging**
   (`.github/workflows/deploy-staging.yml`): job `gate` на GitHub-раннере проверяет через API, что
-  коммит входит в `main` и что все check-suites на нём завершены успешно, затем job `deploy`
+  коммит входит в `main` и что прогоны `verify.yml` на нём (в `main`, события `push`/`workflow_dispatch`)
+  завершены успешно, затем job `deploy`
   на self-hosted runner вызывает `scripts/deploy-staging.sh <sha>`.
 - Прод (`deploy.yml`) автоматически не запускается никогда: только `workflow_dispatch`
   с обязательным вводом `sha` (40 hex), который прошёл Verify в `main`.

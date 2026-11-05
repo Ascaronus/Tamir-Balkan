@@ -44,8 +44,20 @@ assert.match(
 )
 assert.match(
   workflow,
-  /commits\/\$TARGET_SHA\/check-suites/,
+  /actions\/workflows\/\$VERIFY_WORKFLOW\/runs\?head_sha=\$TARGET_SHA/,
   'the gate job must prove Verify finished successfully on the exact SHA'
+)
+// Check-suites нельзя использовать как источник истины: в него попадают прогоны и других
+// воркфлоу на том же SHA (включая сам staging-деплой), поэтому гейт блокировал сам себя.
+assert.doesNotMatch(
+  workflow,
+  /gh api[^\n]*check-suites/,
+  'the gate job must not read the check-suites API: unrelated workflow suites poison the SHA'
+)
+assert.match(
+  workflow,
+  /head_branch == "main" and \(\.event == "push" or \.event == "workflow_dispatch"\)/,
+  'the gate must accept only Verify runs from main (push or manual), never PR runs'
 )
 // Гейт работает без checkout, поэтому gh не может развернуть свои плейсхолдеры
 // владельца и репозитория: путь к API обязан собираться из github.repository явно.
@@ -66,8 +78,8 @@ assert.match(
 )
 assert.match(
   workflow,
-  /repos\/\$GH_REPO_PATH\/commits\/\$TARGET_SHA\/check-suites/,
-  'the check-suites gate must address the current repository by $GH_REPO_PATH'
+  /repos\/\$GH_REPO_PATH\/actions\/workflows\/\$VERIFY_WORKFLOW\/runs/,
+  'the Verify-runs gate must address the current repository by $GH_REPO_PATH'
 )
 assert.match(
   workflow,

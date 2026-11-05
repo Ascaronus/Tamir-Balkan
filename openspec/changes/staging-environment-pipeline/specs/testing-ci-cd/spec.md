@@ -50,8 +50,10 @@ and backend` на push в `main` обязан (MUST) быть только Deplo
 Прод-Deploy обязан (MUST) взять `VERIFIED_SHA` из обязательного ввода `sha` (`github.event.inputs.sha`)
 и отказать при несоответствии формата `^[0-9a-f]{40}$`. Перед подключением к VPS workflow обязан
 (MUST) проверить тот SHA через GitHub API: `compare main...sha` обязан вернуть статус `behind` или
-`identical`, а все `check-suites` этого коммита обязаны быть `completed` с conclusion `success`,
-`neutral` или `skipped`. После проверки SHA обязан (MUST) быть передан удалённой команде `deploy` по
+`identical`, а все завершённые прогоны verify-workflow на этом SHA в `main` (события `push` или
+`workflow_dispatch`) обязаны иметь conclusion `success`, `neutral` или `skipped`. Читать
+`check-suites` гейт не обязан (SHOULD NOT): в них попадают прогоны других workflow того же SHA.
+После проверки SHA обязан (MUST) быть передан удалённой команде `deploy` по
 SSH с усиленными опциями (`BatchMode`, `IdentitiesOnly`, `StrictHostKeyChecking=yes`,
 `HostKeyAlias=tamir-vps`, `UserKnownHostsFile` из секрета `VPS_KNOWN_HOSTS`, ключ во временном
 каталоге с `umask 077`).
@@ -100,8 +102,8 @@ SSH с усиленными опциями (`BatchMode`, `IdentitiesOnly`, `Stri
 ### Requirement: Ручной запуск staging-деплоя по SHA
 `Deploy to Staging` обязан (MUST) поддерживать `workflow_dispatch` с обязательным вводом `sha`
 (40 hex) и обязан (MUST) выполнять тот же API-гейт происхождения коммита (`compare main...sha` ∈
-{`behind`, `identical`}, `check-suites` — `completed` с conclusion `success`/`neutral`/`skipped`),
-что и прод-Deploy. Job `deploy` обязан (MUST) вызывать `scripts/deploy-staging.sh <sha>` без
+{`behind`, `identical`}, прогоны verify-workflow в `main` — `completed` с conclusion
+`success`/`neutral`/`skipped`), что и прод-Deploy. Job `deploy` обязан (MUST) вызывать `scripts/deploy-staging.sh <sha>` без
 собственного `actions/checkout`.
 
 #### Scenario: Возврат стенда на предыдущий коммит main
