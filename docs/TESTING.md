@@ -289,6 +289,14 @@ Escape, touch, границы viewport, SR/EN, ссылки вариантов, 
 `banner-carousel.test.mjs` и `banner-admin.test.mjs` — component/unit; `homepage-banners.test.cjs` — unit/handler;
 `homepage-banners.integration.cjs` — PostgreSQL; `integration-tests/http/homepage-banners.spec.ts` — Medusa HTTP.
 
+`banner-admin.test.mjs` дополнительно проверяет создание из пустого списка, сохранение SR/EN-правок
+после закрытия редактора, отключение автопрокрутки без потери интервала, порядок строк,
+подтверждения меню, блокировку повторных запросов, ошибку публикации и повтор с актуальной revision,
+а также статус, не зависящий от одного лишь updatedAt. Native Medusa UI заменён на границе harness:
+эти тесты не подтверждают работу Radix-порталов, фокуса и визуальный результат. Внешний QA должен
+проверить светлую/тёмную тему, клавиатуру, вкладки SR/EN, загрузку файла, вложенный preview,
+возврат фокуса, подтверждения и узкий экран в браузере.
+
 ### Checkout и подтверждение заказа
 
 `frontend/tests/checkout-fields.test.mjs`: component-harness проверяет включённое
