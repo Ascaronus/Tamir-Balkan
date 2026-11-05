@@ -155,7 +155,9 @@ sudo -u actions-runner grep '^MP_UI_AUTH=' /opt/tamir-staging/secrets/docker.env
 пароля, поэтому контейнер и секрет меняются до проверки):
 
 ```bash
-# 1. клон обязан содержать свежий docker-compose.staging.yml (его читает bootstrap/smoke)
+# 1. клон обязан содержать свежий docker-compose.staging.yml (его читает bootstrap/smoke).
+#    Штатно это делает деплой: `TAMIR_ALLOW_NON_MAIN=1 bash scripts/deploy-staging.sh <40-hex SHA>`
+#    (обход нужен, пока коммит не в main). Ниже — тот же результат вручную, без сборки релиза:
 sudo -u actions-runner bash -c 'cd /opt/tamir-staging/repo && git fetch origin main && git checkout -q --force --detach origin/main'
 # 2. bootstrap идемпотентен: допишет MP_UI_AUTH в существующий docker.env и пересоздаст mailpit.
 #    Без --force-secrets, иначе пересоздались бы пароли Postgres живой базы.
@@ -316,12 +318,15 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 `backend/tests/staging-contract.test.cjs` (контракт стенда с продуктовым кодом: SMTP-контракт,
 генерируемая экосистема, гейт конфигурации, запрет прод-адресов, периметр веб-почты — 8/8);
 `bash -n` по всем
-`scripts/*.sh` и `scripts/lib/*.sh`; `npx tsc --noEmit` по `backend/src/scripts/staging-mail-check.ts`;
+`scripts/*.sh` и `scripts/lib/*.sh`; `npx tsc --noEmit -p tsconfig.json` по `backend`;
 гварды `test-support/verify-deploy-pin.mjs`, `verify-deploy-dispatch.mjs`, `verify-deploy-staging.mjs`.
 
 На стенде подтверждено фактическим прогоном: `npx medusa user` в собранном релизе создаёт
 администратора с хешем пароля (`provider_identity.provider_metadata`), вход в админку
 `https://test-api.tamir.rs/app` работает; `NODE_EXTRA_CA_CERTS` действует в `NODE_ENV=production`
 (без него `staging-mail-check.ts` падает с `CODE_SEND_FAILED`, с ним — письмо принимается Mailpit);
-порт 587 доступен. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
+порт 587 доступен. Веб-почта: после дописи `MP_UI_AUTH` и пересоздания контейнера `ss -ltn` даёт
+`0.0.0.0:8025`, UI и API без пароля отвечают `401`, с паролем — `200`, а `587`/`5432`/`6379`/`3000`/`9000`
+остались на loopback; с рабочего компьютера вход в `http://<IP стенда>:8025` работает. Полный смоук
+релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
 `pm2-resurrect.service` настроен, перезагрузку не выполняли).

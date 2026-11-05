@@ -82,18 +82,31 @@
       `provider_identity.provider_metadata` — из 5 emailpass-строк хеш сохранён только у него;
       `medusa exec ./src/scripts/staging-mail-check.ts` с `NODE_EXTRA_CA_CERTS` из экосистемы релиза
       принимает письмо Mailpit, без переменной та же команда падает с `CODE_SEND_FAILED`)
-- [ ] 5.8 Открыть веб-почту Mailpit на интерфейс локальной сети под HTTP Basic (по запросу
+- [x] 5.8 Открыть веб-почту Mailpit на интерфейс локальной сети под HTTP Basic (по запросу
       владельца: ящик должен быть виден с рабочего компьютера). Порядок на машине (только под
-      `actions-runner`, см. `docs/STAGING.md`): сначала обновить клон `/opt/tamir-staging/repo` на
-      `origin/main` (иначе bootstrap/smoke читают старый Compose-файл), затем
-      `bash scripts/staging-bootstrap.sh` — он идемпотентно допишет `MP_UI_AUTH` в
-      `secrets/docker.env` и пересоздаст `mailpit` с публикацией `8025` в LAN; далее
+      `actions-runner`, см. `docs/STAGING.md`: деплой релиза, затем идемпотентная допись
+      `MP_UI_AUTH` в `secrets/docker.env` и пересоздание `mailpit` с публикацией `8025` в LAN):
       `ss -ltn | grep :8025` (ожидается `0.0.0.0`), `curl` без пароля → `401`,
       `bash scripts/staging-smoke.sh` и вход с ноутбука на `http://<IP стенда>:8025`. Замечено при
       диагностике: `.git` клона принадлежит `actions-runner`, а `HEAD`/`index` имеют права `0600`,
       поэтому из-под `giper` там `fatal: not a git repository` — клон рабочий, читать его должен
       владелец. Код и контрактный тест в репозитории
       (`node --test backend/tests/staging-contract.test.cjs` — 8/8), на машине нужен `actions-runner`.
+      (измерено 05.11: `MP_UI_AUTH` дописан идемпотентно — бэкап
+      `backups/pre-mailpit-auth-20261105T195525Z/secrets/docker.env`, файл `600 actions-runner`,
+      4 ключа; значение не выводилось в отчёты. `docker compose ... up -d --wait mailpit` →
+      Healthy, `ss -ltn` даёт `0.0.0.0:8025` и `[::]:8025`, а `587`/`5432`/`6379`/`3000`/`9000`
+      остались на `127.0.0.1`. На машине: UI и API без пароля `401`, с паролем `200`,
+      `/api/v1/info` отдал `Messages: 8` — volume `tamir-staging_tamir-staging-mailpit` цел.
+      С ноутбука (`192.168.1.136`): `Test-NetConnection 192.168.1.143 -Port 8025` → `True`,
+      `/` без пароля `401`, с паролем `200`, `/api/v1/info` отвечает. Смоук релиза
+      `20261105T201322Z-767f09283df0`: все строки зелёные, включая «почтовый тракт: отправка и
+      приём в Mailpit», «Mailpit UI доступен из локальной сети: http://192.168.1.143:8025» и
+      «Mailpit UI под паролем: без MP_UI_AUTH отвечает 401». Попутно исправлены два дефекта,
+      найденных этим прогоном: `staging-mail-check.ts` читал тело письма без Basic и падал на
+      `401` (`MP_UI_AUTH` закрывает и UI, и API), а `staging_run` в почтовой проверке обрывал
+      смоук строкой `ERROR` без `FAIL` — для проверки добавлена не-aborting обёртка
+      `staging_call`.)
 
 ## 6. Публичный вход (P0, требует участия владельца)
 
