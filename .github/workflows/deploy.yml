@@ -1,17 +1,19 @@
 name: Deploy TAMIR
 
-# Выпуск начинается только после успешного завершения Verify на ветке main.
-# Push в main по-прежнему запускает Verify; Deploy ожидает его итог, а не стартует параллельно.
-# Выпускается ровно тот коммит, который прошёл Verify (workflow_run.head_sha), а не HEAD main на момент старта деплоя.
+# Выпуск на прод — только вручную (ТЗ §2): push в main запускает Verify, а затем
+# автоматически поднимается staging. Прод ждёт решения человека: workflow_dispatch
+# с sha коммита, который уже прошёл Verify в main. Никаких автоматических триггеров.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Verify storefront and backend"]
-    types: [completed]
-    branches: [main]
+    inputs:
+      sha:
+        description: "40-символьный SHA коммита из main, прошедшего Verify"
+        required: true
+        type: string
 
 permissions:
   contents: read
+  checks: read
 
 concurrency:
   group: tamir-production-deploy
@@ -19,20 +21,47 @@ concurrency:
 
 jobs:
   deploy:
-    # Ручной запуск разрешён только с main: dispatch с любой другой ветки
-    # иначе выполняет деплой с секретами VPS_* и кодом этой ветки.
-    # При dispatch берётся HEAD main на момент создания запуска (github.sha).
-    if: >-
-      (github.event_name == 'workflow_dispatch' &&
-       github.ref == 'refs/heads/main') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'main')
+    # Ручной запуск разрешён только с main: dispatch с другой ветки
+    # иначе выполнял бы деплой с секретами VPS_* и кодом этой ветки.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
+      - name: Confirm the commit passed Verify on main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_SHA: ${{ inputs.sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing to deploy: 'sha' must be a full 40-character commit SHA ('${VERIFIED_SHA}')." >&2
+            exit 1
+          fi
+
+          # Прод обязан выпускать код из main: compare с main даёт status behind|identical,
+          # если коммит действительно предок main (и diverged/ahead — если нет).
+          relation="$(gh api "repos/{owner}/{repo}/compare/main...$VERIFIED_SHA" --jq '.status')"
+          if [[ "$relation" != "behind" && "$relation" != "identical" ]]; then
+            echo "Refusing to deploy: $VERIFIED_SHA is not reachable from main (compare status: $relation)." >&2
+            exit 1
+          fi
+
+          # Verify обязан быть зелёным именно на этом коммите, а не «когда-то на main».
+          suites="$(gh api "repos/{owner}/{repo}/commits/$VERIFIED_SHA/check-suites" --jq '.check_suites[] | "\(.name) \(.status) \(.conclusion)"')"
+          if [[ -z "$suites" ]]; then
+            echo "Refusing to deploy: no check suites on $VERIFIED_SHA — Verify has not run for this commit." >&2
+            exit 1
+          fi
+          echo "$suites"
+          if grep -vqE ' completed (success|neutral|skipped)$' <<< "$suites"; then
+            echo "Refusing to deploy: not every check suite finished successfully on $VERIFIED_SHA." >&2
+            exit 1
+          fi
+          echo "Deploying ${VERIFIED_SHA}: Verify is green and the commit is reachable from main."
+
       - name: Deploy the verified commit to VPS
         shell: bash
         env:
@@ -40,8 +69,8 @@ jobs:
           VPS_PORT: ${{ secrets.VPS_PORT }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
-          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          VERIFIED_RUN: ${{ github.event.workflow_run.id }}
+          VERIFIED_SHA: ${{ inputs.sha }}
+          VERIFIED_RUN: ${{ github.run_id }}
         run: |
           set -Eeuo pipefail
 
@@ -50,13 +79,13 @@ jobs:
           : "${VPS_SSH_KEY:?Missing VPS_SSH_KEY}"
           : "${VPS_KNOWN_HOSTS:?Missing VPS_KNOWN_HOSTS}"
 
-          # Pin the release to the exact commit Verify ran on: workflow_run carries its head_sha;
-          # a manual re-run pins the main head as it was when the dispatch was created (github.sha).
+          # Pin the release to the exact commit Verify ran on; the previous step proved
+          # that this SHA is green on main, so the VPS side only re-checks ancestry.
           if [[ ! "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "Refusing to deploy: the event context has no verified commit SHA ('${VERIFIED_SHA}')." >&2
             exit 1
           fi
-          echo "Deploying ${VERIFIED_SHA}, verified by ${VERIFIED_RUN:-this manual dispatch}."
+          echo "Deploying ${VERIFIED_SHA}, verified by run ${VERIFIED_RUN}."
 
           umask 077
           deploy_dir="$(mktemp -d)"

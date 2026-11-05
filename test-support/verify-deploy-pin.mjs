@@ -1,5 +1,6 @@
-// H2 guard: a release must be pinned to the exact commit that passed Verify,
-// never to whatever origin/main happens to point at when the deploy job starts.
+// H2 guard: a production release must be pinned to an explicit verified SHA handed
+// to workflow_dispatch — never to whatever origin/main happens to point at when the
+// deploy job starts. Production is manual-only: no automatic triggers in deploy.yml.
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 
@@ -7,10 +8,32 @@ const read = relative => readFileSync(new URL(relative, import.meta.url), 'utf8'
 const workflow = read('../.github/workflows/deploy.yml')
 const script = read('../scripts/deploy-vps.sh')
 
+// Ручной запуск: SHA приходит только из inputs.sha, автоматических триггеров нет.
 assert.match(
   workflow,
-  /github\.event\.workflow_run\.head_sha \|\| github\.sha/,
-  'deploy.yml must pin the verified run head_sha (workflow_dispatch falls back to github.sha)'
+  /VERIFIED_SHA: \$\{\{ inputs\.sha \}\}/,
+  'deploy.yml must take the release SHA from the required workflow_dispatch input'
+)
+assert.doesNotMatch(
+  workflow,
+  /^\s*workflow_run:/m,
+  'deploy.yml (production) must not have a workflow_run trigger: production releases are manual only'
+)
+assert.match(
+  workflow,
+  /required: true/,
+  'deploy.yml must make the sha input required so a dispatch cannot silently deploy HEAD'
+)
+// Гейт на стороне GitHub: коммит из истории main + зелёный Verify именно на нём.
+assert.match(
+  workflow,
+  /compare\/main\.\.\.\$VERIFIED_SHA/,
+  'deploy.yml must prove the SHA is reachable from main before deploying'
+)
+assert.match(
+  workflow,
+  /commits\/\$VERIFIED_SHA\/check-suites/,
+  'deploy.yml must prove Verify finished successfully on the exact SHA being deployed'
 )
 assert.match(
   workflow,
@@ -37,4 +60,4 @@ assert.match(
   /merge-base --is-ancestor "\$target" origin\/main/,
   'the pinned commit must still be contained in the current origin/main'
 )
-console.log('Deploy pin verified: workflow and script release an explicit verified SHA')
+console.log('Deploy pin verified: production releases an explicit verified SHA, manually only')

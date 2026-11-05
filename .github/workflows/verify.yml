@@ -4,8 +4,9 @@ on:
     branches: [main, fix/store-reliability]
     # Документация (docs/, openspec/, любые .md) не влияет ни на сборку, ни на продукт.
     # Если в push в main менялись только такие файлы, Verify не запускается —
-    # и Deploy (триггер workflow_run от Verify на main) тоже не срабатывает,
-    # прод не пересобирается и pm2 не перезапускается из-за текста в markdown.
+    # и Deploy to Staging (триггер workflow_run от Verify на main) тоже не срабатывает:
+    # pm2 на staging не перезапускается из-за текста в markdown. Прод и так запускается
+    # только вручную (workflow_dispatch), поэтому здесь он не упоминается.
     # Для pull_request фильтр не ставим: required-чеки защищённого main должны
     # приходить по любому PR.
     paths-ignore:
@@ -132,6 +133,7 @@ jobs:
           if-no-files-found: ignore
       - run: node test-support/verify-deploy-dispatch.mjs
       - run: |
-          for sh in scripts/*.sh; do bash -n "$sh"; done
+          for sh in scripts/*.sh scripts/lib/*.sh; do bash -n "$sh"; done
       - run: node test-support/verify-deploy-pin.mjs
+      - run: node test-support/verify-deploy-staging.mjs
       - run: node test-support/verify-perimeter-bind.mjs

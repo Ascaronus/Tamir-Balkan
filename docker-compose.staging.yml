@@ -1,0 +1,75 @@
+# Staging-стек TAMIR.RS (test.tamir.rs / test-api.tamir.rs) — отдельная машина.
+#
+# Полностью изолирован от production: свои имена томов, своя БД, свой пользователь,
+# свои пароли, свой почтовый ящик. Ни одного адреса прод-машины или прод-БД.
+# Все порты публикуются только на 127.0.0.1 — наружу выходит только cloudflared
+# (scripts/staging-tunnel.sh), поэтому с улицы в этот стек попасть нельзя.
+#
+# Секреты читаются из /opt/tamir-staging/secrets/docker.env (файл вне git, его
+# создаёт scripts/staging-bootstrap.sh). Файл должен существовать до `up`.
+name: tamir-staging
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      - /opt/tamir-staging/secrets/docker.env
+    volumes:
+      - tamir-staging-pg:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d tamir_staging"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Сиды и кэш не должны переживать рестарты, поэтому без persistence.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+  # Тестовая почта: письма остаются внутри машины. Бэкенд требует STARTTLS и
+  # порт 587/465 (backend/src/utils/registration-email.ts), поэтому mailpit
+  # принимает SMTP на 587 с обязательным STARTTLS, а сертификат выпускает
+  # scripts/staging-bootstrap.sh (self-signed, доверие через NODE_EXTRA_CA_CERTS).
+  # Веб-интерфейс — http://127.0.0.1:8025, там видно всё входящее.
+  mailpit:
+    image: axllent/mailpit:v1.33
+    restart: unless-stopped
+    environment:
+      MP_SMTP_BIND_ADDR: 0.0.0.0:587
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
+      MP_SMTP_TLS_CERT: /certs/mailpit-tls.crt
+      MP_SMTP_TLS_KEY: /certs/mailpit-tls.key
+      MP_SMTP_REQUIRE_STARTTLS: "true"
+      # Пары SMTP_USER/SMTP_PASSWORD из docker.env; аккаунт в mailpit не заводится.
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_DISABLE_RDNS: "true"
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 5000
+    volumes:
+      - tamir-staging-mailpit:/data
+      - /opt/tamir-staging/secrets/mail:/certs:ro
+    ports:
+      - "127.0.0.1:587:587"
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+volumes:
+  tamir-staging-pg:
+  tamir-staging-mailpit:
