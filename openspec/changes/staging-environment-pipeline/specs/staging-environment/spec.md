@@ -97,6 +97,11 @@ pm2-экосистеме релиза. Проверка тракта обяза�
   email вида `staging-<md5(email)>@anon.invalid` и запись о замаскированной колонке в
   `tamir_staging.anonymized_column`
 
+#### Scenario: Хеши паролей прода не переносятся
+- **WHEN** `staging-anonymize.sql` завершается после загрузки дампа прода
+- **THEN** в `provider_identity.provider_metadata` не остаётся ключа `password`, а число
+  снятых сохранённых паролей публикуется в NOTICE
+
 #### Scenario: Скрипт направлен на прод-базу
 - **WHEN** `staging-anonymize.sql` запускают против базы, имя которой не проходит guard `$guard$`
 - **THEN** выполнение прекращается сообщением о запрещённом имени базы
@@ -105,7 +110,8 @@ pm2-экосистеме релиза. Проверка тракта обяза�
 Все staging-секреты обязаны (MUST) жить в `/opt/tamir-staging/secrets` (права `0600`) и не должны
 (MUST NOT) попадать в репозиторий. `scripts/staging-bootstrap.sh` обязан (MUST) потребовать sitekey
 Turnstile для `test.tamir.rs` и не должен (MUST NOT) молча подставлять заглушку; пароль
-администратора стенда обязан (MUST) генерироваться автоматически при пустой `auth_user`.
+администратора стенда обязан (MUST) генерироваться автоматически, если в таблице `"user"` нет
+staging-адреса.
 
 #### Scenario: Sitekey не передан
 - **WHEN** `staging-bootstrap.sh` запускают без sitekey — нет ни `--turnstile-site-key`, ни
@@ -119,8 +125,9 @@ Turnstile для `test.tamir.rs` и не должен (MUST NOT) молча по
 - **WHEN** `check-review-config.cjs` проверяет staging env
 - **THEN** он проходит, и при этом стенд не использует ни один прод-секрет
 
-#### Scenario: На стенде нет ни одного администратора
-- **WHEN** `SELECT count(*) FROM auth_user` возвращает 0 после миграций
+#### Scenario: На стенде нет staging-администратора
+- **WHEN** `SELECT count(*) FROM "user" WHERE email = 'staging-admin@tamir.local'` возвращает 0
+  после миграций (анонимизация снимает пароли прода, поэтому вход с прода не работает)
 - **THEN** `scripts/deploy-staging.sh` создаёт `staging-admin@tamir.local` со случайным паролем и
   сохраняет креды в `secrets/staging-admin.txt` с правами `0600`
 

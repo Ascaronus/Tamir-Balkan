@@ -147,11 +147,14 @@ staging_note "Проверка SMTP (STARTTLS + auth)"
 staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa exec ./src/scripts/check-email.ts
 
 # Администратор staging: отдельный аккаунт, креды в секретах (не в git, не в отчётах).
+# Таблица админов Medusa называется "user". Анонимизация снимает пароли прода
+# (provider_identity.provider_metadata), поэтому наличие строк в "user" не значит,
+# что в админку можно войти: ищем свой staging-адрес, а не любое число пользователей.
 admin_file="$STAGING_SECRETS_DIR/staging-admin.txt"
-admin_count="$(staging_psql_value "SELECT count(*) FROM auth_user;" 2>/dev/null || echo 0)"
+admin_email="staging-admin@tamir.local"
+admin_count="$(staging_psql_value "SELECT count(*) FROM \"user\" WHERE email = '$admin_email';" 2>/dev/null || echo 0)"
 if [ "${admin_count:-0}" = "0" ]; then
   staging_note "Создаю staging-администратора"
-  admin_email="staging-admin@tamir.local"
   admin_password="$(openssl rand -base64 18)"
   staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa user -e "$admin_email" -p "$admin_password"
   umask 077

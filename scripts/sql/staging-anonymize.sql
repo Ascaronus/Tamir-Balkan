@@ -40,9 +40,11 @@ DECLARE
     'receiver','recipient','contact','tracking_number',
     'ip','ip_address','fingerprint','user_agent'
   ];
-  -- Эти таблицы не трогаем: без них staging не работает (country/region) или ломается вход в админку.
+  -- Эти таблицы не трогаем: без них staging не работает (country/region). Таблица админов
+  -- Medusa называется "user" и маскируется на общих основаниях; вход с прода всё равно
+  -- теряет смысл, потому что $auth$ ниже снимает сохранённые пароли.
   keep_tables text[] := ARRAY[
-    'auth_user','api_key','sales_channel','store','region','country','shipping_option',
+    'api_key','sales_channel','store','region','country','shipping_option',
     'tax_region','price_list','product','product_variant','collection','category'
   ];
 BEGIN
@@ -112,6 +114,26 @@ BEGIN
 END
 $clean$;
 
+-- Логины прода на staging не переносим. Email уже заменён на staging-<md5(email)>@anon.invalid,
+-- а bcrypt-хеш пароля из auth-emailpass удаляем: md5 письмо восстановимо перебором, и оставленный
+-- хеш позволял бы подобрать прода-пароль пользователя прямо на стенде. Рабочий админ staging
+-- создаёт scripts/deploy-staging.sh (креды в secrets/staging-admin.txt).
+DO $auth$
+DECLARE
+  n integer;
+BEGIN
+  BEGIN
+    UPDATE provider_identity
+       SET provider_metadata = provider_metadata - 'password'
+     WHERE provider_metadata ? 'password';
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RAISE NOTICE 'provider_identity: снят сохранённый пароль у % строк', n;
+  EXCEPTION WHEN others THEN
+    RAISE NOTICE 'skip provider_identity: %', SQLERRM;
+  END;
+END
+$auth$;
+
 -- Контроль результата: ни одной строки с оригинальным email быть не должно.
 DO $verify$
 DECLARE
@@ -124,7 +146,6 @@ BEGIN
     FROM information_schema.columns c
     WHERE c.table_schema = 'public' AND c.column_name = 'email'
       AND c.data_type IN ('character varying','text')
-      AND c.table_name <> 'auth_user'
     ORDER BY c.table_name
   LOOP
     BEGIN

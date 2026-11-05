@@ -30,8 +30,8 @@
       требовательность к sitekey Turnstile, проверка loopback-портов, `ALTER USER` для роли БД.
 - [x] 3.3 `scripts/deploy-staging.sh` — flock, 12 попыток `git fetch origin main`, ancestry-гейт с
       исключением `TAMIR_ALLOW_NON_MAIN=1`, `staging_assert_config_safe`, сборка, миграции всегда,
-      `setup-reviews.ts` + `setup-decimal-attributes.ts`, сид по флагу, создание админа при пустой
-      `auth_user`, генерация pm2-экосистемы через плейсхолдеры, симлинки `current*`.
+      `setup-reviews.ts` + `setup-decimal-attributes.ts`, сид по флагу, создание админа при отсутствии
+      staging-адреса в `"user"`, генерация pm2-экосистемы через плейсхолдеры, симлинки `current*`.
 - [x] 3.4 `scripts/activate-staging-release.sh` + `scripts/lib/staging-release.sh` — переключение
       PM2, health/robots/sitemap, откат на предыдущую экосистему из `backups/`, хелпер `staging_run`.
 - [x] 3.5 `scripts/staging-smoke.sh` — loopback- и (при маркере `.tunnel-enabled`) публичные

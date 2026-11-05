@@ -146,6 +146,10 @@ PM2-процессы называются так же, как на проде (`
   скрипт не создаёт, не меняет и не удаляет — имена проверяются жёстко;
 - вход в Cloudflare (`login`) интерактивный: скрипт печатает ссылку, её открывает человек
   и выбирает зону. Автоматизировать этот шаг нельзя намеренно;
+- сертификат зоны cloudflared кладёт в `$HOME/.cloudflared/cert.pem` (для root это
+  `/root/.cloudflared/cert.pem`); все вызовы `cloudflared` в скрипте идут с правильным `HOME`
+  и `TUNNEL_ORIGIN_CERT`, поэтому `create`/`dns`/`status` видят тот же сертификат. Учётные
+  данные туннеля и ingress-конфиг лежат в `/etc/cloudflared` (права `600`, каталог `700`);
 - после успешного `dns` появляется маркер `/opt/tamir-staging/.tunnel-enabled` — с него
   smoke и деплой начинают проверять публичные HTTPS-адреса.
 
@@ -158,9 +162,12 @@ PM2-процессы называются так же, как на проде (`
 Анонимизация работает по `information_schema` (не зависит от конкретной схемы): маскируются
 колонки писем, имён, фамилий, телефонов, адресов, городов, индексов, получателей, трекинг-номеров,
 IP, fingerprint и user-agent. Почты заменяются на
-`'staging-' || md5(email) || '@anon.invalid'`. Справочники и каталог (`auth_user`, `store`,
-`region`, `product`, `collection`, `price_list`, `shipping_option`, `sales_channel` и т. п.) не
-маскируются, иначе магазин перестанет работать. Сервисные таблицы кодов регистрации, сброса пароля
+`'staging-' || md5(email) || '@anon.invalid'`. Таблица администраторов Medusa — `"user"` —
+маскируется на общих основаниях, а сохранённые bcrypt-пароли прода удаляются из
+`provider_identity.provider_metadata` (email `staging-<md5>@anon.invalid` восстановим перебором,
+и оставленный хеш позволил бы подобрать прода-пароль на стенде). Справочники и каталог (`store`,
+`region`, `product`, `collection`, `price_list`, `shipping_option`, `sales_channel`, `api_key`
+и т. п.) не маскируются, иначе магазин перестанет работать. Сервисные таблицы кодов регистрации, сброса пароля
 и rate limit обнуляются (`%registration_code%`, `%password_reset%`, `%login_rate%`,
 `%review_rate%`, `%one_time_password%`).
 
@@ -191,7 +198,8 @@ sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/ma
 6. **Миграции всегда**: `medusa db:migrate`, `setup-reviews.ts`, `setup-decimal-attributes.ts`.
    Прод их не запускает — стенд обязан идти впереди прода. Сид только по `TAMIR_ALLOW_SEED=1`.
 7. `check-email.ts` (STARTTLS + auth к Mailpit), затем создание staging-администратора,
-   если в `auth_user` нет ни одного пользователя (креды в `secrets/staging-admin.txt`).
+   если в `"user"` нет адреса `staging-admin@tamir.local` (пароли прода анонимизация сняла,
+   так что вход в админку с прода не работает; креды в `secrets/staging-admin.txt`).
 8. `activate-staging-release.sh`: переключение pm2 на релиз, health-проверки
    (`http://127.0.0.1:9000/health`, `http://127.0.0.1:3000/robots.txt`, `/sitemap.xml`),
    публичные `https://test-api.tamir.rs/health` и `https://test.tamir.rs/robots.txt` — только
