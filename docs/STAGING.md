@@ -248,6 +248,7 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 | `Нет sitekey Turnstile` | создать виджет для `test.tamir.rs` и перезапустить bootstrap с `--turnstile-site-key` |
 | STARTTLS-ошибка при `check-email.ts` | в экосистеме релиза потерян `NODE_EXTRA_CA_CERTS`, или сертификат Mailpit пересоздан без `--force-secrets`-синхронизации |
 | Нет publishable key | в новой базе его ещё нет: `TAMIR_ALLOW_SEED=1 scripts/deploy-staging.sh <sha>` или файл `secrets/publishable-key` |
+| `/sitemap.xml` отвечает 500, в логе витрины `SyntaxError: Unexpected token '<'` | витрина получает от API ошибку вместо JSON. Чаще всего в `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` попал `api_key.id` (`apk_...`) вместо токена `api_key.token` (`pk_...`). Проверка: `curl -H "x-publishable-api-key: pk_..." https://test-api.tamir.rs/store/regions`. Лечится повторным деплоем — ключ перечитывается из БД, но витрину нужно пересобрать (NEXT_PUBLIC_* впекаются в бандл) |
 | Публичные URL падают, локальные живые | туннель не поднят/не прикреплён: `staging-tunnel.sh status`, `systemctl status tamir-staging-tunnel` |
 | Cloudflare отдаёт 522 | в DNS у `test.*` оказалась A-запись вместо CNAME на `<id-туннеля>.cfargotunnel.com`. Починка: `sudo bash scripts/staging-tunnel.sh dns` (он всегда с `--overwrite-dns`) |
 | `Процессы pm2 работают не в каталоге релиза` | pm2 поднят из другого релиза или `pm2 jlist` пуст: `pm2 jlist` глазами, затем повторный `scripts/deploy-staging.sh <sha>` |

@@ -77,12 +77,12 @@ else
 fi
 
 # --- Витринный API через publishable key из staging-БД -----------------------
-publishable="$(staging_psql_value "SELECT id FROM api_key WHERE type='publishable' AND revoked_at IS NULL ORDER BY created_at LIMIT 1;" 2>/dev/null || true)"
+publishable="$(staging_psql_value "SELECT token FROM api_key WHERE type='publishable' AND revoked_at IS NULL AND token LIKE 'pk_%' ORDER BY created_at LIMIT 1;" 2>/dev/null || true)"
 if [ -z "$publishable" ]; then
   bad "publishable key не найден в staging-БД (нужен сид: TAMIR_ALLOW_SEED=1)"
 else
   products_json="$STAGING_ROOT/logs/staging-smoke-products.json"
-  if curl -fsS --max-time 30 -H "publishable_key_id: $publishable" -X POST "$api_base/store/products" -o "$products_json"; then
+  if curl -fsS --max-time 30 -H "x-publishable-api-key: $publishable" -X POST "$api_base/store/products" -o "$products_json"; then
     ok "store API: список продуктов (publishable key из БД)"
     if node -e 'const j=require(process.argv[1]); if(!Array.isArray(j.products)) process.exit(1)' "$products_json" 2>/dev/null; then
       ok "store API: ответ содержит products"
