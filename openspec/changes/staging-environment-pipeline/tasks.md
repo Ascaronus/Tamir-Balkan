@@ -3,8 +3,9 @@
 ## 1. Контракт и проверки (P0)
 
 - [x] 1.1 `backend/tests/staging-contract.test.cjs` — контракт стенда: нет прод-URL, нет `VPS_*`,
-      БД/Redis только на `127.0.0.1`. Доказательство: `node --test tests/staging-contract.test.cjs`
-      → 7/7 pass; `node test-support/run-tests.mjs --no-db` → 83/83 pass.
+      БД/Redis/SMTP только на `127.0.0.1`, веб-почта Mailpit опубликована в LAN только под
+      `MP_UI_AUTH`. Доказательство: `node --test tests/staging-contract.test.cjs`
+      → 8/8 pass; `node test-support/run-tests.mjs --no-db` → 84/84 pass (замер 05.11).
 - [x] 1.2 `test-support/verify-deploy-staging.mjs` — гейт staging-workflow (нет `push`/`pull_request`,
       обязательный `sha`, `environment: staging`, `needs: gate`, ancestry-гейт в скрипте).
       Доказательство: прямой прогон `node test-support/verify-deploy-staging.mjs` → exit 0.
@@ -25,9 +26,11 @@
 ## 3. Скрипты стенда (P0)
 
 - [x] 3.1 `docker-compose.staging.yml` — Postgres 16, Redis 7, Mailpit v1.33, тома и healthcheck,
-      порты только на `127.0.0.1` (5432/6379/587/8025).
-- [x] 3.2 `scripts/staging-bootstrap.sh` — генерация секретов, self-signed CA + leaf для STARTTLS,
-      требовательность к sitekey Turnstile, проверка loopback-портов, `ALTER USER` для роли БД.
+      порты `5432`/`6379`/`587` только на `127.0.0.1`, веб-интерфейс Mailpit `8025` — на интерфейсы
+      локальной сети под HTTP Basic (`env_file` с `secrets/docker.env`).
+- [x] 3.2 `scripts/staging-bootstrap.sh` — генерация секретов (в том числе `MP_UI_AUTH` для
+      веб-почты), self-signed CA + leaf для STARTTLS, требовательность к sitekey Turnstile,
+      проверка портов по паре «порт + адрес», `ALTER USER` для роли БД.
 - [x] 3.3 `scripts/deploy-staging.sh` — flock, 12 попыток `git fetch origin main`, ancestry-гейт с
       исключением `TAMIR_ALLOW_NON_MAIN=1`, `staging_assert_config_safe`, сборка, миграции всегда,
       `setup-reviews.ts` + `setup-decimal-attributes.ts`, сид по флагу, создание админа при отсутствии
@@ -35,7 +38,8 @@
 - [x] 3.4 `scripts/activate-staging-release.sh` + `scripts/lib/staging-release.sh` — переключение
       PM2, health/robots/sitemap, откат на предыдущую экосистему из `backups/`, хелпер `staging_run`.
 - [x] 3.5 `scripts/staging-smoke.sh` — loopback- и (при маркере `.tunnel-enabled`) публичные
-      HTTPS-проверки, Mailpit API, `medusa exec ./src/scripts/staging-mail-check.ts`.
+      HTTPS-проверки, Mailpit API под `MP_UI_AUTH` (`STAGING_MAILPIT_AUTH`), доступность веб-почты
+      с адреса локальной сети, `401` без токена, `medusa exec ./src/scripts/staging-mail-check.ts`.
 - [x] 3.6 `backend/src/scripts/staging-mail-check.ts` — отправка кода через продуктовую
       `sendRegistrationCode()`. Доказательство: standalone `npx tsc --noEmit` → exit 0.
 - [x] 3.7 `scripts/staging-tunnel.sh` — `login`/`create`/`dns`, ingress только `localhost:3000` и
@@ -78,6 +82,31 @@
       `provider_identity.provider_metadata` — из 5 emailpass-строк хеш сохранён только у него;
       `medusa exec ./src/scripts/staging-mail-check.ts` с `NODE_EXTRA_CA_CERTS` из экосистемы релиза
       принимает письмо Mailpit, без переменной та же команда падает с `CODE_SEND_FAILED`)
+- [x] 5.8 Открыть веб-почту Mailpit на интерфейс локальной сети под HTTP Basic (по запросу
+      владельца: ящик должен быть виден с рабочего компьютера). Порядок на машине (только под
+      `actions-runner`, см. `docs/STAGING.md`: деплой релиза, затем идемпотентная допись
+      `MP_UI_AUTH` в `secrets/docker.env` и пересоздание `mailpit` с публикацией `8025` в LAN):
+      `ss -ltn | grep :8025` (ожидается `0.0.0.0`), `curl` без пароля → `401`,
+      `bash scripts/staging-smoke.sh` и вход с ноутбука на `http://<IP стенда>:8025`. Замечено при
+      диагностике: `.git` клона принадлежит `actions-runner`, а `HEAD`/`index` имеют права `0600`,
+      поэтому из-под `giper` там `fatal: not a git repository` — клон рабочий, читать его должен
+      владелец. Код и контрактный тест в репозитории
+      (`node --test backend/tests/staging-contract.test.cjs` — 8/8), на машине нужен `actions-runner`.
+      (измерено 05.11: `MP_UI_AUTH` дописан идемпотентно — бэкап
+      `backups/pre-mailpit-auth-20261105T195525Z/secrets/docker.env`, файл `600 actions-runner`,
+      4 ключа; значение не выводилось в отчёты. `docker compose ... up -d --wait mailpit` →
+      Healthy, `ss -ltn` даёт `0.0.0.0:8025` и `[::]:8025`, а `587`/`5432`/`6379`/`3000`/`9000`
+      остались на `127.0.0.1`. На машине: UI и API без пароля `401`, с паролем `200`,
+      `/api/v1/info` отдал `Messages: 8` — volume `tamir-staging_tamir-staging-mailpit` цел.
+      С ноутбука (`192.168.1.136`): `Test-NetConnection 192.168.1.143 -Port 8025` → `True`,
+      `/` без пароля `401`, с паролем `200`, `/api/v1/info` отвечает. Смоук релиза
+      `20261105T201322Z-767f09283df0`: все строки зелёные, включая «почтовый тракт: отправка и
+      приём в Mailpit», «Mailpit UI доступен из локальной сети: http://192.168.1.143:8025» и
+      «Mailpit UI под паролем: без MP_UI_AUTH отвечает 401». Попутно исправлены два дефекта,
+      найденных этим прогоном: `staging-mail-check.ts` читал тело письма без Basic и падал на
+      `401` (`MP_UI_AUTH` закрывает и UI, и API), а `staging_run` в почтовой проверке обрывал
+      смоук строкой `ERROR` без `FAIL` — для проверки добавлена не-aborting обёртка
+      `staging_call`.)
 
 ## 6. Публичный вход (P0, требует участия владельца)
 

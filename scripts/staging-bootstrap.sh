@@ -76,11 +76,24 @@ if [ "$gen_docker_env" = 1 ]; then
 POSTGRES_USER=$STAGING_DB_USER
 POSTGRES_DB=$STAGING_DB_NAME
 POSTGRES_PASSWORD=$PG_PASSWORD
+# Веб-почта Mailpit опубликована на интерфейсы локальной сети (http://<IP>:${STAGING_MAILPIT_API_PORT}),
+# поэтому доступ к ней только под HTTP Basic: без пароля ящик с кодами регистрации
+# читает вся домашняя сеть. SMTP, Postgres и Redis наружу не публикуются.
+MP_UI_AUTH=mailpit:$(secret)
 EOF
+  chmod 600 "$STAGING_DOCKER_ENV_FILE"
   staging_note "Сгенерирован $STAGING_DOCKER_ENV_FILE"
 fi
 PG_PASSWORD="$(grep -E '^POSTGRES_PASSWORD=' "$STAGING_DOCKER_ENV_FILE" | head -n1 | cut -d= -f2-)"
 [ -n "$PG_PASSWORD" ] || staging_abort "В $STAGING_DOCKER_ENV_FILE нет POSTGRES_PASSWORD"
+
+# На уже поднятом стенде пароль веб-почты дописываем в готовый файл: FORCE_SECRETS
+# пересоздал бы пароли Postgres и сломал бы существующую БД.
+if ! grep -q '^MP_UI_AUTH=' "$STAGING_DOCKER_ENV_FILE"; then
+  printf '\nMP_UI_AUTH=mailpit:%s\n' "$(secret)" >> "$STAGING_DOCKER_ENV_FILE"
+  chmod 600 "$STAGING_DOCKER_ENV_FILE"
+  staging_note "Дописан MP_UI_AUTH: веб-почта Mailpit закрыта паролем"
+fi
 
 if [ ! -f "$STAGING_ENV_FILE" ] || [ "$FORCE_SECRETS" = 1 ]; then
   SMTP_PASSWORD="$(secret)"
@@ -196,11 +209,19 @@ if [ "$DO_UP" = 1 ]; then
 
   staging_note "Postgres: $(staging_psql_value "SELECT current_database() || ' / ' || current_user;")"
   staging_note "Redis : $(staging_redis ping)"
-  staging_note "Mailpit SMTP готов (127.0.0.1:587, STARTTLS). Веб-почта: http://127.0.0.1:8025"
+  staging_note "Mailpit SMTP готов (127.0.0.1:$STAGING_SMTP_PORT, STARTTLS)"
+  if staging_mailpit_ui_has_auth; then
+    staging_note "Веб-почта: http://$(staging_lan_ip):${STAGING_MAILPIT_API_PORT} — логин и пароль в MP_UI_AUTH ($STAGING_DOCKER_ENV_FILE)"
+  fi
 
-  # Публичного входа не должно быть: все порты staging смотрят на loopback.
-  exposed="$(ss -Hltn "( sport = :5432 or sport = :6379 or sport = :587 or sport = :8025 )" 2>/dev/null | grep -vE '127\.0\.0\.1|\[::1\]' || true)"
+  # Публичного входа быть не должно: SMTP, Postgres и Redis смотрят на loopback.
+  # Веб-интерфейс Mailpit — единственное исключение, и только под HTTP Basic.
+  exposed="$(ss -Hltn "( sport = :5432 or sport = :6379 or sport = :$STAGING_SMTP_PORT )" 2>/dev/null | grep -vE '127\.0\.0\.1|\[::1\]' || true)"
   [ -z "$exposed" ] || staging_abort "Стек опубликован наружу (не loopback):$exposed"
+  exposed="$(ss -Hltn "( sport = :$STAGING_MAILPIT_API_PORT )" 2>/dev/null | grep -vE '127\.0\.0\.1|\[::1\]' || true)"
+  if [ -n "$exposed" ] && ! staging_mailpit_ui_has_auth; then
+    staging_abort "Веб-почта Mailpit опубликована наружу без пароля:$exposed"
+  fi
 fi
 
 cat <<SUMMARY
@@ -209,7 +230,8 @@ Staging-машина подготовлена.
   ROOT      : $STAGING_ROOT
   Секреты   : $STAGING_SECRETS_DIR (chmod 600/700, в git не попадают)
   Sitekey   : ${SITE_KEY:0:6}… (файл $site_key_file)
-  Почта     : http://127.0.0.1:8025 (SMTP 127.0.0.1:587, STARTTLS)
+  Почта     : веб-интерфейс http://$(staging_lan_ip):${STAGING_MAILPIT_API_PORT} (логин/пароль — MP_UI_AUTH в $STAGING_DOCKER_ENV_FILE),
+              SMTP 127.0.0.1:$STAGING_SMTP_PORT (STARTTLS)
 
 Дальше:
   1) HTTPS-туннель: scripts/staging-tunnel.sh login && scripts/staging-tunnel.sh create

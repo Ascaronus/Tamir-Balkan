@@ -83,12 +83,16 @@ PM2-процессы называются так же, как на проде (`
 
 - `postgres:16`, `redis:7-alpine`, `axllent/mailpit:v1.33`;
 - тома `tamir-staging-pg` и `tamir-staging-mailpit` — свои, прод-тома не используются;
-- все порты проброшены **только на loopback**: `127.0.0.1:5432`, `127.0.0.1:6379`,
-  `127.0.0.1:587`, `127.0.0.1:8025`. Наружу смотрит исключительно cloudflared;
+- порты базы, Redis и SMTP проброшены **только на loopback**: `127.0.0.1:5432`, `127.0.0.1:6379`,
+  `127.0.0.1:587`. Наружу из приложения смотрит исключительно cloudflared;
+- одно исключение — веб-интерфейс Mailpit (`8025:8025`): он открыт на интерфейсы домашней сети,
+  чтобы тестовые письма были видны с рабочего компьютера, и закрыт HTTP Basic (`MP_UI_AUTH`);
 - у всех сервисов `healthcheck`, БД и Redis изолированы именем проекта и ролью `tamir_staging`.
 
-База и Redis доступны приложениям по `127.0.0.1`. Проверка «ничего не торчит наружу» встроена
-в bootstrap и smoke (`staging_ports_are_loopback`).
+База и Redis доступны приложениям по `127.0.0.1`. Проверка «ничего лишнего не торчит наружу»
+встроена в bootstrap и smoke (`staging_ports_are_loopback`): она разбирает каждую публикацию
+(порт + адрес) и допускает непро-loopback-адрес только для `8025`, и только если в секретах задан
+`MP_UI_AUTH`.
 
 ## Секреты и конфигурация
 
@@ -97,7 +101,7 @@ PM2-процессы называются так же, как на проде (`
 
 | Файл | Что внутри |
 | --- | --- |
-| `docker.env` | пароли Postgres/Redis/Mailpit для Compose |
+| `docker.env` | пароли Postgres/Redis для Compose + `MP_UI_AUTH` — HTTP Basic веб-почты Mailpit |
 | `backend.env` | копия кладётся в `backend/.env` релиза: `DATABASE_URL`, `REDIS_URL`, секреты JWT/COOKIE/reviews, SMTP |
 | `frontend.env` | копия в `frontend/.env.production.local`: `NEXT_PUBLIC_*` (печатаются в бандл — обязана быть до сборки) |
 | `mail/mailpit-ca.crt`, `mail/mailpit-ca.key`, `mail/mailpit-tls.crt`, `mail/mailpit-tls.key` | self-signed CA + сертификат Mailpit для STARTTLS |
@@ -131,9 +135,40 @@ PM2-процессы называются так же, как на проде (`
   `MP_SMTP_AUTH_ACCEPT_ANY=true`.
 
 Почта стенда никуда наружу не уходит: письма видны в веб-интерфейсе Mailpit
-(`http://127.0.0.1:8025`, наружу не опубликован). Проверка идёт через продуктовый тракт:
-`backend/src/scripts/staging-mail-check.ts` вызывает `sendRegistrationCode()` и затем ищет
-письмо в API Mailpit.
+`http://<IP стенда>:8025` (например `http://192.168.1.143:8025`) — он открыт на интерфейсы
+домашней сети и закрыт HTTP Basic: логин `mailpit`, пароль — `MP_UI_AUTH` из `secrets/docker.env`
+(туда же он попадает через `env_file`). Публичного адреса у почты нет, и в Cloudflare-туннеле её
+нет: с ноутбука вне домашней сети ящик недоступен — так намеренно, потому что в нём коды
+регистрации. Пароль закрывает и API, поэтому `staging-smoke.sh` читает `MP_UI_AUTH` и отдаёт его
+проверке тракта в `STAGING_MAILPIT_AUTH`.
+
+Проверка идёт через продуктовый тракт: `backend/src/scripts/staging-mail-check.ts` вызывает
+`sendRegistrationCode()` и затем ищет письмо в API Mailpit (с `Authorization: Basic`).
+Если пароль нужен руками, в отчётах его не печатают: bootstrap только говорит, где он лежит.
+Посмотреть значение может только владелец секретов:
+
+```bash
+sudo -u actions-runner grep '^MP_UI_AUTH=' /opt/tamir-staging/secrets/docker.env
+```
+
+Как включить веб-почту на машине (порядок важен: смоук требует и опубликованного `8025`, и
+пароля, поэтому контейнер и секрет меняются до проверки):
+
+```bash
+# 1. клон обязан содержать свежий docker-compose.staging.yml (его читает bootstrap/smoke).
+#    Штатно это делает деплой: `TAMIR_ALLOW_NON_MAIN=1 bash scripts/deploy-staging.sh <40-hex SHA>`
+#    (обход нужен, пока коммит не в main). Ниже — тот же результат вручную, без сборки релиза:
+sudo -u actions-runner bash -c 'cd /opt/tamir-staging/repo && git fetch origin main && git checkout -q --force --detach origin/main'
+# 2. bootstrap идемпотентен: допишет MP_UI_AUTH в существующий docker.env и пересоздаст mailpit.
+#    Без --force-secrets, иначе пересоздались бы пароли Postgres живой базы.
+sudo -u actions-runner bash scripts/staging-bootstrap.sh
+# 3. проверка: наружу слушает 0.0.0.0, без пароля — 401
+sudo -u actions-runner bash -c 'ss -ltn | grep :8025; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8025/'
+sudo -u actions-runner bash scripts/staging-smoke.sh
+```
+
+Письма не теряются: ящик лежит в томе `tamir-staging-mailpit` (`MP_DATABASE=/data/mailpit.db`),
+пересоздание контейнера его не затрагивает.
 
 ## Публичный вход: Cloudflare Tunnel
 
@@ -243,15 +278,19 @@ pm2 — демон пользователя `actions-runner` (`PM2_HOME=/home/ac
 `sudo pm2 …` показывают пустой root-набор и правильную картину не дают. Autostart после перезагрузки
 обеспечивает systemd-юнит `pm2-resurrect.service`.
 
-Smoke проверяет контейнеры и их healthcheck, «порты только на loopback», pm2-процессы и их
-рабочие каталоги, локальные health/robots/sitemap, витринный API с publishable key из staging-БД,
-почтовый тракт (отправка + приём в Mailpit) и публичные HTTPS при выпущенном туннеле.
+Smoke проверяет контейнеры и их healthcheck, «порты инфраструктуры только на loopback» (с
+исключением закрытого паролем `8025`), pm2-процессы и их рабочие каталоги, локальные
+health/robots/sitemap, витринный API с publishable key из staging-БД, почтовый тракт (отправка +
+приём в Mailpit под `MP_UI_AUTH`, `401` без токена и доступность веб-почты с адреса домашней сети)
+и публичные HTTPS при выпущенном туннеле.
 
 ## Что стенд не делает
 
 - Не трогает прод: ни БД, ни Redis, ни почту, ни платежи, ни DNS `tamir.rs`/`api.tamir.rs`.
 - Не деплоит прод и не запускает прод-скрипты; прод-деплой — отдельный ручной workflow.
 - Не публикует SMTP, базу, Redis или админку наружу (доступ к ним — только с машины или туннеля).
+  Веб-почта Mailpit — единственное сетевое исключение: она видна только из домашней сети и только
+  под HTTP Basic; публичного адреса у неё нет.
 - Не хранит прод-дампы и секреты в Git.
 
 ## Типовые сбои
@@ -262,6 +301,8 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 | `Коммит <sha> не входит в origin/main` | так и должно быть: runner принимает только код из `main`. Для разового эксперимента — ручной запуск с `TAMIR_ALLOW_NON_MAIN=1` |
 | `Нет sitekey Turnstile` | создать виджет для `test.tamir.rs` и перезапустить bootstrap с `--turnstile-site-key` |
 | STARTTLS-ошибка при `check-email.ts` | в экосистеме релиза потерян `NODE_EXTRA_CA_CERTS`, или сертификат Mailpit пересоздан без `--force-secrets`-синхронизации |
+| `staging-mail-check.ts` падает с `Mailpit API ответил 401` | пароля `MP_UI_AUTH` нет в окружении проверки: smoke читает его из `secrets/docker.env` и отдаёт в `STAGING_MAILPIT_AUTH`; при ручном запуске передать ту же пару `user:pass` |
+| Веб-почта не открывается с ноутбука (`http://<IP>:8025`) | порт опубликован на `127.0.0.1` (проверить `ss -ltn \| grep 8025` — должен быть `0.0.0.0:8025`), пароль в `secrets/docker.env` отсутствует (bootstrap/smoke на этом и падают), или контейнер не пересоздан после правки Compose: `docker compose -f docker-compose.staging.yml up -d mailpit`. Если на машине включён файрвол, он обязан пускать `8025/tcp` из домашней подсети |
 | Нет publishable key | в новой базе его ещё нет: `TAMIR_ALLOW_SEED=1 scripts/deploy-staging.sh <sha>` или файл `secrets/publishable-key` |
 | `/sitemap.xml` отвечает 500, в логе витрины `SyntaxError: Unexpected token '<'` | витрина получает от API ошибку вместо JSON. Чаще всего в `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` попал `api_key.id` (`apk_...`) вместо токена `api_key.token` (`pk_...`). Проверка: `curl -H "x-publishable-api-key: pk_..." https://test-api.tamir.rs/store/regions`. Лечится повторным деплоем — ключ перечитывается из БД, но витрину нужно пересобрать (NEXT_PUBLIC_* впекаются в бандл) |
 | Публичные URL падают, локальные живые | туннель не поднят/не прикреплён: `staging-tunnel.sh status`, `systemctl status tamir-staging-tunnel` |
@@ -273,15 +314,19 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 
 ## Проверено локально и на машине
 
-Локально (машина владельца): `node test-support/run-tests.mjs --no-db` — 83/83, включая
+Локально (машина владельца): `node test-support/run-tests.mjs --no-db` — 84/84, включая
 `backend/tests/staging-contract.test.cjs` (контракт стенда с продуктовым кодом: SMTP-контракт,
-генерируемая экосистема, гейт конфигурации, запрет прод-адресов); `bash -n` по всем
-`scripts/*.sh` и `scripts/lib/*.sh`; `npx tsc --noEmit` по `backend/src/scripts/staging-mail-check.ts`;
+генерируемая экосистема, гейт конфигурации, запрет прод-адресов, периметр веб-почты — 8/8);
+`bash -n` по всем
+`scripts/*.sh` и `scripts/lib/*.sh`; `npx tsc --noEmit -p tsconfig.json` по `backend`;
 гварды `test-support/verify-deploy-pin.mjs`, `verify-deploy-dispatch.mjs`, `verify-deploy-staging.mjs`.
 
 На стенде подтверждено фактическим прогоном: `npx medusa user` в собранном релизе создаёт
 администратора с хешем пароля (`provider_identity.provider_metadata`), вход в админку
 `https://test-api.tamir.rs/app` работает; `NODE_EXTRA_CA_CERTS` действует в `NODE_ENV=production`
 (без него `staging-mail-check.ts` падает с `CODE_SEND_FAILED`, с ним — письмо принимается Mailpit);
-порт 587 доступен. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
+порт 587 доступен. Веб-почта: после дописи `MP_UI_AUTH` и пересоздания контейнера `ss -ltn` даёт
+`0.0.0.0:8025`, UI и API без пароля отвечают `401`, с паролем — `200`, а `587`/`5432`/`6379`/`3000`/`9000`
+остались на loopback; с рабочего компьютера вход в `http://<IP стенда>:8025` работает. Полный смоук
+релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
 `pm2-resurrect.service` настроен, перезагрузку не выполняли).

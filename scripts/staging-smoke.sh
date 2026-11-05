@@ -100,11 +100,29 @@ else
 fi
 
 # --- Почта: реальная отправка + приём в Mailpit ------------------------------
-if curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:${STAGING_MAILPIT_API_PORT}/api/v1/info"; then
-  check "почтовый тракт: отправка и приём в Mailpit" staging_run "$release_dir" "$STAGING_PM2_BACKEND" \
+# Веб-почта опубликована на локальную сеть, поэтому UI и API Mailpit обязаны
+# отвечать только с HTTP Basic. креды берём из docker.env и даём их же проверке
+# почтового тракта (STAGING_MAILPIT_AUTH в backend-скрипте).
+mailpit_auth="$(staging_docker_env_value MP_UI_AUTH)"
+export STAGING_MAILPIT_AUTH="$mailpit_auth"
+lan_ip="$(staging_lan_ip)"
+if staging_mailpit_curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:${STAGING_MAILPIT_API_PORT}/api/v1/info"; then
+  # staging_call, а не staging_run: abort внутри проверки только подсвечивает вывод
+  # команды, а фиксировать её неуспех должен check — иначе смоук обрывается без FAIL.
+  check "почтовый тракт: отправка и приём в Mailpit" staging_call "$release_dir" "$STAGING_PM2_BACKEND" \
     npx --no-install medusa exec ./src/scripts/staging-mail-check.ts
-  check "Mailpit UI доступен на loopback: http://127.0.0.1:${STAGING_MAILPIT_API_PORT}" \
-    curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:${STAGING_MAILPIT_API_PORT}/"
+  check "Mailpit UI доступен из локальной сети: http://${lan_ip}:${STAGING_MAILPIT_API_PORT}" \
+    staging_mailpit_curl -fsS --max-time 10 -o /dev/null "http://${lan_ip}:${STAGING_MAILPIT_API_PORT}/"
+  if [ -n "$mailpit_auth" ]; then
+    mailpit_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:${STAGING_MAILPIT_API_PORT}/")"
+    if [ "$mailpit_code" = "401" ]; then
+      ok "Mailpit UI под паролем: без MP_UI_AUTH отвечает 401"
+    else
+      bad "Mailpit UI: ожидаем 401 без токена, получили $mailpit_code"
+    fi
+  else
+    bad "Mailpit UI опубликован без пароля: добавьте MP_UI_AUTH в $STAGING_DOCKER_ENV_FILE"
+  fi
 else
   bad "Mailpit API не отвечает: почтовый тракт не проверен"
 fi

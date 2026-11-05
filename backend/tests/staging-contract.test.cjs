@@ -68,6 +68,58 @@ test('mail check goes through the production email code path', () => {
   const check = read('backend/src/scripts/staging-mail-check.ts')
   assert.match(check, /from "\.\.\/utils\/registration-email"/, 'проверка обязана слать письмо продуктовым кодом')
   assert.match(check, /sendRegistrationCode/, 'используется реальный тракт кодов регистрации')
+  // MP_UI_AUTH закрывает и веб-интерфейс, и API Mailpit, поэтому каждое обращение к
+  // API обязано идти с Basic. Иначе чек падает на 401 уже при чтении тела письма.
+  const mailpitFetches = check.match(/fetch\(`\$\{MAILPIT_API\}[^\n]*/g) ?? []
+  assert.ok(mailpitFetches.length >= 2, 'у проверки два обращения к API Mailpit: список писем и тело письма')
+  for (const call of mailpitFetches) {
+    assert.match(call, /mailpitOptions\(\)/, `обращение к Mailpit API без авторизации: ${call}`)
+  }
+
+  // Неуспех почтового чека должен попадать в FAIL смоука, а не обрывать прогон:
+  // staging_run при ошибке вызывает staging_abort, тот выходит с кодом 1, и smoke
+  // заканчивается строкой ERROR без единого FAIL. Поэтому чек гоняют через staging_call.
+  const smokeLines = read('scripts/staging-smoke.sh').split('\n')
+  const at = smokeLines.findIndex((line) => line.includes('staging-mail-check.ts'))
+  assert.ok(at >= 0, 'смоук обязан запускать staging-mail-check.ts')
+  let statement = smokeLines[at]
+  for (let i = at - 1; i >= 0 && smokeLines[i].trimEnd().endsWith('\\'); i -= 1) {
+    statement = `${smokeLines[i]} ${statement}`
+  }
+  assert.match(statement, /staging_call/, `почтовый чек обязан идти через staging_call: ${statement}`)
+  assert.doesNotMatch(statement, /staging_run/, `почтовый чек обрывает смоук через staging_run: ${statement}`)
+  const callWrapper = read('scripts/lib/staging-release.sh').match(/staging_call\(\)\s*\{[\s\S]*?\n\}/)
+  assert.ok(callWrapper, 'в scripts/lib/staging-release.sh нет не-aborting обёртки staging_call')
+  assert.doesNotMatch(callWrapper[0], /staging_abort/, 'staging_call не имеет права обрывать прогон')
+})
+
+test('mailpit web UI opens to the LAN only behind HTTP Basic', () => {
+  const compose = read('docker-compose.staging.yml')
+  // Веб-почта публикуется на интерфейс домашней сети (иначе её видно только на самой машине),
+  // и ровно поэтому она обязана быть под паролем: в ящике лежат коды регистрации.
+  assert.match(compose, /MP_UI_BIND_ADDR:\s*0\.0\.0\.0:8025/, 'mailpit обязан слушать 8025, иначе LAN-проброс бесполезен')
+  assert.match(compose, /"8025:8025"/, 'веб-почта проброшена на интерфейсы локальной сети')
+  assert.ok(!/"127\.0\.0\.1:8025:8025"/.test(compose), 'веб-почта не должна возвращаться на loopback')
+  assert.match(
+    compose,
+    /env_file:\s*\n\s*-\s*\/opt\/tamir-staging\/secrets\/docker\.env/,
+    'mailpit обязан получать MP_UI_AUTH из staging-секретов, иначе LAN-доступ открыт всем'
+  )
+  // Единственное исключение в периметре: SMTP, Postgres и Redis наружу не публикуются.
+  assert.match(compose, /"127\.0\.0\.1:5432:5432"/, 'База остаётся на loopback')
+  assert.match(compose, /"127\.0\.0\.1:6379:6379"/, 'Redis остаётся на loopback')
+  assert.match(compose, /"127\.0\.0\.1:587:587"/, 'SMTP остаётся на loopback')
+
+  const lib = read('scripts/lib/staging-release.sh')
+  assert.match(lib, /staging_docker_env_value\(\)/, 'креды веб-почты читаются из docker.env')
+  assert.match(lib, /staging_mailpit_ui_has_auth/, 'периметр обязан проверять, что веб-почта под паролем')
+  assert.match(lib, /MP_UI_AUTH/, 'lib знает про HTTP Basic для Mailpit')
+  assert.match(read('scripts/staging-bootstrap.sh'), /MP_UI_AUTH=\S*\$\(secret\)/, 'bootstrap выпускает пароль веб-почты')
+  assert.match(read('scripts/staging-smoke.sh'), /MP_UI_AUTH/, 'смоук проверяет, что пароль веб-почты на месте')
+
+  const check = read('backend/src/scripts/staging-mail-check.ts')
+  assert.match(check, /STAGING_MAILPIT_AUTH/, 'проверка тракта получает пароль веб-почты')
+  assert.match(check, /Basic \$\{Buffer\.from\(MAILPIT_AUTH\)\.toString\("base64"\)\}/, 'пароль передаётся заголовком Authorization, а не URL')
 })
 
 test('generated ecosystem keeps pm2 names and loopback binding', () => {
