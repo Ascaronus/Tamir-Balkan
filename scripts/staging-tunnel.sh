@@ -111,8 +111,10 @@ Wants=network-online.target
 Type=simple
 Environment=HOME=${CF_CERT_DIR%/.cloudflared}
 Environment=TUNNEL_ORIGIN_CERT=$CF_CERT
-# Флаг --config у cloudflared глобальный: он должен стоять ДО `tunnel run`,
-# иначе процесс печатает help и systemd считает сервис упавшим.
+# Флаг --config у cloudflared глобальный: он должен стоять ДО субкоманды
+# tunnel run, иначе процесс печатает help и systemd считает сервис упавшим.
+# (В незаэкранированном heredoc кавычки-обратные 'backtick' сработали бы как
+# command substitution прямо при генерации юнита.)
 ExecStart=$CF_BIN --config $CF_CONFIG tunnel run
 Restart=always
 RestartSec=5
