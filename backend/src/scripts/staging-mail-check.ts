@@ -7,6 +7,16 @@ import { sendRegistrationCode } from "../utils/registration-email"
 // Acceptance: письмо дошло в Mailpit и содержит код.
 const MAILPIT_API = process.env.STAGING_MAILPIT_API_URL || "http://127.0.0.1:8025"
 const CHECK_TO = process.env.STAGING_MAIL_CHECK_TO || "staging-smoke@tamir.local"
+// Веб-интерфейс и API Mailpit закрыты HTTP Basic (MP_UI_AUTH в секретах compose),
+// иначе ящик с кодами регистрации читала бы вся домашняя сеть. Смоук передаёт
+// ту же пару user:pass через STAGING_MAILPIT_AUTH.
+const MAILPIT_AUTH = process.env.STAGING_MAILPIT_AUTH || ""
+
+function mailpitOptions(): RequestInit {
+  return MAILPIT_AUTH
+    ? { headers: { authorization: `Basic ${Buffer.from(MAILPIT_AUTH).toString("base64")}` } }
+    : {}
+}
 
 function recipients(message: any): string[] {
   const to = message?.To || message?.Message?.To || []
@@ -25,8 +35,8 @@ export default async function stagingMailCheck({ container }: ExecArgs) {
   // Mailpit пишет письмо не мгновенно: даём ему до 30 секунд.
   let found: any = null
   for (let attempt = 0; attempt < 30 && !found; attempt++) {
-    const response = await fetch(`${MAILPIT_API}/api/v1/messages?limit=50`)
-    if (!response.ok) throw new Error(`Mailpit API ответил ${response.status}. Проверьте STAGING_MAILPIT_API_URL.`)
+    const response = await fetch(`${MAILPIT_API}/api/v1/messages?limit=50`, mailpitOptions())
+    if (!response.ok) throw new Error(`Mailpit API ответил ${response.status}. Проверьте STAGING_MAILPIT_API_URL и STAGING_MAILPIT_AUTH.`)
     const body: any = await response.json()
     const messages = Array.isArray(body?.messages) ? body.messages : []
     found = messages.find((message: any) => recipients(message).includes(recipient))

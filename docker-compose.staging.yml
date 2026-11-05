@@ -2,8 +2,10 @@
 #
 # Полностью изолирован от production: свои имена томов, своя БД, свой пользователь,
 # свои пароли, свой почтовый ящик. Ни одного адреса прод-машины или прод-БД.
-# Все порты публикуются только на 127.0.0.1 — наружу выходит только cloudflared
-# (scripts/staging-tunnel.sh), поэтому с улицы в этот стек попасть нельзя.
+# База, Redis и SMTP публикуются только на 127.0.0.1 — наружу выходит только
+# cloudflared (scripts/staging-tunnel.sh), поэтому с улицы в этот стек попасть
+# нельзя. Одно исключение: веб-интерфейс Mailpit (8025) открыт на интерфейсы
+# локальной сети и закрыт HTTP Basic из MP_UI_AUTH (см. scripts/staging-smoke.sh).
 #
 # Секреты читаются из /opt/tamir-staging/secrets/docker.env (файл вне git, его
 # создаёт scripts/staging-bootstrap.sh). Файл должен существовать до `up`.
@@ -43,10 +45,14 @@ services:
   # порт 587/465 (backend/src/utils/registration-email.ts), поэтому mailpit
   # принимает SMTP на 587 с обязательным STARTTLS, а сертификат выпускает
   # scripts/staging-bootstrap.sh (self-signed, доверие через NODE_EXTRA_CA_CERTS).
-  # Веб-интерфейс — http://127.0.0.1:8025, там видно всё входящее.
+  # Веб-интерфейс открыт на все интерфейсы (http://<IP-машины>:8025), чтобы тестовые
+  # письма были видны с рабочего компьютера, но доступ закрыт HTTP Basic:
+  # MP_UI_AUTH приходит из секретов, bootstrap и smoke без него стенд не поднимают.
   mailpit:
     image: axllent/mailpit:v1.33
     restart: unless-stopped
+    env_file:
+      - /opt/tamir-staging/secrets/docker.env
     environment:
       MP_SMTP_BIND_ADDR: 0.0.0.0:587
       MP_UI_BIND_ADDR: 0.0.0.0:8025
@@ -63,7 +69,7 @@ services:
       - /opt/tamir-staging/secrets/mail:/certs:ro
     ports:
       - "127.0.0.1:587:587"
-      - "127.0.0.1:8025:8025"
+      - "8025:8025"
     healthcheck:
       test: ["CMD", "/mailpit", "readyz"]
       interval: 5s

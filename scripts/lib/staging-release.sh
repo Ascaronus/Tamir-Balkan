@@ -198,16 +198,72 @@ staging_container_id() {
   staging_compose ps -q "$1" | head -n1
 }
 
+# Значение ключа из docker.env (секреты compose). Пустая строка, если файла или ключа нет.
+staging_docker_env_value() {
+  local value=""
+  if [ -f "$STAGING_DOCKER_ENV_FILE" ]; then
+    value="$(grep -E "^$1=" "$STAGING_DOCKER_ENV_FILE" 2>/dev/null | head -n1 | cut -d= -f2- | tr -d '"' || true)"
+  fi
+  printf '%s' "$value"
+}
+
+# Веб-интерфейс Mailpit открыт на интерфейсы локальной сети, поэтому он обязан
+# быть под HTTP Basic: без MP_UI_AUTH ящик с кодами регистрации читает весь LAN.
+staging_mailpit_ui_has_auth() {
+  local auth
+  auth="$(staging_docker_env_value MP_UI_AUTH)"
+  printf '%s' "$auth" | grep -qE '^[^:[:space:]]+:[^[:space:]]+'
+}
+
+# Адрес машины в домашней сети: им пользуются smoke и подсказки bootstrap.
+# docker0/br-* отсекаем — это сети контейнеров, а не вход для пользователя.
+staging_lan_ip() {
+  local ip=""
+  ip="$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 !~ /^(docker|br-|veth|virbr|cni|flannel|lo)/ {print $4}' | cut -d/ -f1 | head -n1 || true)"
+  [ -n "$ip" ] || ip="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -vE '^(127\.|169\.254\.|::)' | head -n1 || true)"
+  printf '%s' "${ip:-127.0.0.1}"
+}
+
+# curl к Mailpit (UI и API) с кредами из docker.env, если MP_UI_AUTH включён.
+staging_mailpit_curl() {
+  local auth
+  auth="$(staging_docker_env_value MP_UI_AUTH)"
+  if [ -n "$auth" ]; then
+    curl -u "$auth" "$@"
+  else
+    curl "$@"
+  fi
+}
+
 # Публикуемые порты инфраструктуры обязаны смотреть только на loopback.
+# Единственное исключение — веб-интерфейс Mailpit (${STAGING_MAILPIT_API_PORT}):
+# он опубликован для домашней сети и пройдёт проверку только под MP_UI_AUTH.
+# SMTP, Postgres и Redis наружу не публикуются никогда.
 staging_ports_are_loopback() {
-  local service id ip
+  local service id entry port ip bad=""
   for service in postgres redis mailpit; do
     id="$(staging_container_id "$service")"
     [ -n "$id" ] || return 1
-    for ip in $(docker inspect --format '{{range $p, $c := .NetworkSettings.Ports}}{{range $c}}{{.HostIp}} {{end}}{{end}}' "$id" 2>/dev/null); do
-      [ "$ip" = "127.0.0.1" ] || return 1
+    for entry in $(docker inspect --format '{{range $p, $c := .NetworkSettings.Ports}}{{if $c}}{{range $c}}{{printf "%s=%s " $p .HostIp}}{{end}}{{end}}{{end}}' "$id" 2>/dev/null); do
+      port="${entry%%=*}"
+      ip="${entry##*=}"
+      case "$ip" in
+        127.0.0.1|::1|\[::1\]) continue ;;
+      esac
+      if [ "$service" = "mailpit" ] && [ "${port%%/*}" = "$STAGING_MAILPIT_API_PORT" ] && staging_mailpit_ui_has_auth; then
+        continue
+      fi
+      bad="$bad $service:${port%%/*}@$ip"
     done
   done
+  if [ -n "$bad" ]; then
+    if staging_mailpit_ui_has_auth; then
+      echo "порты опубликованы не на loopback:$bad" >&2
+    else
+      echo "порты опубликованы не на loopback, а MP_UI_AUTH в $STAGING_DOCKER_ENV_FILE не задан:$bad" >&2
+    fi
+    return 1
+  fi
   return 0
 }
 

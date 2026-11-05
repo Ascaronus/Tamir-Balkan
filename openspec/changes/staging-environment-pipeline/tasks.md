@@ -3,8 +3,9 @@
 ## 1. Контракт и проверки (P0)
 
 - [x] 1.1 `backend/tests/staging-contract.test.cjs` — контракт стенда: нет прод-URL, нет `VPS_*`,
-      БД/Redis только на `127.0.0.1`. Доказательство: `node --test tests/staging-contract.test.cjs`
-      → 7/7 pass; `node test-support/run-tests.mjs --no-db` → 83/83 pass.
+      БД/Redis/SMTP только на `127.0.0.1`, веб-почта Mailpit опубликована в LAN только под
+      `MP_UI_AUTH`. Доказательство: `node --test tests/staging-contract.test.cjs`
+      → 8/8 pass; `node test-support/run-tests.mjs --no-db` → 84/84 pass (замер 05.11).
 - [x] 1.2 `test-support/verify-deploy-staging.mjs` — гейт staging-workflow (нет `push`/`pull_request`,
       обязательный `sha`, `environment: staging`, `needs: gate`, ancestry-гейт в скрипте).
       Доказательство: прямой прогон `node test-support/verify-deploy-staging.mjs` → exit 0.
@@ -25,9 +26,11 @@
 ## 3. Скрипты стенда (P0)
 
 - [x] 3.1 `docker-compose.staging.yml` — Postgres 16, Redis 7, Mailpit v1.33, тома и healthcheck,
-      порты только на `127.0.0.1` (5432/6379/587/8025).
-- [x] 3.2 `scripts/staging-bootstrap.sh` — генерация секретов, self-signed CA + leaf для STARTTLS,
-      требовательность к sitekey Turnstile, проверка loopback-портов, `ALTER USER` для роли БД.
+      порты `5432`/`6379`/`587` только на `127.0.0.1`, веб-интерфейс Mailpit `8025` — на интерфейсы
+      локальной сети под HTTP Basic (`env_file` с `secrets/docker.env`).
+- [x] 3.2 `scripts/staging-bootstrap.sh` — генерация секретов (в том числе `MP_UI_AUTH` для
+      веб-почты), self-signed CA + leaf для STARTTLS, требовательность к sitekey Turnstile,
+      проверка портов по паре «порт + адрес», `ALTER USER` для роли БД.
 - [x] 3.3 `scripts/deploy-staging.sh` — flock, 12 попыток `git fetch origin main`, ancestry-гейт с
       исключением `TAMIR_ALLOW_NON_MAIN=1`, `staging_assert_config_safe`, сборка, миграции всегда,
       `setup-reviews.ts` + `setup-decimal-attributes.ts`, сид по флагу, создание админа при отсутствии
@@ -35,7 +38,8 @@
 - [x] 3.4 `scripts/activate-staging-release.sh` + `scripts/lib/staging-release.sh` — переключение
       PM2, health/robots/sitemap, откат на предыдущую экосистему из `backups/`, хелпер `staging_run`.
 - [x] 3.5 `scripts/staging-smoke.sh` — loopback- и (при маркере `.tunnel-enabled`) публичные
-      HTTPS-проверки, Mailpit API, `medusa exec ./src/scripts/staging-mail-check.ts`.
+      HTTPS-проверки, Mailpit API под `MP_UI_AUTH` (`STAGING_MAILPIT_AUTH`), доступность веб-почты
+      с адреса локальной сети, `401` без токена, `medusa exec ./src/scripts/staging-mail-check.ts`.
 - [x] 3.6 `backend/src/scripts/staging-mail-check.ts` — отправка кода через продуктовую
       `sendRegistrationCode()`. Доказательство: standalone `npx tsc --noEmit` → exit 0.
 - [x] 3.7 `scripts/staging-tunnel.sh` — `login`/`create`/`dns`, ingress только `localhost:3000` и
@@ -78,6 +82,18 @@
       `provider_identity.provider_metadata` — из 5 emailpass-строк хеш сохранён только у него;
       `medusa exec ./src/scripts/staging-mail-check.ts` с `NODE_EXTRA_CA_CERTS` из экосистемы релиза
       принимает письмо Mailpit, без переменной та же команда падает с `CODE_SEND_FAILED`)
+- [ ] 5.8 Открыть веб-почту Mailpit на интерфейс локальной сети под HTTP Basic (по запросу
+      владельца: ящик должен быть виден с рабочего компьютера). Порядок на машине (только под
+      `actions-runner`, см. `docs/STAGING.md`): сначала обновить клон `/opt/tamir-staging/repo` на
+      `origin/main` (иначе bootstrap/smoke читают старый Compose-файл), затем
+      `bash scripts/staging-bootstrap.sh` — он идемпотентно допишет `MP_UI_AUTH` в
+      `secrets/docker.env` и пересоздаст `mailpit` с публикацией `8025` в LAN; далее
+      `ss -ltn | grep :8025` (ожидается `0.0.0.0`), `curl` без пароля → `401`,
+      `bash scripts/staging-smoke.sh` и вход с ноутбука на `http://<IP стенда>:8025`. Замечено при
+      диагностике: `.git` клона принадлежит `actions-runner`, а `HEAD`/`index` имеют права `0600`,
+      поэтому из-под `giper` там `fatal: not a git repository` — клон рабочий, читать его должен
+      владелец. Код и контрактный тест в репозитории
+      (`node --test backend/tests/staging-contract.test.cjs` — 8/8), на машине нужен `actions-runner`.
 
 ## 6. Публичный вход (P0, требует участия владельца)
 

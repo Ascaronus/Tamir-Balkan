@@ -70,6 +70,35 @@ test('mail check goes through the production email code path', () => {
   assert.match(check, /sendRegistrationCode/, 'используется реальный тракт кодов регистрации')
 })
 
+test('mailpit web UI opens to the LAN only behind HTTP Basic', () => {
+  const compose = read('docker-compose.staging.yml')
+  // Веб-почта публикуется на интерфейс домашней сети (иначе её видно только на самой машине),
+  // и ровно поэтому она обязана быть под паролем: в ящике лежат коды регистрации.
+  assert.match(compose, /MP_UI_BIND_ADDR:\s*0\.0\.0\.0:8025/, 'mailpit обязан слушать 8025, иначе LAN-проброс бесполезен')
+  assert.match(compose, /"8025:8025"/, 'веб-почта проброшена на интерфейсы локальной сети')
+  assert.ok(!/"127\.0\.0\.1:8025:8025"/.test(compose), 'веб-почта не должна возвращаться на loopback')
+  assert.match(
+    compose,
+    /env_file:\s*\n\s*-\s*\/opt\/tamir-staging\/secrets\/docker\.env/,
+    'mailpit обязан получать MP_UI_AUTH из staging-секретов, иначе LAN-доступ открыт всем'
+  )
+  // Единственное исключение в периметре: SMTP, Postgres и Redis наружу не публикуются.
+  assert.match(compose, /"127\.0\.0\.1:5432:5432"/, 'База остаётся на loopback')
+  assert.match(compose, /"127\.0\.0\.1:6379:6379"/, 'Redis остаётся на loopback')
+  assert.match(compose, /"127\.0\.0\.1:587:587"/, 'SMTP остаётся на loopback')
+
+  const lib = read('scripts/lib/staging-release.sh')
+  assert.match(lib, /staging_docker_env_value\(\)/, 'креды веб-почты читаются из docker.env')
+  assert.match(lib, /staging_mailpit_ui_has_auth/, 'периметр обязан проверять, что веб-почта под паролем')
+  assert.match(lib, /MP_UI_AUTH/, 'lib знает про HTTP Basic для Mailpit')
+  assert.match(read('scripts/staging-bootstrap.sh'), /MP_UI_AUTH=\S*\$\(secret\)/, 'bootstrap выпускает пароль веб-почты')
+  assert.match(read('scripts/staging-smoke.sh'), /MP_UI_AUTH/, 'смоук проверяет, что пароль веб-почты на месте')
+
+  const check = read('backend/src/scripts/staging-mail-check.ts')
+  assert.match(check, /STAGING_MAILPIT_AUTH/, 'проверка тракта получает пароль веб-почты')
+  assert.match(check, /Basic \$\{Buffer\.from\(MAILPIT_AUTH\)\.toString\("base64"\)\}/, 'пароль передаётся заголовком Authorization, а не URL')
+})
+
 test('generated ecosystem keeps pm2 names and loopback binding', () => {
   const lib = read('scripts/lib/staging-release.sh')
   const template = lib.match(/<<'ECOSYSTEM'\n([\s\S]*?)\nECOSYSTEM/)
