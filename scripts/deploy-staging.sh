@@ -55,6 +55,19 @@ else
   git merge-base --is-ancestor "$target" origin/main || staging_abort "Коммит $target не входит в origin/main: staging принимает только прошедший Verify код из main"
 fi
 
+# Клону нужен сам код целевого коммита: иначе выполняются старые скрипты из HEAD клона,
+# а не те, что прошли Verify. Переключаем клон на коммит и перезапускаем этот же скрипт
+# из него (блокировка flock на fd 9 переживает exec, повторного захвата не будет).
+clone_head="$(git rev-parse HEAD)"
+if [ "$clone_head" != "$target" ]; then
+  if [ "${TAMIR_DEPLOY_RESYNC:-0}" = "1" ]; then
+    staging_abort "После синхронизации HEAD клона (${clone_head:0:12}) снова не равен $target"
+  fi
+  git checkout -q --force --detach "$target" || staging_abort "Не удалось переключить клон $STAGING_REPO_DIR на $target"
+  staging_note "Клон обновлён ${clone_head:0:12} -> ${target:0:12}, перезапускаю скрипт из этого коммита"
+  TAMIR_DEPLOY_RESYNC=1 exec bash "$STAGING_REPO_DIR/scripts/deploy-staging.sh" "$target"
+fi
+
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-${target:0:12}"
 release_dir="$STAGING_RELEASES_DIR/$release_id"
 backup_dir="$STAGING_BACKUP_DIR/$release_id"

@@ -64,7 +64,7 @@ self-hosted runner GitHub Actions, pm2 и docker (вход в группу `dock
 
 | Путь | Назначение |
 | --- | --- |
-| `/opt/tamir-staging/repo` | постоянный клон `main` (deploy key только на чтение) |
+| `/opt/tamir-staging/repo` | постоянный клон (deploy key только на чтение); деплой переключает его на целевой коммит и перезапускает свои скрипты из него |
 | `/opt/tamir-staging/releases/<UTC>-<sha>` | каталоги релизов, как на проде |
 | `/opt/tamir-staging/current`, `current-backend`, `current-frontend` | ссылки на активный релиз |
 | `/opt/tamir-staging/backups/<release id>` | `pg_dump` staging-БД, env-снимок, экосистема предыдущего релиза, `pm2 jlist` |
