@@ -214,6 +214,6 @@ Staging-машина подготовлена.
 Дальше:
   1) HTTPS-туннель: scripts/staging-tunnel.sh login && scripts/staging-tunnel.sh create
   2) Релиз      : scripts/deploy-staging.sh <sha>   (или CI: deploy-staging.yml)
-  3) Данные     : scripts/staging-db-refresh.sh --from <dump>   (анонимизация PII обязательна)
+  3) Данные     : scripts/staging-db-refresh.sh <dump>   (анонимизация PII обязательна)
   4) Smoke      : scripts/staging-smoke.sh
 SUMMARY
