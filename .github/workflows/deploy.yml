@@ -34,6 +34,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERIFIED_SHA: ${{ inputs.sha }}
+          # Job без checkout: gh не может развернуть свои плейсхолдеры владельца
+          # и репозитория, поэтому путь к API собираем из github.repository явно.
+          GH_REPO_PATH: ${{ github.repository }}
         run: |
           set -Eeuo pipefail
           if [[ ! "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -43,14 +46,14 @@ jobs:
 
           # Прод обязан выпускать код из main: compare с main даёт status behind|identical,
           # если коммит действительно предок main (и diverged/ahead — если нет).
-          relation="$(gh api "repos/{owner}/{repo}/compare/main...$VERIFIED_SHA" --jq '.status')"
+          relation="$(gh api "repos/$GH_REPO_PATH/compare/main...$VERIFIED_SHA" --jq '.status')"
           if [[ "$relation" != "behind" && "$relation" != "identical" ]]; then
             echo "Refusing to deploy: $VERIFIED_SHA is not reachable from main (compare status: $relation)." >&2
             exit 1
           fi
 
           # Verify обязан быть зелёным именно на этом коммите, а не «когда-то на main».
-          suites="$(gh api "repos/{owner}/{repo}/commits/$VERIFIED_SHA/check-suites" --jq '.check_suites[] | "\(.name) \(.status) \(.conclusion)"')"
+          suites="$(gh api "repos/$GH_REPO_PATH/commits/$VERIFIED_SHA/check-suites" --jq '.check_suites[] | "\(.name) \(.status) \(.conclusion)"')"
           if [[ -z "$suites" ]]; then
             echo "Refusing to deploy: no check suites on $VERIFIED_SHA — Verify has not run for this commit." >&2
             exit 1

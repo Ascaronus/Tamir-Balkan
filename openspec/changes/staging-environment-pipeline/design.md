@@ -23,7 +23,10 @@ default branch, а `head_sha` — из уже завершившегося `Veri
 
 - job `gate` (GitHub-hosted, `permissions: contents: read, checks: read`) через API проверяет
   `compare main...sha` → `behind`/`identical` и `check-suites` → `completed` +
-  `success`/`neutral`/`skipped`; иначе job падает и `deploy` не запускается;
+  `success`/`neutral`/`skipped`; иначе job падает и `deploy` не запускается. Пути API собираются
+  из `github.repository` (шагская переменная `GH_REPO_PATH`): в `gate` нет `actions/checkout`,
+  поэтому собственные плейсхолдеры gh владельца/репозитория там не разворачиваются
+  (на этом упал первый автодеплой — run 42062901425);
 - job `deploy` (`needs: gate`, labels `self-hosted, linux, x64, tamir-staging`,
   `environment: staging`) не делает `actions/checkout`, а вызывает уже лежащий на машине
   `scripts/deploy-staging.sh <sha>`;

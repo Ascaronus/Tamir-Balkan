@@ -47,6 +47,28 @@ assert.match(
   /commits\/\$TARGET_SHA\/check-suites/,
   'the gate job must prove Verify finished successfully on the exact SHA'
 )
+// Гейт работает без checkout, поэтому gh не может развернуть свои плейсхолдеры
+// владельца и репозитория: путь к API обязан собираться из github.repository явно.
+assert.doesNotMatch(
+  workflow,
+  /\{owner\}\/\{repo\}/,
+  'deploy-staging.yml must not use gh path placeholders: the gate job has no checkout to expand them'
+)
+assert.match(
+  workflow,
+  /GH_REPO_PATH: \$\{\{ github\.repository \}\}/,
+  'deploy-staging.yml must export github.repository for the gate API calls'
+)
+assert.match(
+  workflow,
+  /repos\/\$GH_REPO_PATH\/compare\/main\.\.\.\$TARGET_SHA/,
+  'the compare gate must address the current repository by $GH_REPO_PATH'
+)
+assert.match(
+  workflow,
+  /repos\/\$GH_REPO_PATH\/commits\/\$TARGET_SHA\/check-suites/,
+  'the check-suites gate must address the current repository by $GH_REPO_PATH'
+)
 assert.match(
   workflow,
   /needs: gate/,
