@@ -81,8 +81,11 @@ publishable="$(staging_psql_value "SELECT token FROM api_key WHERE type='publish
 if [ -z "$publishable" ]; then
   bad "publishable key не найден в staging-БД (нужен сид: TAMIR_ALLOW_SEED=1)"
 else
+  # В Medusa 2.x список товаров витрины отдаёт GET /store/products; POST здесь
+  # отвечает 404, поэтому проверяем тот метод, который реально существует.
+  products_url="$api_base/store/products?limit=2"
   products_json="$STAGING_ROOT/logs/staging-smoke-products.json"
-  if curl -fsS --max-time 30 -H "x-publishable-api-key: $publishable" -X POST "$api_base/store/products" -o "$products_json"; then
+  if curl -fsS --max-time 30 -H "x-publishable-api-key: $publishable" "$products_url" -o "$products_json"; then
     ok "store API: список продуктов (publishable key из БД)"
     if node -e 'const j=require(process.argv[1]); if(!Array.isArray(j.products)) process.exit(1)' "$products_json" 2>/dev/null; then
       ok "store API: ответ содержит products"
@@ -90,7 +93,7 @@ else
       bad "store API: ответ без products"
     fi
   else
-    bad "store API: $api_base/store/products недоступен"
+    bad "store API: $products_url недоступен"
   fi
   admin_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$api_base/admin/store")"
   if [ "$admin_code" = "401" ]; then ok "admin API: без токена отвечает 401"; else bad "admin API: ожидаем 401, получили $admin_code"; fi
@@ -110,6 +113,10 @@ fi
 if staging_public_checks_enabled; then
   check "публичный ${STAGING_API_URL}/health" curl -fsS --retry 5 --retry-delay 3 --max-time 30 "${STAGING_API_URL}/health"
   check "публичный ${STAGING_SITE_URL}/robots.txt" curl -fsS --retry 5 --retry-delay 3 --max-time 30 -o /dev/null "${STAGING_SITE_URL}/robots.txt"
+  if [ -n "${publishable:-}" ]; then
+    check "публичный ${STAGING_API_URL}/store/products с publishable key" \
+      curl -fsS --retry 5 --retry-delay 3 --max-time 30 -H "x-publishable-api-key: $publishable" -o /dev/null "${STAGING_API_URL}/store/products?limit=1"
+  fi
 else
   notes+=("Публичные HTTPS-проверки пропущены: нет $STAGING_TUNNEL_MARKER (scripts/staging-tunnel.sh)")
 fi
