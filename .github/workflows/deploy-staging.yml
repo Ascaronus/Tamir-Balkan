@@ -1,0 +1,131 @@
+name: Deploy TAMIR Staging
+
+# Staging (test.tamir.rs / test-api.tamir.rs) — автоматический деплой после Verify в main (ТЗ §2):
+#   pull request -> Verify (GitHub-hosted) -> merge в main -> Verify (push) -> этот workflow сам стартует.
+# Повторный деплой того же коммита или любого коммита из истории main — ручной workflow_dispatch с sha.
+# Прод из этого файла не деплоится: deploy.yml поднимается только вручную.
+#
+# Безопасность self-hosted runner на HP Mini (он за NAT и под пользователем actions-runner):
+#   * триггер workflow_run берёт этот файл из default branch, а не из PR —
+#     непроверенный код PR на runner с доступом к стенду не исполняется;
+#   * никаких pull_request-триггеров в этом файле быть не должно (запрещено гвардом);
+#   * job на машине не делает checkout: он вызывает scripts/deploy-staging.sh
+#     из долгоживущего клона /opt/tamir-staging/repo (read-only deploy key),
+#     а тот сам делает fetch и проверяет git merge-base --is-ancestor по origin/main.
+on:
+  workflow_run:
+    workflows: ["Verify storefront and backend"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "40-символьный SHA коммита из main, прошедшего Verify"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+  actions: read
+
+concurrency:
+  group: tamir-staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  # Гейт живёт на GitHub-hosted runner: там есть gh и секции API, а HP Mini
+  # остаётся только исполнителем уже подтверждённого коммита.
+  gate:
+    # workflow_run: только зелёный Verify именно от push в main.
+    # workflow_dispatch: человек называет sha, гейт проверяет его так же строго.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - name: Pick the commit to deploy
+        id: pick
+        shell: bash
+        env:
+          DISPATCH_SHA: ${{ inputs.sha }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -Eeuo pipefail
+          sha="${DISPATCH_SHA:-$RUN_SHA}"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing to deploy: no verified commit SHA in this event ('${sha}')." >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm the commit passed Verify on main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.pick.outputs.sha }}
+        run: |
+          set -Eeuo pipefail
+
+          # Коммит обязан быть из истории main (или самим head main): dispatch не должен
+          # протащить на staging произвольный SHA из закрытого PR.
+          relation="$(gh api "repos/{owner}/{repo}/compare/main...$TARGET_SHA" --jq '.status')"
+          if [[ "$relation" != "behind" && "$relation" != "identical" ]]; then
+            echo "Refusing to deploy: $TARGET_SHA is not reachable from main (compare status: $relation)." >&2
+            exit 1
+          fi
+
+          # Verify обязан быть зелёным именно на этом коммите.
+          suites="$(gh api "repos/{owner}/{repo}/commits/$TARGET_SHA/check-suites" --jq '.check_suites[] | "\(.name) \(.status) \(.conclusion)"')"
+          if [[ -z "$suites" ]]; then
+            echo "Refusing to deploy: no check suites on $TARGET_SHA — Verify has not run for this commit." >&2
+            exit 1
+          fi
+          echo "$suites"
+          if grep -vqE ' completed (success|neutral|skipped)$' <<< "$suites"; then
+            echo "Refusing to deploy: not every check suite finished successfully on $TARGET_SHA." >&2
+            exit 1
+          fi
+          echo "Staging will deploy ${TARGET_SHA}: Verify is green and the commit is reachable from main."
+
+  deploy:
+    # Без своего if: job ждёт успеха gate, а при пропущенном/упавшем gate не стартует.
+    needs: gate
+    environment: staging
+    runs-on: [self-hosted, linux, x64, tamir-staging]
+    timeout-minutes: 90
+    steps:
+      - name: Deploy the verified commit on the staging host
+        shell: bash
+        env:
+          TARGET_SHA: ${{ needs.gate.outputs.sha }}
+          STAGING_REPO_DIR: /opt/tamir-staging/repo
+        run: |
+          set -Eeuo pipefail
+          if [[ ! "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Refusing to deploy: the gated SHA is malformed ('${TARGET_SHA}')." >&2
+            exit 1
+          fi
+          if [[ ! -d "$STAGING_REPO_DIR/.git" ]]; then
+            echo "Missing long-lived clone at $STAGING_REPO_DIR. Run scripts/staging-bootstrap.sh first." >&2
+            exit 1
+          fi
+
+          # Никакого checkout здесь: рабочее дерево машины — единственный источник кода релиза.
+          # deploy-staging.sh сам делает git fetch и проверяет, что SHA предок origin/main,
+          # поэтому даже скомпрометированный гейт не выпустит код вне main.
+          bash "$STAGING_REPO_DIR/scripts/deploy-staging.sh" "$TARGET_SHA"
+
+      - name: Staging health snapshot
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pm2 status || true
+          pm2 logs tamir-backend --lines 40 --nostream || true
+          docker compose -f /opt/tamir-staging/repo/docker-compose.staging.yml ps || true
