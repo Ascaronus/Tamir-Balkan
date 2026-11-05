@@ -61,10 +61,14 @@
 - [x] 5.3 self-hosted runner под выделенным пользователем `actions-runner` (группа `docker`) как
       systemd-сервис с labels `self-hosted, linux, x64, tamir-staging`; environment `staging`
       в репозитории; pm2-автозапуск юнитом `pm2-resurrect.service`.
-- [ ] 5.4 `scripts/staging-bootstrap.sh` → `docker compose -f docker-compose.staging.yml up -d` →
-      `docker compose ps` healthy, порты слушают только `127.0.0.1`.
-- [ ] 5.5 Дамп прода → `scripts/staging-db-refresh.sh` → assert анонимизации чистый, publishable
-      key прочитан из БД.
+- [x] 5.4 `scripts/staging-bootstrap.sh --allow-missing-turnstile` (под `actions-runner`) → секреты
+      `0600`, CA+leaf Mailpit, self-signed `turnstile-*`; `docker compose up -d` →
+      `tamir-staging-{postgres,redis,mailpit}-1` healthy, слушают только `127.0.0.1`
+      (5432/6379/587/8025).
+- [x] 5.5 Дамп прода (`pg_dump -Fc`, 798 978 Б) → `scripts/staging-db-refresh.sh` → exit 0:
+      замаскировано 58 колонок / 921 строка, TRUNCATE 4 сервистаблиц, assert об email чистый,
+      снятые bcrypt-хеши `provider_identity` — 4 строки; publishable ключей в БД — 2.
+      Дамп удалён со стенда и с прода, точка отката в `backups/pre-db-refresh-*.dump`.
 - [ ] 5.6 Первый деплой по SHA: миграции прошли, админ создан (`secrets/staging-admin.txt`),
       health `127.0.0.1:9000/health` и `127.0.0.1:3000/robots.txt` зелёные.
 - [ ] 5.7 Подтвердить на машине поведение `npx medusa user` и `NODE_EXTRA_CA_CERTS` в собранном
