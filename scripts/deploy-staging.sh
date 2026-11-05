@@ -9,12 +9,17 @@
 #   * никаких прод-адресов: guard из lib/staging-release.sh.
 #
 # Запускается self-hosted runner'ом (workflow_run после Verify в main) или вручную:
-#   sudo bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
+#   sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
 set -Eeuo pipefail
 umask 077
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib/staging-release.sh"
 staging_root_defaults
+
+# pm2-демон, секреты и релизы принадлежат STAGING_USER; root-запуск породил бы
+# отдельный root-демон pm2 и root-права на релизы — это запрещено.
+[ "$(id -un)" = "$STAGING_USER" ] || staging_abort \
+  "Staging-деплой выполняется пользователем $STAGING_USER (под ним же работают runner и pm2): sudo -u $STAGING_USER bash scripts/deploy-staging.sh <sha>"
 
 for command in git node npm pm2 docker curl tar flock; do
   command -v "$command" >/dev/null || staging_abort "Нет команды: $command"

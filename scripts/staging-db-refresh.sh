@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Обслуживание данных staging (ТЗ §6): перенос анонимизированных данных с прода.
 #
-#   sudo bash scripts/staging-db-refresh.sh <файл-дампа> [--no-anonymize] [--keep-apps]
+#   sudo -u actions-runner bash scripts/staging-db-refresh.sh <файл-дампа> [--no-anonymize] [--keep-apps]
 #
 # Дамп обязателен: файлы с прода не должны задерживаться на staging.
 # Порядок: резервная копия текущей БД -> восстановление -> scripts/sql/staging-anonymize.sql
@@ -11,6 +11,9 @@ umask 077
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib/staging-release.sh"
 staging_root_defaults
+# pm2 и секреты принадлежат STAGING_USER — дамп/восстановление делаем тем же пользователем.
+[ "$(id -un)" = "$STAGING_USER" ] || staging_abort \
+  "Запускайте от имени $STAGING_USER: sudo -u $STAGING_USER bash scripts/staging-db-refresh.sh ..."
 
 dump_file="${1:?Укажите файл дампа, например /root/tamir_prod_2026-11-05.dump}"
 shift || true

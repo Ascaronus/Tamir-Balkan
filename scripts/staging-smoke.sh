@@ -5,11 +5,14 @@
 # (publishable key из staging-БД), почтовый тракт (отправка + приём в Mailpit)
 # и публичные HTTPS-адреса, когда выпущен cloudflared-туннель.
 #
-# Запуск на staging-машине:  sudo bash scripts/staging-smoke.sh
+# Запуск: sudo -u actions-runner bash scripts/staging-smoke.sh
 set -Eeuo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib/staging-release.sh"
 staging_root_defaults
+# pm2/docker-сокеты принадлежат STAGING_USER; root нужен только staging-tunnel.sh.
+[ "$(id -un)" = "$STAGING_USER" ] || staging_abort \
+  "Запускайте от имени $STAGING_USER: sudo -u $STAGING_USER bash scripts/staging-smoke.sh"
 
 failures=0
 notes=()

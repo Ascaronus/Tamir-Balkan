@@ -5,9 +5,9 @@ name: Deploy TAMIR Staging
 # Повторный деплой того же коммита или любого коммита из истории main — ручной workflow_dispatch с sha.
 # Прод из этого файла не деплоится: deploy.yml поднимается только вручную.
 #
-# Безопасность self-hosted runner на HP Mini (он за NAT и от root):
+# Безопасность self-hosted runner на HP Mini (он за NAT и под пользователем actions-runner):
 #   * триггер workflow_run берёт этот файл из default branch, а не из PR —
-#     непроверенный код PR на привилегированном runner не исполняется;
+#     непроверенный код PR на runner с доступом к стенду не исполняется;
 #   * никаких pull_request-триггеров в этом файле быть не должно (запрещено гвардом);
 #   * job на машине не делает checkout: он вызывает scripts/deploy-staging.sh
 #     из долгоживущего клона /opt/tamir-staging/repo (read-only deploy key),

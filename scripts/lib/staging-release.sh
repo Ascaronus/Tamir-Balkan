@@ -48,6 +48,33 @@ staging_root_defaults() {
   export STAGING_PM2_FRONTEND="${STAGING_PM2_FRONTEND:-tamir-frontend}"
   export STAGING_TUNNEL_NAME="${STAGING_TUNNEL_NAME:-tamir-staging}"
   export STAGING_TUNNEL_MARKER="${STAGING_TUNNEL_MARKER:-$STAGING_ROOT/.tunnel-enabled}"
+
+  # Обслуживающий пользователь стенда: он же self-hosted runner GitHub Actions.
+  # GitHub config.sh запрещает раннер от root, поэтому pm2/docker/git — под этим
+  # пользователем; root нужен только для apt/systemd/cloudflared-сервиса.
+  export STAGING_USER="${STAGING_USER:-actions-runner}"
+}
+
+# Все staging-операции (pm2, docker compose, секреты, релизы) принадлежат STAGING_USER.
+staging_require_service_user() {
+  local me id_ok=0
+  me="$(id -un)"
+  if [ "$me" = "$STAGING_USER" ]; then
+    id_ok=1
+  elif [ "$(id -u)" = 0 ]; then
+    # root допускается только как «установщик» (svc.sh, cloudflared); такой запуск
+    # обязан в конце вернуть права на STAGING_ROOT обслуживающему пользователю.
+    id_ok=1
+    export STAGING_NEED_CHOWN=1
+  fi
+  [ "$id_ok" = 1 ] || staging_abort "Стенд обслуживается пользователем $STAGING_USER (или root для установки). Запустите: sudo -u $STAGING_USER bash $0 $*"
+}
+
+staging_fix_ownership() {
+  if [ "${STAGING_NEED_CHOWN:-0}" = 1 ]; then
+    chown -R "$STAGING_USER:$STAGING_USER" "$STAGING_ROOT"
+    staging_note "Права на $STAGING_ROOT возвращены пользователю $STAGING_USER"
+  fi
 }
 
 staging_note() { echo ">>> $*"; }

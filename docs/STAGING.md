@@ -25,7 +25,9 @@ PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
   Подробности — [DEPLOY.md](../DEPLOY.md).
 
 Триггеры `pull_request`/`push` у deploy-workflow нет намеренно: код из PR не должен попадать
-на привилегированный self-hosted runner. `workflow_run` берёт файл workflow из default branch,
+на self-hosted runner, у которого есть доступ к стенду (deploy key, docker, pm2). Сам раннер
+работает под выделенным непривилегированным пользователем `actions-runner` — GitHub `config.sh`
+запрещает регистрацию от root. `workflow_run` берёт файл workflow из default branch,
 поэтому на машине исполняется только уже слитый в `main` код.
 
 Дополнительная защита на самой машине: `deploy-staging.sh` требует, чтобы целевой коммит был
@@ -51,7 +53,9 @@ ssh tamir-staging "uname -a"
 
 Ключ `~/.ssh/tamir_staging` (ed25519) защищён кодовой фразой; для неинтерактивных подключений
 её нужно загружать в `ssh-agent` (задача входа `Tamir-Staging-SSH-Add`). Кодовая фраза в Git не
-хранится. Все обслуживаниеющие команды на машине выполняются от `root` (`sudo`).
+хранится. Всем стендом обслуживает выделенный пользователь `actions-runner` — под ним работают
+self-hosted runner GitHub Actions, pm2 и docker (вход в группу `docker`); `root` нужен только для
+`apt`, systemd-юнитов и `staging-tunnel.sh`. Ручные команды на машине — `sudo -u actions-runner …`.
 
 ## Расположение на машине
 
@@ -166,13 +170,13 @@ IP, fingerprint и user-agent. Почты заменяются на
 
 Дампы прода на стенде не хранятся: после загрузки промежуточный файл удаляется.
 
-Что остаётсяKnown: медиа-файлы прода на стенд не копируются, поэтому картинки товаров могут
+Что остаётся: медиа-файлы прода на стенд не копируются, поэтому картинки товаров могут
 отдавать 404. Загруженные на стенде файлы живут в `shared/uploads` и между релизами не теряются.
 
 ## Деплой стенда: `scripts/deploy-staging.sh`
 
 ```bash
-sudo bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
+sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
 ```
 
 Шаги (всё под `flock`, при падении до активации живые процессы не тронуты):
@@ -203,13 +207,17 @@ Turnstile: bootstrap требует sitekey (`--turnstile-site-key <key>` или
 ## Проверки и диагностика
 
 ```bash
-sudo bash scripts/staging-smoke.sh            # полная проверка стенда
-cd /opt/tamir-staging/repo && sudo docker compose -f docker-compose.staging.yml ps
-sudo pm2 list && sudo pm2 logs tamir-backend --lines 100 --nostream
+sudo -u actions-runner bash scripts/staging-smoke.sh   # полная проверка стенда
+cd /opt/tamir-staging/repo && sudo -u actions-runner docker compose -f docker-compose.staging.yml ps
+sudo -u actions-runner pm2 list && sudo -u actions-runner pm2 logs tamir-backend --lines 100 --nostream
 curl -fsS http://127.0.0.1:9000/health
 curl -I http://127.0.0.1:3000/robots.txt
 curl -fsS https://test-api.tamir.rs/health    # только когда поднят туннель
 ```
+
+pm2 — демон пользователя `actions-runner` (`PM2_HOME=/home/actions-runner/.pm2`); команды вида
+`sudo pm2 …` показывают пустой root-набор и правильную картину не дают. Autostart после перезагрузки
+обеспечивает systemd-юнит `pm2-resurrect.service`.
 
 Smoke проверяет контейнеры и их healthcheck, «порты только на loopback», pm2-процессы и их
 рабочие каталоги, локальные health/robots/sitemap, витринный API с publishable key из staging-БД,

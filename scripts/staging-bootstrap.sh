@@ -6,7 +6,9 @@
 # синхронизирует пароль роли БД, проверяет, что порты свободны и наружу ничего не торчит.
 #
 # Никакого production-контекста: ни прод-доменов, ни прод-БД, ни адресов VPS.
-# Запуск: sudo bash scripts/staging-bootstrap.sh [--turnstile-site-key <key>]
+# Запуск: sudo -u actions-runner bash scripts/staging-bootstrap.sh [--turnstile-site-key <key>]
+# (root тоже принимается, но в конце права на /opt/tamir-staging возвращаются
+#  обслуживающему пользователю — pm2 и runner работают не от root)
 set -Eeuo pipefail
 umask 077
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -40,7 +42,8 @@ while [ $# -gt 0 ]; do
 done
 
 # --- pre-flight -------------------------------------------------------------
-[ "$(id -u)" = 0 ] || staging_abort "Staging-машина обслуживается от root: запустите через sudo"
+staging_require_service_user "$@"
+trap 'staging_fix_ownership || true' EXIT
 for command in git docker openssl curl; do
   command -v "$command" >/dev/null || staging_abort "Нет команды: $command"
 done

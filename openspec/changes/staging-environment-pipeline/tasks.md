@@ -54,12 +54,13 @@
 
 ## 5. Машина `tamir-staging` (P0, выполняется на HP Mini)
 
-- [ ] 5.1 Архитектура и пакеты: `uname -m`, `apt install git build-essential openssl`, Node
+- [x] 5.1 Архитектура и пакеты: `uname -m`, `apt install git build-essential openssl`, Node
       20.20.2 из tarball в `/usr/local`, `npm -g pm2`, `cloudflared`.
-- [ ] 5.2 Клон `/opt/tamir-staging/repo` + deploy key `/root/.ssh/tamir_staging_deploy`
-      (регистрация `gh api repos/Ascaronus/Tamir-Balkan/keys`).
-- [ ] 5.3 self-hosted runner от root как systemd-сервис с labels `self-hosted, linux, x64,
-      tamir-staging`; environment `staging` в репозитории.
+- [x] 5.2 Клон `/opt/tamir-staging/repo` + deploy key (регистрация
+      `gh api repos/Ascaronus/Tamir-Balkan/keys`); владелец каталога — `actions-runner`.
+- [x] 5.3 self-hosted runner под выделенным пользователем `actions-runner` (группа `docker`) как
+      systemd-сервис с labels `self-hosted, linux, x64, tamir-staging`; environment `staging`
+      в репозитории; pm2-автозапуск юнитом `pm2-resurrect.service`.
 - [ ] 5.4 `scripts/staging-bootstrap.sh` → `docker compose -f docker-compose.staging.yml up -d` →
       `docker compose ps` healthy, порты слушают только `127.0.0.1`.
 - [ ] 5.5 Дамп прода → `scripts/staging-db-refresh.sh` → assert анонимизации чистый, publishable

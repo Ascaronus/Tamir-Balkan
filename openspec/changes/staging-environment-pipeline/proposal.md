@@ -56,7 +56,8 @@
 - Продуктовый код: только новый служебный скрипт `backend/src/scripts/staging-mail-check.ts`
   (проверка почтового тракта через `sendRegistrationCode()`); `backend/src/**` приложения не меняются.
 - Инфраструктура: требуется self-hosted runner на машине `tamir-staging` (labels
-  `self-hosted, linux, x64, tamir-staging`), environment `staging`, deploy key репозитория,
-  `cloudflared` и DNS-записи `test` / `test-api` в зоне `tamir.rs`.
+  `self-hosted, linux, x64, tamir-staging`) под выделенным пользователем `actions-runner`
+  (группа `docker`, владелец `/opt/tamir-staging`), environment `staging`, deploy key
+  репозитория, `cloudflared` и DNS-записи `test` / `test-api` в зоне `tamir.rs`.
 - Продакшен: VPS, его systemd/pm2/Docker и записи `tamir.rs` / `api.tamir.rs` не затрагиваются;
   меняется только порядок принятия решения о выпуске.
