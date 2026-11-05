@@ -218,27 +218,60 @@ staging_pm2_online() {
     let raw = "";
     process.stdin.on("data", chunk => raw += chunk);
     process.stdin.on("end", () => {
-      const app = JSON.parse(raw).find(entry => entry.name === process.argv[1]);
+      const apps = staging_parse_jlist(raw);
+      const app = apps.find(entry => entry.name === process.argv[1]);
       if (!app || app.pm2_env.status !== "online") process.exit(1);
     });
+    function staging_parse_jlist(raw) {
+      // pm2 может вернуть пустую строку (пустый pm2_HOME) или мусор в начале вывода.
+      const start = raw.indexOf("[");
+      const end = raw.lastIndexOf("]");
+      if (start < 0 || end <= start) {
+        console.error("pm2 jlist вернул пустой вывод");
+        process.exit(1);
+      }
+      try {
+        return JSON.parse(raw.slice(start, end + 1));
+      } catch (err) {
+        console.error("pm2 jlist вернул не JSON: " + err.message);
+        process.exit(1);
+      }
+    }
   ' "$wanted"
 }
 
 # Процессы обязаны работать внутри каталога релиза, иначе откат не сработает.
 staging_pm2_cwd_matches() {
   local release_dir="$1"
-  TAMIR_STAGING_RELEASE="$release_dir" \
+  # pm2 jlist обязан быть на входе: без пайпа node получил бы пустой stdin,
+  # JSON.parse упал бы с "Unexpected end of JSON input" и деплой прервался бы.
+  pm2 jlist | TAMIR_STAGING_RELEASE="$release_dir" \
   TAMIR_STAGING_APPS="$STAGING_PM2_BACKEND:backend,$STAGING_PM2_FRONTEND:frontend" \
   node -e '
     let raw = "";
     process.stdin.on("data", chunk => raw += chunk);
     process.stdin.on("end", () => {
-      const apps = JSON.parse(raw);
+      const start = raw.indexOf("[");
+      const end = raw.lastIndexOf("]");
+      if (start < 0 || end <= start) {
+        console.error("pm2 jlist вернул пустой вывод");
+        process.exit(1);
+      }
+      let apps;
+      try {
+        apps = JSON.parse(raw.slice(start, end + 1));
+      } catch (err) {
+        console.error("pm2 jlist вернул не JSON: " + err.message);
+        process.exit(1);
+      }
       for (const pair of process.env.TAMIR_STAGING_APPS.split(",")) {
         const [name, folder] = pair.split(":");
         const app = apps.find(entry => entry.name === name);
         const expected = process.env.TAMIR_STAGING_RELEASE + "/" + folder;
-        if (!app || app.pm2_env.pm_cwd !== expected) throw new Error("Wrong working directory: " + name);
+        if (!app || app.pm2_env.pm_cwd !== expected) {
+          console.error(name + ": pm_cwd=" + (app ? app.pm2_env.pm_cwd : "нет процесса") + ", ожидался " + expected);
+          process.exit(1);
+        }
       }
     });
   ' || staging_abort "Процессы pm2 работают не в каталоге релиза"
