@@ -68,6 +68,29 @@ test('mail check goes through the production email code path', () => {
   const check = read('backend/src/scripts/staging-mail-check.ts')
   assert.match(check, /from "\.\.\/utils\/registration-email"/, 'проверка обязана слать письмо продуктовым кодом')
   assert.match(check, /sendRegistrationCode/, 'используется реальный тракт кодов регистрации')
+  // MP_UI_AUTH закрывает и веб-интерфейс, и API Mailpit, поэтому каждое обращение к
+  // API обязано идти с Basic. Иначе чек падает на 401 уже при чтении тела письма.
+  const mailpitFetches = check.match(/fetch\(`\$\{MAILPIT_API\}[^\n]*/g) ?? []
+  assert.ok(mailpitFetches.length >= 2, 'у проверки два обращения к API Mailpit: список писем и тело письма')
+  for (const call of mailpitFetches) {
+    assert.match(call, /mailpitOptions\(\)/, `обращение к Mailpit API без авторизации: ${call}`)
+  }
+
+  // Неуспех почтового чека должен попадать в FAIL смоука, а не обрывать прогон:
+  // staging_run при ошибке вызывает staging_abort, тот выходит с кодом 1, и smoke
+  // заканчивается строкой ERROR без единого FAIL. Поэтому чек гоняют через staging_call.
+  const smokeLines = read('scripts/staging-smoke.sh').split('\n')
+  const at = smokeLines.findIndex((line) => line.includes('staging-mail-check.ts'))
+  assert.ok(at >= 0, 'смоук обязан запускать staging-mail-check.ts')
+  let statement = smokeLines[at]
+  for (let i = at - 1; i >= 0 && smokeLines[i].trimEnd().endsWith('\\'); i -= 1) {
+    statement = `${smokeLines[i]} ${statement}`
+  }
+  assert.match(statement, /staging_call/, `почтовый чек обязан идти через staging_call: ${statement}`)
+  assert.doesNotMatch(statement, /staging_run/, `почтовый чек обрывает смоук через staging_run: ${statement}`)
+  const callWrapper = read('scripts/lib/staging-release.sh').match(/staging_call\(\)\s*\{[\s\S]*?\n\}/)
+  assert.ok(callWrapper, 'в scripts/lib/staging-release.sh нет не-aborting обёртки staging_call')
+  assert.doesNotMatch(callWrapper[0], /staging_abort/, 'staging_call не имеет права обрывать прогон')
 })
 
 test('mailpit web UI opens to the LAN only behind HTTP Basic', () => {

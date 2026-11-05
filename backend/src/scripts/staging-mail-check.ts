@@ -44,7 +44,9 @@ export default async function stagingMailCheck({ container }: ExecArgs) {
   }
   if (!found) throw new Error("Письмо не появилось в Mailpit: SMTP-тракт работает, доставка не подтверждена.")
 
-  const detail = await fetch(`${MAILPIT_API}/api/v1/message/${encodeURIComponent(found.ID)}`)
+  // Тот же кред, что и у SMTP-тракта: MP_UI_AUTH закрывает и UI, и API Mailpit,
+  // поэтому без авторизации даже /api/v1/message/<id> отвечает 401.
+  const detail = await fetch(`${MAILPIT_API}/api/v1/message/${encodeURIComponent(found.ID)}`, mailpitOptions())
   if (!detail.ok) throw new Error(`Mailpit не отдал письмо ${found.ID}: HTTP ${detail.status}.`)
   const body = JSON.stringify(await detail.json())
   if (!body.includes(code)) throw new Error("Письмо дошло, но кода в нём нет: тело письма испорчено.")

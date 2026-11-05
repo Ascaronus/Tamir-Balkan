@@ -447,10 +447,12 @@ staging_restart_apps() {
 # Сборка, миграции и medusa exec обязаны идти в том же окружении, что и процессы pm2:
 # иначе SMTP-проверка не увидит NODE_EXTRA_CA_CERTS, а build соберётся не с теми флагами.
 # Пишем через ecosystem.config.cjs релиза — тот же путь, что использует deploy-vps.sh.
-staging_run() {
+# staging_call возвращает код команды и не прерывает скрипт: смоку нужен именно такой
+# запуск, потому что неуспех проверки должен превращаться в FAIL, а не в молчаливый выход.
+staging_call() {
   local release_dir="$1" app_name="$2" command="$3"
   shift 3
-  [ -f "$release_dir/ecosystem.config.cjs" ] || staging_abort "Нет экосистемы релиза: $release_dir/ecosystem.config.cjs"
+  [ -f "$release_dir/ecosystem.config.cjs" ] || return 1
   node -e '
     const path = require("node:path"), { spawnSync } = require("node:child_process")
     const [eco, appName, command, ...args] = process.argv.slice(1)
@@ -459,6 +461,13 @@ staging_run() {
     const r = spawnSync(command, args, { cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: "inherit" })
     if (r.error) throw r.error
     if (r.status !== 0) process.exit(r.status || 1)
-  ' "$release_dir/ecosystem.config.cjs" "$app_name" "$command" "$@" \
+  ' "$release_dir/ecosystem.config.cjs" "$app_name" "$command" "$@"
+}
+
+# Тот же запуск, но с остановкой скрипта при неуспехе — так работают деплой и активация.
+staging_run() {
+  local release_dir="$1" app_name="$2" command="$3"
+  shift 3
+  staging_call "$release_dir" "$app_name" "$command" "$@" \
     || staging_abort "Не вышло: $command $* (cwd приложения $app_name)"
 }

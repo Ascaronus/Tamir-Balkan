@@ -107,7 +107,9 @@ mailpit_auth="$(staging_docker_env_value MP_UI_AUTH)"
 export STAGING_MAILPIT_AUTH="$mailpit_auth"
 lan_ip="$(staging_lan_ip)"
 if staging_mailpit_curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:${STAGING_MAILPIT_API_PORT}/api/v1/info"; then
-  check "почтовый тракт: отправка и приём в Mailpit" staging_run "$release_dir" "$STAGING_PM2_BACKEND" \
+  # staging_call, а не staging_run: abort внутри проверки только подсвечивает вывод
+  # команды, а фиксировать её неуспех должен check — иначе смоук обрывается без FAIL.
+  check "почтовый тракт: отправка и приём в Mailpit" staging_call "$release_dir" "$STAGING_PM2_BACKEND" \
     npx --no-install medusa exec ./src/scripts/staging-mail-check.ts
   check "Mailpit UI доступен из локальной сети: http://${lan_ip}:${STAGING_MAILPIT_API_PORT}" \
     staging_mailpit_curl -fsS --max-time 10 -o /dev/null "http://${lan_ip}:${STAGING_MAILPIT_API_PORT}/"
