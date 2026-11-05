@@ -293,7 +293,8 @@ staging_health_urls() {
 }
 
 staging_wait_health() {
-  local wait_health="${STAGING_HEALTH_WAIT_SECS:-90}" ok=0 url code
+  # 240s: холодный старт Medusa на HP Mini медленнее, чем на проде.
+  local wait_health="${STAGING_HEALTH_WAIT_SECS:-240}" ok=0 url code
   staging_note "Healthcheck staging (до ${wait_health}s)..."
   while IFS= read -r url; do
     for _ in $(seq 1 "$wait_health"); do
