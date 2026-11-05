@@ -126,19 +126,9 @@ sed -i "s#^NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=.*#NEXT_PUBLIC_MEDUSA_PUBLISHABLE_
   "$release_dir/frontend/.env.production.local" "$STAGING_FRONTEND_ENV_FILE"
 
 # Медиа живёт вне релиза: релизы меняются, загруженные картинки — нет.
+# Сами симлинки вешаем ПОСЛЕ сборки (см. ниже): `medusa build` пересоздаёт
+# `.medusa/server`, и симлинк, созданный до сборки, пропадает вместе с каталогом.
 mkdir -p "$STAGING_SHARED_UPLOADS/static" "$STAGING_SHARED_UPLOADS/private-static"
-node <<'JS'
-const fs = require('node:fs'), path = require('node:path')
-const release = process.env.TAMIR_RELEASE, shared = process.env.STAGING_SHARED_UPLOADS
-for (const name of ['static', 'private-static']) {
-  for (const root of ['backend', 'backend/.medusa/server']) {
-    const dest = path.join(release, root, name)
-    if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true })
-    fs.mkdirSync(path.dirname(dest), { recursive: true })
-    fs.symlinkSync(path.join(shared, name), dest, 'dir')
-  }
-}
-JS
 
 trap 'echo "Сборка/подготовка упала. Работающие процессы pm2 не тронуты. Бэкап: $backup_dir" >&2' ERR
 
@@ -178,7 +168,7 @@ if [ "${admin_count:-0}" = "0" ]; then
   staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa user -e "$admin_email" -p "$admin_password"
   umask 077
   cat > "$admin_file" <<EOF
-# Staging: $STAGING_SITE_URL/a (доступен только через туннель test.tamir.rs).
+# Витрина: $STAGING_SITE_URL, админка Medusa: $STAGING_API_URL/app (логин ниже).
 email=$admin_email
 password=$admin_password
 EOF
@@ -190,6 +180,24 @@ staging_note "Сборка витрины"
 (cd "$release_dir/frontend" && npm ci --no-audit --no-fund && npm run lint -- --quiet)
 staging_run "$release_dir" "$STAGING_PM2_FRONTEND" npm run build
 (cd "$release_dir/frontend" && npm test)
+
+# Медиа-симлинки — только после сборок. `scripts/start-server.mjs` запускает
+# `medusa start` из `.medusa/server`, и именно там Medusa раздаёт /static; а сам
+# `medusa build` пересоздаёт `.medusa/server`, поэтому более ранний симлинк стирается
+# и картинки отдают 404 (замерено на стенде 05.11). Тот же порядок у deploy-vps.sh.
+staging_note "Медиа-симлинки релиза"
+node <<'JS'
+const fs = require('node:fs'), path = require('node:path')
+const release = process.env.TAMIR_RELEASE, shared = process.env.STAGING_SHARED_UPLOADS
+for (const name of ['static', 'private-static']) {
+  for (const root of ['backend', 'backend/.medusa/server']) {
+    const dest = path.join(release, root, name)
+    if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true })
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.symlinkSync(path.join(shared, name), dest, 'dir')
+  }
+}
+JS
 
 trap - ERR
 bash "$HERE/activate-staging-release.sh" "$release_dir" "$backup_dir"

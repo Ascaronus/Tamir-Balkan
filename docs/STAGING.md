@@ -103,7 +103,7 @@ PM2-процессы называются так же, как на проде (`
 | `mail/mailpit-ca.crt`, `mail/mailpit-ca.key`, `mail/mailpit-tls.crt`, `mail/mailpit-tls.key` | self-signed CA + сертификат Mailpit для STARTTLS |
 | `turnstile-site-key`, `turnstile-secret-key` | виджет Turnstile для `test.tamir.rs` и его secret |
 | `publishable-key` | publishable key **staging**-магазина (кэш из БД, сбрасывается при пересоздании БД) |
-| `staging-admin.txt` | креды админки стенда |
+| `staging-admin.txt` | креды админки стенда (вход на `https://test-api.tamir.rs/app`) |
 
 Отдельные значения (не секреты): `MEDUSA_BACKEND_HOST=127.0.0.1`,
 `MEDUSA_BACKEND_URL=https://test-api.tamir.rs`, `MEDUSA_PUBLIC_BACKEND_URL=https://test-api.tamir.rs`,
@@ -178,8 +178,15 @@ IP, fingerprint и user-agent. Почты заменяются на
 
 Дампы прода на стенде не хранятся: после загрузки промежуточный файл удаляется.
 
-Что остаётся: медиа-файлы прода на стенд не копируются, поэтому картинки товаров могут
-отдавать 404. Загруженные на стенде файлы живут в `shared/uploads` и между релизами не теряются.
+Медиа с прода на стенд переносится один раз вручную (архив `backend/static` →
+`shared/uploads/static`, на стенде 05.11 — 919 файлов / 194 МБ) и дальше между релизами не теряется,
+потому что лежит вне релизов. Но в дампе адреса остаются продными, поэтому тот же
+`scripts/sql/staging-anonymize.sql` переписывает префиксы `api.tamir.rs/static/`, `tamir.rs/static/`,
+`localhost:9000/static/` и `127.0.0.1:9000/static/` на `https://test-api.tamir.rs/static/`
+(блок `DO $media$`, колонки `url`/`thumbnail`/`thumbnail_url`/`image_url`). Иначе витрина стенда
+тянула бы картинки с прода — нарушение изоляции из ТЗ. Чужие префиксы (`tamir.ua/images/uploads`,
+S3-демо Medusa) не трогаются: соответствующих файлов нет ни на проде, ни на стенде, а сами строки
+помечены `deleted_at`.
 
 ## Деплой стенда: `scripts/deploy-staging.sh`
 
@@ -194,8 +201,12 @@ sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/ma
    проверка, что SHA — предок `origin/main`.
 3. Снимок `pm2 jlist`, `pg_dump` staging-БД, экосистема предыдущего релиза — в `backups/<id>`.
 4. `git archive <sha>` в `releases/<id>`, копирование env-файлов, генерация
-   `ecosystem.config.cjs`, симлинки `static`/`private-static` на `shared/uploads`.
-5. `npm ci`, `scripts/check-review-config.cjs`, сборка backend, lint/тесты frontend.
+   `ecosystem.config.cjs`, каталоги `shared/uploads/{static,private-static}`.
+5. `npm ci`, `scripts/check-review-config.cjs`, сборка backend, lint/тесты и сборка витрины.
+   Затем — симлинки `static`/`private-static` на `shared/uploads` в `backend/` и
+   `backend/.medusa/server`. Порядок важен: `medusa build` пересоздаёт `.medusa/server`, поэтому
+   симлинк, созданный до сборки, стирается и `/static` отдаёт 404 (`start-server.mjs` запускает
+   `medusa start` именно из `.medusa/server`). Тот же порядок в `deploy-vps.sh`.
 6. **Миграции всегда**: `medusa db:migrate`, `setup-reviews.ts`, `setup-decimal-attributes.ts`.
    Прод их не запускает — стенд обязан идти впереди прода. Сид только по `TAMIR_ALLOW_SEED=1`.
 7. `check-email.ts` (STARTTLS + auth к Mailpit), затем создание staging-администратора,
@@ -212,6 +223,10 @@ Turnstile: bootstrap требует sitekey (`--turnstile-site-key <key>` или
 подойдёт, Cloudflare отклоняет hostname. Если виджета ещё нет, `--allow-missing-turnstile`
 пишет `staging-placeholder-sitekey-00000000`; гейт `check-review-config.cjs` такой placeholder
 пропускает, но CAPTCHA в регистрации/логине с ним работать не будет — это фиксируется в отчёте.
+Сменить sitekey «на живой» нельзя: `NEXT_PUBLIC_TURNSTILE_SITE_KEY` впекается в бандл витрины при
+сборке, поэтому после записи настоящего ключа в `secrets/turnstile-site-key` и `secrets/frontend.env`
+нужен новый деплой. Секретный ключ читается в рантайме — его достаточно положить в
+`secrets/turnstile-secret-key` и `secrets/backend.env`.
 
 ## Проверки и диагностика
 
@@ -251,8 +266,10 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 | `/sitemap.xml` отвечает 500, в логе витрины `SyntaxError: Unexpected token '<'` | витрина получает от API ошибку вместо JSON. Чаще всего в `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` попал `api_key.id` (`apk_...`) вместо токена `api_key.token` (`pk_...`). Проверка: `curl -H "x-publishable-api-key: pk_..." https://test-api.tamir.rs/store/regions`. Лечится повторным деплоем — ключ перечитывается из БД, но витрину нужно пересобрать (NEXT_PUBLIC_* впекаются в бандл) |
 | Публичные URL падают, локальные живые | туннель не поднят/не прикреплён: `staging-tunnel.sh status`, `systemctl status tamir-staging-tunnel` |
 | Cloudflare отдаёт 522 | в DNS у `test.*` оказалась A-запись вместо CNAME на `<id-туннеля>.cfargotunnel.com`. Починка: `sudo bash scripts/staging-tunnel.sh dns` (он всегда с `--overwrite-dns`) |
+| `https://test-api.tamir.rs/` отдаёт 404 `Cannot GET /` | это не сбой: у Medusa нет корневой страницы, прод `https://api.tamir.rs/` ведёт себя так же. Живость API — `/health` (200), данные — `/store/products` с заголовком `x-publishable-api-key: pk_...`, админка — `/app` |
 | `Процессы pm2 работают не в каталоге релиза` | pm2 поднят из другого релиза или `pm2 jlist` пуст: `pm2 jlist` глазами, затем повторный `scripts/deploy-staging.sh <sha>` |
-| Картинки 404 | медиа прода на стенд не переносятся — это ожидаемо |
+| Картинки 404 на `https://test-api.tamir.rs/static/...` | медиа-симлинк создан до `medusa build` (тот пересоздаёт `.medusa/server`) или медиа не перенесены в `shared/uploads`. Проверка: `readlink -f <release>/backend/.medusa/server/static` → должен быть `/opt/tamir-staging/shared/uploads/static`; `ls shared/uploads/static | wc -l`. Если симлинк на месте, а 404 — в БД остались продные префиксы: прогнать `scripts/sql/staging-anonymize.sql` |
+| Капча отвечает «Капча не удалась», ключи на стенде есть | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` впекается в бандл витрины при сборке: если стенд собран до записи настоящего sitekey, в `.next` лежит `staging-placeholder-sitekey-00000000`. Проверка: `grep -rlF "$(cat /opt/tamir-staging/secrets/turnstile-site-key)" <release>/frontend/.next | wc -l` (0 = нужен новый деплой). Второе место: в Cloudflare у sitekey в Allowed domains обязан быть `test.tamir.rs` |
 
 ## Проверено локально и на машине
 
@@ -262,6 +279,9 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 `scripts/*.sh` и `scripts/lib/*.sh`; `npx tsc --noEmit` по `backend/src/scripts/staging-mail-check.ts`;
 гварды `test-support/verify-deploy-pin.mjs`, `verify-deploy-dispatch.mjs`, `verify-deploy-staging.mjs`.
 
-На стенде (нужно подтвердить фактическим прогоном): поведение `npx medusa user` в собранном
-релизе, применение `NODE_EXTRA_CA_CERTS` в `NODE_ENV=production`, доступность порта 587,
-реактивация pm2 после перезагрузки машины.
+На стенде подтверждено фактическим прогоном: `npx medusa user` в собранном релизе создаёт
+администратора с хешем пароля (`provider_identity.provider_metadata`), вход в админку
+`https://test-api.tamir.rs/app` работает; `NODE_EXTRA_CA_CERTS` действует в `NODE_ENV=production`
+(без него `staging-mail-check.ts` падает с `CODE_SEND_FAILED`, с ним — письмо принимается Mailpit);
+порт 587 доступен. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
+`pm2-resurrect.service` настроен, перезагрузку не выполняли).

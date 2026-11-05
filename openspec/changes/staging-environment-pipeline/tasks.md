@@ -69,28 +69,44 @@
       замаскировано 58 колонок / 921 строка, TRUNCATE 4 сервистаблиц, assert об email чистый,
       снятые bcrypt-хеши `provider_identity` — 4 строки; publishable ключей в БД — 2.
       Дамп удалён со стенда и с прода, точка отката в `backups/pre-db-refresh-*.dump`.
-- [ ] 5.6 Первый деплой по SHA: миграции прошли, админ создан (`secrets/staging-admin.txt`),
+- [x] 5.6 Первый деплой по SHA: миграции прошли, админ создан (`secrets/staging-admin.txt`),
       health `127.0.0.1:9000/health` и `127.0.0.1:3000/robots.txt` зелёные.
-- [ ] 5.7 Подтвердить на машине поведение `npx medusa user` и `NODE_EXTRA_CA_CERTS` в собранном
-      релизе при `NODE_ENV=production`.
+      (измерено: релиз `20261105T175313Z-19c7dd5632e4`, `/health` 200, `robots.txt`/`sitemap.xml` 200,
+      в `"user"` есть `staging-admin@tamir.local`)
+- [x] 5.7 Подтвердить на машине поведение `npx medusa user` и `NODE_EXTRA_CA_CERTS` в собранном
+      релизе при `NODE_ENV=production`. (измерено 05.11: у `staging-admin@tamir.local` есть хеш в
+      `provider_identity.provider_metadata` — из 5 emailpass-строк хеш сохранён только у него;
+      `medusa exec ./src/scripts/staging-mail-check.ts` с `NODE_EXTRA_CA_CERTS` из экосистемы релиза
+      принимает письмо Mailpit, без переменной та же команда падает с `CODE_SEND_FAILED`)
 
 ## 6. Публичный вход (P0, требует участия владельца)
 
 - [ ] 6.1 Sitekey Turnstile для `test.tamir.rs` + секрет в `secrets/turnstile-secret-key`
       (blocked: ждём sitekey от владельца).
-- [ ] 6.2 `scripts/staging-tunnel.sh login` — владелец открывает ссылку и выбирает зону `tamir.rs`.
-- [ ] 6.3 `staging-tunnel.sh create` и `dns` — добавлены только `test.*`; `tamir.rs` /
+- [x] 6.2 `scripts/staging-tunnel.sh login` — владелец открывает ссылку и выбирает зону `tamir.rs`.
+      (туннель `tamir-staging` прикреплён к зоне, id `5470a703-691e-4e21-a721-39fdbad109de`)
+- [x] 6.3 `staging-tunnel.sh create` и `dns` — добавлены только `test.*`; `tamir.rs` /
       `api.tamir.rs` не изменены (проверить в дашборде Cloudflare).
-- [ ] 6.4 `scripts/staging-smoke.sh` — зелёный прогон с публичными URL и письмом в Mailpit UI
-      (`http://127.0.0.1:8025`).
+      (измерено: DNS-записи `test` и `test-api` — CNAME на `<id>.cfargotunnel.com`, прокси; прод-записи не тронуты;
+      `https://test.tamir.rs` 200, `https://test-api.tamir.rs/health` 200)
+- [x] 6.4 `scripts/staging-smoke.sh` — зелёный прогон с публичными URL и письмом в Mailpit UI
+      (`http://127.0.0.1:8025`). (измерено 05.11: смоук на `/health`, `/robots.txt`, `/sitemap.xml`,
+      `/store/products?limit=2` с publishable key — все проверки зелёные; тестовое письмо с кодом
+      доставлено в Mailpit)
 
 ## 7. Проверка потока целиком (P0)
 
-- [ ] 7.1 PR → зелёный Verify на PR → merge → Verify на push → автозапуск `Deploy to Staging` →
-      стенд на SHA merge-коммита.
+- [x] 7.1 PR → зелёный Verify на PR → merge → Verify на push → автозапуск `Deploy to Staging` →
+      стенд на SHA merge-коммита. (измерено 05.11 на PR #88: Verify на PR #274 зелёный → merge
+      `96c205f` → Verify на push #275 зелёный → автозапуск `Deploy TAMIR Staging` #4 (`workflow_run`,
+      тот же SHA) зелёный → `current` = релиз `20261105T181854Z-96c205f65cf9`, pm2-процессы работают
+      из него, `/health`, `robots.txt`, `sitemap.xml` и публичные URL — 200)
 - [ ] 7.2 Ручной `Deploy to Staging` с более старым SHA `main` → ff-merge пропущен, откат стенда
       удался.
-- [ ] 7.3 Ручной `Deploy TAMIR` с непроверенным/чужим SHA → job падает на гейте, на VPS ничего не
-      отправлено.
+- [x] 7.3 Ручной `Deploy TAMIR` с непроверенным/чужим SHA → job падает на гейте, на VPS ничего не
+      отправлено. (измерено 05.11: ручной `workflow_dispatch` прогона `deploy.yml` со SHA `19c7dd5`,
+      у которого нет зелёного Verify-push в `main` → run `Deploy TAMIR` #97: job `deploy` красный на
+      шаге `Confirm the commit passed Verify on main`, шаг `Deploy the verified commit to VPS` —
+      skipped; на VPS команда не уходила)
 - [ ] 7.4 Итоговый отчёт по формату `stage.txt` (что сделано, что проверено, что осталось
       незакрытым: 404 медиа-дампа, CAPTCHA до sitekey).
