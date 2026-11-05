@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: read
-  checks: read
+  actions: read
 
 concurrency:
   group: tamir-production-deploy
@@ -37,6 +37,7 @@ jobs:
           # Job без checkout: gh не может развернуть свои плейсхолдеры владельца
           # и репозитория, поэтому путь к API собираем из github.repository явно.
           GH_REPO_PATH: ${{ github.repository }}
+          VERIFY_WORKFLOW: verify.yml
         run: |
           set -Eeuo pipefail
           if [[ ! "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -53,14 +54,19 @@ jobs:
           fi
 
           # Verify обязан быть зелёным именно на этом коммите, а не «когда-то на main».
-          suites="$(gh api "repos/$GH_REPO_PATH/commits/$VERIFIED_SHA/check-suites" --jq '.check_suites[] | "\(.name) \(.status) \(.conclusion)"')"
-          if [[ -z "$suites" ]]; then
-            echo "Refusing to deploy: no check suites on $VERIFIED_SHA — Verify has not run for this commit." >&2
+          # Смотрим на запуски самого verify-воркфлоу (workflow_runs), а не на check-suites:
+          # в сюиты попадают прогоны и других воркфлоу на том же SHA (в т.ч. staging-деплоя),
+          # из-за чего SHA «отравлялся» чужим failure. Фильтр по head_branch+event отсекает
+          # прогоны того же SHA из PR и других веток.
+          runs="$(gh api --paginate "repos/$GH_REPO_PATH/actions/workflows/$VERIFY_WORKFLOW/runs?head_sha=$VERIFIED_SHA&per_page=100" \
+            --jq '.workflow_runs[] | select(.head_branch == "main" and (.event == "push" or .event == "workflow_dispatch")) | "\(.run_id) \(.status) \(.conclusion)"')"
+          if [[ -z "$runs" ]]; then
+            echo "Refusing to deploy: $VERIFY_WORKFLOW has no completed run on main for $VERIFIED_SHA." >&2
             exit 1
           fi
-          echo "$suites"
-          if grep -vqE ' completed (success|neutral|skipped)$' <<< "$suites"; then
-            echo "Refusing to deploy: not every check suite finished successfully on $VERIFIED_SHA." >&2
+          echo "$runs"
+          if grep -vqE ' completed (success|neutral|skipped)$' <<< "$runs"; then
+            echo "Refusing to deploy: $VERIFY_WORKFLOW did not finish successfully on $VERIFIED_SHA." >&2
             exit 1
           fi
           echo "Deploying ${VERIFIED_SHA}: Verify is green and the commit is reachable from main."

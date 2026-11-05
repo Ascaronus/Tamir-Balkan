@@ -16,7 +16,7 @@
 ## 2. Workflow-слой (P0)
 
 - [x] 2.1 `deploy.yml`: `workflow_run` убран, только `workflow_dispatch` с обязательным `sha`,
-      API-гейт `compare main...sha` + `check-suites`, `environment: production`.
+      API-гейт `compare main...sha` + прогоны `verify.yml` в `main`, `environment: production`.
 - [x] 2.2 `.github/workflows/deploy-staging.yml`: `workflow_run` от зелёного Verify на push в `main`
       + ручной `dispatch`, job `gate` (ubuntu-latest) → job `deploy` (self-hosted, `staging`,
       concurrency, timeout 90) без `actions/checkout`, шаг `Staging health snapshot` при `always()`.

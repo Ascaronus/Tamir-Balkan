@@ -41,11 +41,34 @@ rollback() {
     pm2 save --force
     echo "Прежняя конфигурация восстановлена: $(cat "$backup_dir/previous-release.txt" 2>/dev/null || echo 'ecosystem из бэкапа')" >&2
   else
-    echo "Откат невозможен (нет экосистемы предыдущего релиза). Бэкап: $backup_dir" >&2
+    # Откатывать некуда (первый релиз): поднимаем то, что собрали, чтобы стенд не лежал,
+    # но деплой всё равно остаётся упавшим — причину видно в логах.
+    if pm2 start "$release_dir/ecosystem.config.cjs"; then
+      echo "Откат невозможен (нет экосистемы предыдущего релиза): поднимаю новый релиз, деплой помечен упавшим. Бэкап: $backup_dir" >&2
+    else
+      echo "Откат невозможен ($backup_dir) и новый релиз не поднялся — нужен ручной пуск." >&2
+    fi
   fi
   exit 1
 }
 trap rollback ERR
+
+# Ждём именно HTTP 200, а не только соединения: на холодный старт Medusa на HP Mini
+# уходит до нескольких минут, и в это время витрина отвечает 500 (её запросы к ещё не
+# поднявшейся API возвращают HTML вместо JSON). `curl --retry` так не отличает.
+wait_http() {
+  local url="${1:?URL required}" attempts="${2:-60}" delay="${3:-3}" code="" i
+  for i in $(seq 1 "$attempts"); do
+    code="$(curl -s -o /dev/null -m 20 -w '%{http_code}' "$url" || true)"
+    if [ "$code" = "200" ]; then
+      echo "  OK $url (попытка $i)"
+      return 0
+    fi
+    sleep "$delay"
+  done
+  echo "Healthcheck staging не прошёл: $url (последний код=${code:-000}, попыток=$attempts)" >&2
+  return 1
+}
 
 pm2 delete "$STAGING_PM2_BACKEND" >/dev/null 2>&1 || true
 pm2 delete "$STAGING_PM2_FRONTEND" >/dev/null 2>&1 || true
@@ -58,12 +81,15 @@ ln -sfn "$release_dir/backend" "$STAGING_ROOT/current-backend"
 ln -sfn "$release_dir/frontend" "$STAGING_ROOT/current-frontend"
 
 # Loopback-health обязателен всегда; публичные URL — только когда есть туннель.
-curl -fsS --retry 30 --retry-connrefused --retry-delay 2 --max-time 15 "http://127.0.0.1:${STAGING_BACKEND_PORT}/health"
-curl -fsS --retry 20 --retry-connrefused --retry-delay 2 --max-time 30 -o /dev/null "http://127.0.0.1:${STAGING_FRONTEND_PORT}/robots.txt"
-curl -fsS --retry 5 --retry-delay 2 --max-time 60 -o /dev/null "http://127.0.0.1:${STAGING_FRONTEND_PORT}/sitemap.xml"
+wait_http "http://127.0.0.1:${STAGING_BACKEND_PORT}/health" 80 3
+wait_http "http://127.0.0.1:${STAGING_FRONTEND_PORT}/robots.txt" 40 3
+# /sitemap.xml строится запросами витрины к API по публичному URL
+# (NEXT_PUBLIC_MEDUSA_BACKEND_URL = https://test-api.tamir.rs), поэтому до
+# туннеля он законно отвечает 500; локально проверяем его только с туннелем.
 if staging_public_checks_enabled; then
-  curl -fsS --retry 10 --retry-delay 3 --max-time 30 -o /dev/null "${STAGING_SITE_URL}/robots.txt"
-  curl -fsS --retry 10 --retry-delay 3 --max-time 30 "https://${STAGING_API_URL#*://}health" >/dev/null
+  wait_http "http://127.0.0.1:${STAGING_FRONTEND_PORT}/sitemap.xml" 20 3
+  wait_http "${STAGING_SITE_URL}/robots.txt" 20 3
+  wait_http "${STAGING_API_URL}/health" 20 3
 else
   echo "Публичные проверки пропущены: нет $STAGING_TUNNEL_MARKER (scripts/staging-tunnel.sh)." >&2
 fi

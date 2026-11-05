@@ -55,6 +55,19 @@ else
   git merge-base --is-ancestor "$target" origin/main || staging_abort "Коммит $target не входит в origin/main: staging принимает только прошедший Verify код из main"
 fi
 
+# Клону нужен сам код целевого коммита: иначе выполняются старые скрипты из HEAD клона,
+# а не те, что прошли Verify. Переключаем клон на коммит и перезапускаем этот же скрипт
+# из него (блокировка flock на fd 9 переживает exec, повторного захвата не будет).
+clone_head="$(git rev-parse HEAD)"
+if [ "$clone_head" != "$target" ]; then
+  if [ "${TAMIR_DEPLOY_RESYNC:-0}" = "1" ]; then
+    staging_abort "После синхронизации HEAD клона (${clone_head:0:12}) снова не равен $target"
+  fi
+  git checkout -q --force --detach "$target" || staging_abort "Не удалось переключить клон $STAGING_REPO_DIR на $target"
+  staging_note "Клон обновлён ${clone_head:0:12} -> ${target:0:12}, перезапускаю скрипт из этого коммита"
+  TAMIR_DEPLOY_RESYNC=1 exec bash "$STAGING_REPO_DIR/scripts/deploy-staging.sh" "$target"
+fi
+
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-${target:0:12}"
 release_dir="$STAGING_RELEASES_DIR/$release_id"
 backup_dir="$STAGING_BACKUP_DIR/$release_id"
@@ -94,13 +107,19 @@ chmod 600 "$release_dir/backend/.env" "$release_dir/frontend/.env.production.loc
 staging_write_ecosystem "$release_dir"
 
 # Publishable key витрины берём из БД staging (свой канал, не прод).
-publishable_key="$(staging_psql_value "SELECT id FROM api_key WHERE type = 'publishable' AND revoked_at IS NULL ORDER BY created_at LIMIT 1;" || true)"
+# Витрина шлёт его как заголовок x-publishable-api-key, и это должен быть api_key.token
+# (pk_...), а не api_key.id (apk_...) - иначе API отвечает 400 "not_allowed".
+publishable_key="$(staging_psql_value "SELECT token FROM api_key WHERE type = 'publishable' AND revoked_at IS NULL AND token LIKE 'pk_%' ORDER BY created_at LIMIT 1;" || true)"
 if [ -z "$publishable_key" ] && [ -s "$STAGING_SECRETS_DIR/publishable-key" ]; then
   publishable_key="$(head -n1 "$STAGING_SECRETS_DIR/publishable-key" | tr -d '\r')"
 fi
 if [ -z "$publishable_key" ]; then
   staging_abort "Нет publishable key staging. Сначала: TAMIR_ALLOW_SEED=1 scripts/deploy-staging.sh <sha> (сид создаёт ключ) или файла $STAGING_SECRETS_DIR/publishable-key"
 fi
+case "$publishable_key" in
+  pk_*) ;;
+  *) staging_abort "Publishable key staging не похож на токен Medusa (нужен api_key.token вида pk_...)" ;;
+esac
 printf '%s\n' "$publishable_key" > "$STAGING_SECRETS_DIR/publishable-key"
 chmod 600 "$STAGING_SECRETS_DIR/publishable-key"
 sed -i "s#^NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=.*#NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY=$publishable_key#" \

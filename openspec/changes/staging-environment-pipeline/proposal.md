@@ -16,12 +16,13 @@
 
 - Новый workflow `Deploy to Staging` (`.github/workflows/deploy-staging.yml`): `workflow_run` от
   зелёного `Verify` на push в `main` плюс ручной `workflow_dispatch` с обязательным `sha`. Job
-  `gate` на GitHub-раннере через API проверяет, что коммит входит в `main` и что его check-suites
-  завершены успешно; job `deploy` на self-hosted runner машины вызывает
+  `gate` на GitHub-раннере через API проверяет, что коммит входит в `main` и что прогоны `verify.yml`
+  на этом SHA в `main` завершены успешно; job `deploy` на self-hosted runner машины вызывает
   `scripts/deploy-staging.sh <sha>`.
 - **BREAKING** `Deploy TAMIR` (`deploy.yml`) больше не имеет `workflow_run`: прод запускается только
   вручную (`workflow_dispatch`) из `refs/heads/main` с обязательным вводом `sha`; перед SSH тот же
-  API-гейт (`compare main...sha` ∈ {`behind`, `identical`} + `check-suites` completed/success).
+  API-гейт (`compare main...sha` ∈ {`behind`, `identical`} + прогоны `verify.yml` в `main`
+  completed/success).
 - Новый staging-контур машины: `docker-compose.staging.yml` (Postgres 16, Redis 7, Mailpit, все
   порты только на `127.0.0.1`), `scripts/staging-bootstrap.sh` (секреты, CA и сертификат STARTTLS),
   `scripts/deploy-staging.sh` (свой release-layout, миграции всегда, откат при сбое health),

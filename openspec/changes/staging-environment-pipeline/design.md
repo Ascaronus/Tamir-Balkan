@@ -21,12 +21,17 @@ Staging-машина — домашний HP Mini (`tamir-staging`, 192.168.1.14
 default branch, а `head_sha` — из уже завершившегося `Verify`, то есть на машине исполняется только
 код, слитый в `main`. Дополнительно:
 
-- job `gate` (GitHub-hosted, `permissions: contents: read, checks: read`) через API проверяет
-  `compare main...sha` → `behind`/`identical` и `check-suites` → `completed` +
+- job `gate` (GitHub-hosted, `permissions: contents: read, actions: read`) через API проверяет
+  `compare main...sha` → `behind`/`identical` и прогоны `verify.yml` на этом SHA
+  (`actions/workflows/verify.yml/runs?head_sha=<sha>`, фильтр `head_branch == "main"` и
+  `event` ∈ {`push`, `workflow_dispatch`}) → `completed` +
   `success`/`neutral`/`skipped`; иначе job падает и `deploy` не запускается. Пути API собираются
   из `github.repository` (шагская переменная `GH_REPO_PATH`): в `gate` нет `actions/checkout`,
   поэтому собственные плейсхолдеры gh владельца/репозитория там не разворачиваются
-  (на этом упал первый автодеплой — run 42062901425);
+  (на этом упал первый автодеплой — run 42062901425). Источником истины специально не являются
+  `check-suites`: в них попадают прогоны и других workflow того же SHA, включая сам staging-деплой,
+  поэтому гейт сначала блокировался собственным `queued`-прогоном, а после первого неудачного
+  деплоя SHA «отравлялся» чужим `failure` (run 42067443192);
 - job `deploy` (`needs: gate`, labels `self-hosted, linux, x64, tamir-staging`,
   `environment: staging`) не делает `actions/checkout`, а вызывает уже лежащий на машине
   `scripts/deploy-staging.sh <sha>`;
@@ -96,7 +101,10 @@ Staging-контракт отделён от прод-гвардов: staging-с
 `scripts/staging-tunnel.sh` создаёт туннель `tamir-staging`, systemd-сервис и ingress только на
 `localhost:3000` / `localhost:9000`. DNS создаётся строго для `test` и `test-api`; имена проверяются
 жёстко, чтобы скрипт не мог задеть `tamir.rs` / `api.tamir.rs`. `login` принципиально интерактивен
-(человек открывает ссылку и выбирает зону). После `dns` появляется маркер
+(человек открывает ссылку и выбирает зону). Записи создаёт сам `cloudflared tunnel route dns
+--overwrite-dns`: это CNAME на `<id-туннеля>.cfargotunnel.com` с включённым прокси; руками в дашборде
+ничего не вписывать — A-запись на IP даёт 522, потому что edge не знает, куда направить туннель.
+После `dns` появляется маркер
 `/opt/tamir-staging/.tunnel-enabled`, и только с него smoke и деплой начинают проверять публичные
 HTTPS-адреса — иначе локальный стенд падает из-за отсутствия DNS.
 

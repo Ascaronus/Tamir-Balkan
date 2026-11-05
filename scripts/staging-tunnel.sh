@@ -111,7 +111,11 @@ Wants=network-online.target
 Type=simple
 Environment=HOME=${CF_CERT_DIR%/.cloudflared}
 Environment=TUNNEL_ORIGIN_CERT=$CF_CERT
-ExecStart=$CF_BIN tunnel run --config $CF_CONFIG
+# Флаг --config у cloudflared глобальный: он должен стоять ДО субкоманды
+# tunnel run, иначе процесс печатает help и systemd считает сервис упавшим.
+# (В незаэкранированном heredoc кавычки-обратные 'backtick' сработали бы как
+# command substitution прямо при генерации юнита.)
+ExecStart=$CF_BIN --config $CF_CONFIG tunnel run
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
@@ -152,11 +156,14 @@ case "$action" in
     staging_tunnel_assert_hosts
     staging_tunnel_install_binary
     staging_tunnel_require_login
+    # Имя туннеля у cloudflared - позиционный аргумент, флага --name у create нет.
+    mkdir -p "$CF_DIR"
+    chmod 700 "$CF_DIR"
     staging_note "Создаю туннель $CF_NAME (повторный запуск безопасен)"
-    out="$(staging_cf tunnel create --name "$CF_NAME" --credentials-file "$CF_CRED_FILE" "$CF_NAME" 2>&1 || true)"
+    out="$(staging_cf tunnel create --credentials-file "$CF_CRED_FILE" "$CF_NAME" 2>&1 || true)"
     printf '%s\n' "$out" | grep -qi 'already exists' && staging_note "Туннель $CF_NAME уже был в зоне - использую существующий."
-    id="$(staging_cf tunnel list 2>/dev/null | grep -E "[[:space:]]$CF_NAME([[:space:]]|$)" | grep -oE "$UUID_RE" | head -n1)"
-    [ -n "$id" ] || id="$(printf '%s' "$out" | grep -oE "$UUID_RE" | head -n1)"
+    id="$(staging_cf tunnel list 2>/dev/null | grep -E "[[:space:]]$CF_NAME([[:space:]]|$)" | grep -oE "$UUID_RE" | head -n1 || true)"
+    [ -n "$id" ] || id="$(printf '%s' "$out" | grep -oE "$UUID_RE" | head -n1 || true)"
     [ -n "$id" ] || staging_abort "Не удалось определить id туннеля. Вывод: $out"
     if [ ! -f "$CF_CRED_FILE" ]; then
       staging_abort "Нет файла учётных данных $CF_CRED_FILE. Проверьте вывод: $out"
@@ -173,7 +180,8 @@ case "$action" in
     staging_tunnel_assert_hosts
     staging_tunnel_install_binary
     staging_tunnel_require_login
-    id="$(staging_cf tunnel list 2>/dev/null | grep -E "[[:space:]]$CF_NAME([[:space:]]|$)" | grep -oE "$UUID_RE" | head -n1)"
+    id="$(staging_cf tunnel list 2>/dev/null | grep -E "[[:space:]]$CF_NAME([[:space:]]|$)" | grep -oE "$UUID_RE" | head -n1 || true)"
+    [ -n "$id" ] || id="$(staging_tunnel_id)"
     [ -n "$id" ] || staging_abort "Туннель $CF_NAME не найден в зоне. Запустите: sudo bash scripts/staging-tunnel.sh create"
     staging_note "Добавляю CNAME только для $API_HOST и $SITE_HOST (прод-записи не трогаю)"
     staging_cf tunnel route dns --overwrite-dns "$CF_NAME" "$API_HOST"

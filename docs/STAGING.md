@@ -18,7 +18,8 @@ PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
 - Push в `main` запускает `Verify storefront and backend` (`.github/workflows/verify.yml`).
 - После зелёного Verify на push в `main` автоматически стартует **Deploy to Staging**
   (`.github/workflows/deploy-staging.yml`): job `gate` на GitHub-раннере проверяет через API, что
-  коммит входит в `main` и что все check-suites на нём завершены успешно, затем job `deploy`
+  коммит входит в `main` и что прогоны `verify.yml` на нём (в `main`, события `push`/`workflow_dispatch`)
+  завершены успешно, затем job `deploy`
   на self-hosted runner вызывает `scripts/deploy-staging.sh <sha>`.
 - Прод (`deploy.yml`) автоматически не запускается никогда: только `workflow_dispatch`
   с обязательным вводом `sha` (40 hex), который прошёл Verify в `main`.
@@ -63,7 +64,7 @@ self-hosted runner GitHub Actions, pm2 и docker (вход в группу `dock
 
 | Путь | Назначение |
 | --- | --- |
-| `/opt/tamir-staging/repo` | постоянный клон `main` (deploy key только на чтение) |
+| `/opt/tamir-staging/repo` | постоянный клон (deploy key только на чтение); деплой переключает его на целевой коммит и перезапускает свои скрипты из него |
 | `/opt/tamir-staging/releases/<UTC>-<sha>` | каталоги релизов, как на проде |
 | `/opt/tamir-staging/current`, `current-backend`, `current-frontend` | ссылки на активный релиз |
 | `/opt/tamir-staging/backups/<release id>` | `pg_dump` staging-БД, env-снимок, экосистема предыдущего релиза, `pm2 jlist` |
@@ -247,7 +248,10 @@ Smoke проверяет контейнеры и их healthcheck, «порты 
 | `Нет sitekey Turnstile` | создать виджет для `test.tamir.rs` и перезапустить bootstrap с `--turnstile-site-key` |
 | STARTTLS-ошибка при `check-email.ts` | в экосистеме релиза потерян `NODE_EXTRA_CA_CERTS`, или сертификат Mailpit пересоздан без `--force-secrets`-синхронизации |
 | Нет publishable key | в новой базе его ещё нет: `TAMIR_ALLOW_SEED=1 scripts/deploy-staging.sh <sha>` или файл `secrets/publishable-key` |
+| `/sitemap.xml` отвечает 500, в логе витрины `SyntaxError: Unexpected token '<'` | витрина получает от API ошибку вместо JSON. Чаще всего в `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` попал `api_key.id` (`apk_...`) вместо токена `api_key.token` (`pk_...`). Проверка: `curl -H "x-publishable-api-key: pk_..." https://test-api.tamir.rs/store/regions`. Лечится повторным деплоем — ключ перечитывается из БД, но витрину нужно пересобрать (NEXT_PUBLIC_* впекаются в бандл) |
 | Публичные URL падают, локальные живые | туннель не поднят/не прикреплён: `staging-tunnel.sh status`, `systemctl status tamir-staging-tunnel` |
+| Cloudflare отдаёт 522 | в DNS у `test.*` оказалась A-запись вместо CNAME на `<id-туннеля>.cfargotunnel.com`. Починка: `sudo bash scripts/staging-tunnel.sh dns` (он всегда с `--overwrite-dns`) |
+| `Процессы pm2 работают не в каталоге релиза` | pm2 поднят из другого релиза или `pm2 jlist` пуст: `pm2 jlist` глазами, затем повторный `scripts/deploy-staging.sh <sha>` |
 | Картинки 404 | медиа прода на стенд не переносятся — это ожидаемо |
 
 ## Проверено локально и на машине

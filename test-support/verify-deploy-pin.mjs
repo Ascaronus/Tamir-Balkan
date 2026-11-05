@@ -32,8 +32,20 @@ assert.match(
 )
 assert.match(
   workflow,
-  /commits\/\$VERIFIED_SHA\/check-suites/,
+  /actions\/workflows\/\$VERIFY_WORKFLOW\/runs\?head_sha=\$VERIFIED_SHA/,
   'deploy.yml must prove Verify finished successfully on the exact SHA being deployed'
+)
+// Check-suites как источник истины отравляет SHA чужими прогонами (staging-деплой на том
+// же коммите), поэтому гейт читает запуски самого verify-воркфлоу.
+assert.doesNotMatch(
+  workflow,
+  /gh api[^\n]*check-suites/,
+  'deploy.yml must not read the check-suites API: unrelated workflow suites poison the SHA'
+)
+assert.match(
+  workflow,
+  /head_branch == "main" and \(\.event == "push" or \.event == "workflow_dispatch"\)/,
+  'the gate must accept only Verify runs from main (push or manual), never PR runs'
 )
 assert.match(
   workflow,
@@ -64,8 +76,8 @@ assert.match(
 )
 assert.match(
   workflow,
-  /repos\/\$GH_REPO_PATH\/commits\/\$VERIFIED_SHA\/check-suites/,
-  'the check-suites gate must address the current repository by $GH_REPO_PATH'
+  /repos\/\$GH_REPO_PATH\/actions\/workflows\/\$VERIFY_WORKFLOW\/runs/,
+  'the Verify-runs gate must address the current repository by $GH_REPO_PATH'
 )
 assert.doesNotMatch(
   script,
