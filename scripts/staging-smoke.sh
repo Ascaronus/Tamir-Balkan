@@ -68,7 +68,13 @@ api_base="${api_base:-$STAGING_API_URL}"
 # --- Loopback-вход приложений -----------------------------------------------
 check "backend http://127.0.0.1:${backend_port}/health" curl -fsS --max-time 20 "http://127.0.0.1:${backend_port}/health"
 check "frontend http://127.0.0.1:${frontend_port}/robots.txt" curl -fsS --max-time 30 -o /dev/null "http://127.0.0.1:${frontend_port}/robots.txt"
-check "frontend http://127.0.0.1:${frontend_port}/sitemap.xml" curl -fsS --max-time 60 -o /dev/null "http://127.0.0.1:${frontend_port}/sitemap.xml"
+# /sitemap.xml строится запросами витрины к API по публичному URL, поэтому до
+# выпуска туннеля он законно отвечает 500.
+if staging_public_checks_enabled; then
+  check "frontend http://127.0.0.1:${frontend_port}/sitemap.xml" curl -fsS --max-time 60 -o /dev/null "http://127.0.0.1:${frontend_port}/sitemap.xml"
+else
+  notes+=("/sitemap.xml не проверялся: витрина строит его через $STAGING_API_URL, нужен туннель")
+fi
 
 # --- Витринный API через publishable key из staging-БД -----------------------
 publishable="$(staging_psql_value "SELECT id FROM api_key WHERE type='publishable' AND revoked_at IS NULL ORDER BY created_at LIMIT 1;" 2>/dev/null || true)"
@@ -102,7 +108,7 @@ fi
 
 # --- Публичные адреса (только когда выпущен туннель) -------------------------
 if staging_public_checks_enabled; then
-  check "публичный ${STAGING_API_URL}health" curl -fsS --retry 5 --retry-delay 3 --max-time 30 "${STAGING_API_URL}health"
+  check "публичный ${STAGING_API_URL}/health" curl -fsS --retry 5 --retry-delay 3 --max-time 30 "${STAGING_API_URL}/health"
   check "публичный ${STAGING_SITE_URL}/robots.txt" curl -fsS --retry 5 --retry-delay 3 --max-time 30 -o /dev/null "${STAGING_SITE_URL}/robots.txt"
 else
   notes+=("Публичные HTTPS-проверки пропущены: нет $STAGING_TUNNEL_MARKER (scripts/staging-tunnel.sh)")

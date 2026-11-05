@@ -83,8 +83,11 @@ ln -sfn "$release_dir/frontend" "$STAGING_ROOT/current-frontend"
 # Loopback-health обязателен всегда; публичные URL — только когда есть туннель.
 wait_http "http://127.0.0.1:${STAGING_BACKEND_PORT}/health" 80 3
 wait_http "http://127.0.0.1:${STAGING_FRONTEND_PORT}/robots.txt" 40 3
-wait_http "http://127.0.0.1:${STAGING_FRONTEND_PORT}/sitemap.xml" 20 3
+# /sitemap.xml строится запросами витрины к API по публичному URL
+# (NEXT_PUBLIC_MEDUSA_BACKEND_URL = https://test-api.tamir.rs), поэтому до
+# туннеля он законно отвечает 500; локально проверяем его только с туннелем.
 if staging_public_checks_enabled; then
+  wait_http "http://127.0.0.1:${STAGING_FRONTEND_PORT}/sitemap.xml" 20 3
   wait_http "${STAGING_SITE_URL}/robots.txt" 20 3
   wait_http "${STAGING_API_URL}/health" 20 3
 else

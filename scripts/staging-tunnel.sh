@@ -111,7 +111,9 @@ Wants=network-online.target
 Type=simple
 Environment=HOME=${CF_CERT_DIR%/.cloudflared}
 Environment=TUNNEL_ORIGIN_CERT=$CF_CERT
-ExecStart=$CF_BIN tunnel run --config $CF_CONFIG
+# Флаг --config у cloudflared глобальный: он должен стоять ДО `tunnel run`,
+# иначе процесс печатает help и systemd считает сервис упавшим.
+ExecStart=$CF_BIN --config $CF_CONFIG tunnel run
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
