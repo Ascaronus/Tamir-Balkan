@@ -502,7 +502,7 @@ body { line-height: 1.5; }
 /* Wishlist: one state across cards, detail and header. */
 :root { --store-favorite: var(--store-accent); }
 .product-card-media { position: relative; }
-.favorite-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; color: var(--store-text); background: rgb(255 255 255 / 94%); }
+.favorite-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border: 0; color: var(--store-text); background: transparent; }
 .favorite-button[aria-pressed=true] { color: var(--store-favorite); }
 .favorite-button:disabled { cursor: wait; opacity: .6; }
 .favorite-overlay { position: absolute; top: 8px; right: 8px; }
