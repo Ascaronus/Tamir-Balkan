@@ -4,16 +4,16 @@ import type { BannerLocale, Carousel } from './banner-model'
 import './banner-carousel.css'
 export function swipeDirection(dx:number,dy:number){return Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.5?(dx<0?1:-1):0}
 export function BannerCarousel({carousel,locale,preview=false,previewWidth,resolveLink=(url:string)=>url,assetUrl=(url:string)=>url}:{carousel:Carousel;locale:BannerLocale;preview?:boolean;previewWidth?:number;resolveLink?:(url:string)=>string;assetUrl?:(url:string)=>string}){
- const slides=carousel.banners.filter(b=>b.active), [index,setIndex]=useState(0),[hover,setHover]=useState(false),[focus,setFocus]=useState(false),[hidden,setHidden]=useState(false),[reduced,setReduced]=useState(true),[paused,setPaused]=useState(false)
+ const slides=carousel.banners.filter(b=>b.active), [index,setIndex]=useState(0),[hover,setHover]=useState(false),[focus,setFocus]=useState(false),[hidden,setHidden]=useState(false),[reduced,setReduced]=useState(true)
  const [interaction,setInteraction]=useState(0),[visited,setVisited]=useState<number[]>([0]),start=useRef<{x:number;y:number}|null>(null)
  const current=Math.min(index,Math.max(0,slides.length-1))
  const choose=(i:number)=>{setInteraction(v=>v+1);const next=(i+slides.length)%slides.length;setIndex(next);setVisited(v=>v.includes(next)?v:[...v,next])}
  useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)');const motion=()=>setReduced(media.matches),visibility=()=>setHidden(document.hidden);motion();visibility();media.addEventListener('change',motion);document.addEventListener('visibilitychange',visibility);return()=>{media.removeEventListener('change',motion);document.removeEventListener('visibilitychange',visibility)}},[])
  useEffect(()=>{
-  if(!carousel.autoplay||slides.length<2||hover||focus||hidden||reduced||paused)return
+  if(!carousel.autoplay||slides.length<2||hover||focus||hidden||reduced)return
   const timer=setTimeout(()=>{const next=(current+1)%slides.length;setIndex(next);setVisited(v=>v.includes(next)?v:[...v,next])},carousel.interval)
   return()=>clearTimeout(timer)
- },[carousel.autoplay,carousel.interval,slides.length,current,hover,focus,hidden,reduced,paused,visited,interaction])
+ },[carousel.autoplay,carousel.interval,slides.length,current,hover,focus,hidden,reduced,visited,interaction])
  if(!slides.length)return null
  const sr=locale==='sr'
  return <section className="tb-carousel" aria-label={sr?'Kolekcije':'Collections'} aria-roledescription={sr?'Karusel':'Carousel'}
@@ -30,7 +30,6 @@ export function BannerCarousel({carousel,locale,preview=false,previewWidth,resol
    </article>
   })}</div>
   {slides.length>1&&<div className="tb-banner-controls"><div className="tb-banner-dots" role="group" aria-label={sr?'Izaberite baner':'Choose a banner'}>{slides.map((b,i)=><button key={b.id} type="button" aria-label={`${sr?'Prikaži baner':'Show banner'} ${i+1}: ${b.texts[locale].title}`} aria-pressed={i===current} onClick={()=>choose(i)}><span /></button>)}</div>
-   {carousel.autoplay&&!reduced&&<button type="button" className="tb-pause" onClick={()=>setPaused(v=>!v)} aria-label={paused?(sr?'Nastavi smenjivanje':'Resume rotation'):(sr?'Pauziraj smenjivanje':'Pause rotation')}>{paused?'▶':'Ⅱ'}</button>}
   </div>}
  </section>
 }
