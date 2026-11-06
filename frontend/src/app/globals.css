@@ -545,7 +545,8 @@ body { line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) { .cart-preview { animation: none; } }
 
 /* Figma 203:3611 account menu; 209:3591 / 209:3670 exported heart vectors. */
-.header-account-menu::before { content: ""; position: absolute; inset: -8px 0 auto; height: 8px; }
+/* Overlap the trigger: the menu's 1px border otherwise leaves a gap in hit testing. */
+.header-account-menu::before { content: ""; position: absolute; inset: -10px -1px auto; height: 10px; }
 .favorite-heart { display: block; width: 26px; height: 27px; flex: 0 0 26px; background: currentColor; mask: url('/design/wishlist/heart-outline.svg') center / 26px 27px no-repeat; }
 .favorite-heart-filled { mask-image: url('/design/wishlist/heart-filled.svg'); color: var(--store-favorite); }
 /* Inherit the same typography, spacing and height as Cart and Account. */
