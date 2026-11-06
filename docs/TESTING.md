@@ -124,6 +124,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | order-history.test.mjs | unit | API | Маппинг истории заказов |
 | product-attributes.test.mjs | unit | — | Атрибуты + next-intl на реальных en/sr-сообщениях |
 | product-card-colors.test.mjs | unit | — | Цвета карточки и фильтрация |
+| product-gallery-swipe.test.mjs | component | React harness, providers, image rendering | Свайпы основной и увеличенной фотографии в SR/EN, границы списка, tap/keyboard, вертикальные и отменённые жесты, multi-touch, смена варианта |
 | product-delivery.test.mjs | unit | Store API | Доставка на карточке товара без корзины: живая конфигурация, безопасная деградация при отказе |
 | product-reviews.test.mjs | unit | — | Отзывы, модерационные слова |
 | product-schema.test.mjs | unit | — | Product JSON-LD/schema |

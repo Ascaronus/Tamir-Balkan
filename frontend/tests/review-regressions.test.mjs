@@ -68,6 +68,7 @@ test('variant URL and language changes refresh selection while preserving reques
  '@/lib/dialog-backdrop':dialogBackdrop,
   './ProductDelivery':{ProductDelivery:'ProductDelivery'},
   './ProductAttributes':{ProductAttributes:'ProductAttributes'},
+  './useImageSwipe':{},
   '@/components/store/ColorSwatch':{ColorSwatch:'ColorSwatch'},
  react:h.react,'next/navigation':{useSearchParams:()=>({get:()=>id})},'@/components/i18n/LocalizedLink':{},
  '@/components/cart/CartProvider':{},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t})},'@/components/store/ProductImage':{},'@/lib/product-image':{},'@/lib/format-money':{formatMoney:value=>String(value)},'@/lib/store/commerce':{},'@/lib/i18n/content':{},'@/lib/seo/product':{},'@/lib/store/catalog':{},'@/lib/store/products':{},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null,isReady:true})}

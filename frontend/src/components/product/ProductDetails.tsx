@@ -5,6 +5,7 @@ import { FavoriteButton } from "@/components/wishlist/FavoriteButton"
 import { ProductDelivery } from "./ProductDelivery"
 import type { ProductDelivery as Delivery } from "@/lib/store/product-delivery"
 import { ProductAttributes } from "./ProductAttributes"
+import { useImageSwipe } from "./useImageSwipe"
 import { productBrand } from "@/lib/seo/product"
 import { colorSwatch, isColorOption } from "@/lib/store/catalog"
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -87,13 +88,20 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
     url.searchParams.set("v_id", id)
     window.history.replaceState(null, "", url)
   }
-  function moveImage(delta: number) { setImageIndex((activeIndex + delta + images.length) % images.length) }
+  function moveImage(delta: number) {
+    if (images.length < 2) return
+    setZoomedImage(null)
+    setImageIndex((activeIndex + delta + images.length) % images.length)
+  }
+  const imageKey = `${variant?.id ?? ""}:${hero?.url ?? ""}`
+  const heroSwipe = useImageSwipe(moveImage, imageKey)
+  const enlargedSwipe = useImageSwipe(moveImage, imageKey)
   return <div className="product-layout">
     <div className={`product-gallery${images.length > 1 ? "" : " product-gallery-single"}`}>
-      <button type="button" disabled={!hero} onClick={() => { setZoomedImage(null); dialog.current?.showModal() }} aria-label={t("product.zoom")}
+      <button {...heroSwipe} type="button" disabled={!hero} onClick={() => { setZoomedImage(null); dialog.current?.showModal() }} aria-label={t("product.zoom")}
         onPointerMove={event => { if (event.pointerType === "mouse") { const r = event.currentTarget.getBoundingClientRect(); setOrigin(`${(event.clientX - r.left) / r.width * 100}% ${(event.clientY - r.top) / r.height * 100}%`); setZoomedImage(hero?.url ?? null) } }}
         onPointerLeave={() => setZoomedImage(null)} onPointerCancel={() => setZoomedImage(null)}
-        className="relative block product-hero cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
+        className="relative block product-hero product-swipe-surface cursor-zoom-in overflow-hidden bg-[var(--store-bg-muted)]">
         <div className="absolute inset-0 transition-transform duration-200" style={{ transformOrigin: origin, transform: hero && zoomedImage === hero.url ? "scale(1.8)" : "none" }}><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
       </button>
       {images.length > 1 && <div className="product-thumbnails" aria-label={t("product.photos")}>
@@ -101,7 +109,7 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
       </div>}
       <dialog onPointerDown={trackDialogBackdropPress} onClick={event => dismissDialogFromBackdrop(event)} ref={dialog} className="fixed inset-0 m-auto h-[90dvh] w-[94vw] max-w-5xl rounded bg-white p-4 backdrop:bg-black/75" aria-label={t("product.photos")} onKeyDown={event => { if (images.length > 1 && ["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); moveImage(event.key === "ArrowRight" ? 1 : -1) } }}>
         <div className="flex h-full flex-col"><div className="flex items-center justify-between gap-4"><span>{activeIndex + 1} / {images.length}</span><button type="button" onClick={() => dialog.current?.close()} className="rounded border px-4 py-2">{t("common.close")}</button></div>
-          <div className="min-h-0 flex-1"><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
+          <div {...enlargedSwipe} className="product-swipe-surface min-h-0 flex-1"><ProductImage src={hero?.url} alt={title} eager className="h-full w-full object-contain" /></div>
           {images.length > 1 && <div className="flex justify-between"><button type="button" onClick={() => moveImage(-1)} className="rounded border px-4 py-2">← {t("common.previous")}</button><button type="button" onClick={() => moveImage(1)} className="rounded border px-4 py-2">{t("common.next")} →</button></div>}
         </div>
       </dialog>
