@@ -29,6 +29,12 @@ for(const locale of ['sr','en'])test(`carousel component renders ${locale} title
  assert.ok(find(tree,n=>n.type==='h2'&&n.props.children===text.title));assert.ok(find(tree,n=>n.type==='a'&&n.props.children===text.primaryLabel&&n.props.href==='#catalog-products'))
  const img=find(tree,n=>n.type==='img');assert.equal(img.props.alt,text.alt);assert.equal(img.props.fetchPriority,'high');assert.equal(img.props.loading,'eager')
  assert.match(f.active(),new RegExp(locale==='sr'?'Prikaži baner 1':'Show banner 1'))
+ // With autoplay enabled and reduced-motion disabled, controls still contain only slide selectors.
+ const controls=find(f.render(),n=>n.props.className==='tb-banner-controls')
+ assert.equal(find(controls,n=>n.type==='button'&&typeof n.props['aria-pressed']!=='boolean'),null)
+ const dots=find(controls,n=>n.props.className==='tb-banner-dots')
+ assert.equal(dots.props.children.length,2)
+ dots.props.children[1].props.onClick();f.render();assert.match(f.active(),/ 2:/)
 })
 test('timer rotates cyclically, manual selection resets interval, configured interval takes effect',t=>{
  const f=fixture(t);f.render();f.render();t.mock.timers.tick(5999);f.render();assert.match(f.active(),/ 1:/);t.mock.timers.tick(1);let tree=f.render();assert.match(f.active(),/ 2:/)
