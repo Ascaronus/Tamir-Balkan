@@ -1,3 +1,4 @@
+import { setupChat } from "../utils/chat/schema"
 import { setupBanners } from "../utils/homepage-banners"
 import { wishlistSchema } from "../utils/wishlist"
 import type { ExecArgs } from "@medusajs/framework/types"
@@ -16,6 +17,7 @@ export default async function setupReviews({ container }: ExecArgs) {
   await db.transaction(async trx => {
     await trx.raw("SELECT pg_advisory_xact_lock(67195051, 1)")
     await setupBanners(trx)
+    await setupChat(trx)
     await trx.raw(wishlistSchema)
     await trx.raw(reviewSchema)
     await trx.raw(productUrlSchema)
