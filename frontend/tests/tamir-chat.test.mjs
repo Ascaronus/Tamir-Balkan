@@ -39,7 +39,7 @@ for (const l of ['sr', 'en'])
     assert.equal(chat.start, l === 'sr' ? 'Započni razgovor' : 'Start conversation')
     assert.ok(chat.privacy.includes('Google'))
   })
-function route({ customer = null, guest = null, response = { saved: true }, status = 200 } = {}) {
+function route({ customer = null, guest = null, response = { saved: true }, status = 200, siteUrl = '' } = {}) {
   const calls = [],
     set = []
   const { GET, POST } = load(
@@ -58,6 +58,7 @@ function route({ customer = null, guest = null, response = { saved: true }, stat
       },
     },
     {
+      process: { env: { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl } },
       Buffer,
       Response,
       fetch: async (url, options) => {
@@ -108,4 +109,45 @@ test('chat BFF clears guest proof after explicit successful claim', async () => 
   const r = route({ customer: 'real-session', guest: 'b'.repeat(64) })
   await r.POST(post('claim'))
   assert.equal(r.set[0][2].maxAge, 0)
+})
+
+test('chat BFF starts a guest session behind an HTTP reverse proxy using the configured public origin', async () => {
+  const r = route({ siteUrl: 'https://test.tamir.rs/', response: { guest_token: 'c'.repeat(64) } })
+  const result = await r.POST(new Request('http://localhost:3000/api/chat/session', {
+    method: 'POST',
+    headers: { origin: 'https://test.tamir.rs', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locale: 'en', guest: { name: 'Igor', email: '', phone: '' } }),
+  }))
+  assert.equal(result.status, 200)
+  assert.equal(r.calls[0].url, 'http://backend.test/store/chat/session')
+  assert.equal(JSON.parse(r.calls[0].options.body).guest.name, 'Igor')
+  assert.equal(r.set[0][0], 'tb_chat_guest')
+  assert.equal(result.data.guest_token, undefined)
+})
+
+test('chat BFF rejects foreign, missing, null and internal origins despite spoofed proxy headers', async () => {
+  const r = route({ siteUrl: 'https://test.tamir.rs' })
+  for (const origin of [undefined, 'null', 'https://evil.test', 'http://localhost:3000',
+    'http://test.tamir.rs', 'https://test.tamir.rs:444', 'https://test.tamir.rs.evil.test']) {
+    const headers = { 'x-forwarded-host': 'evil.test', 'x-forwarded-proto': 'https', host: 'evil.test' }
+    if (origin !== undefined) headers.origin = origin
+    const result = await r.POST(new Request('http://localhost:3000/api/chat/session', { method: 'POST', headers }))
+    assert.equal(result.status, 403, String(origin))
+    assert.equal(result.data.code, 'INVALID_ORIGIN')
+  }
+  assert.equal(r.calls.length, 0)
+  assert.equal(r.set.length, 0)
+})
+
+test('chat BFF fails closed for invalid configured origins and supports local development without configuration', async () => {
+  for (const siteUrl of ['invalid-url', 'file:///tmp/site', 'https://user:password@tamir.rs']) {
+    const r = route({ siteUrl })
+    assert.equal((await r.POST(post('session'))).status, 403)
+    assert.equal(r.calls.length, 0)
+  }
+  const r = route()
+  const result = await r.POST(new Request('http://localhost:3000/api/chat/session', {
+    method: 'POST', headers: { origin: 'http://localhost:3000' },
+  }))
+  assert.equal(result.status, 200)
 })
