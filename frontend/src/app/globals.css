@@ -530,6 +530,10 @@ body { line-height: 1.5; }
 .cart-preview { position: fixed; z-index: 70; width: min(380px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid var(--store-border); border-radius: 4px; background: var(--store-bg); color: var(--store-text); box-shadow: 0 8px 28px rgb(0 0 0 / 12%); overflow: auto; font-size: 14px; line-height: 20px; animation: cart-preview-in 100ms ease-out; }
 .cart-preview::before { content: ''; position: absolute; inset: -8px 0 auto; height: 8px; }
 .cart-preview h2 { font-size: 18px; line-height: 26px; font-weight: 500; flex-shrink: 0; }
+.cart-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0; }
+.cart-preview-close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 4px; background: transparent; color: var(--store-text-muted); }
+.cart-preview-close:hover { color: var(--store-text); background: var(--store-bg-muted); }
+.cart-preview-close:focus-visible { outline: 2px solid var(--store-text); outline-offset: -2px; }
 .cart-preview-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; scrollbar-gutter: stable; }
 .cart-preview-row { display: flex; align-items: flex-start; gap: 4px; }
 .cart-preview-item { display: flex; flex: 1; gap: 12px; min-width: 0; padding: 2px; }
