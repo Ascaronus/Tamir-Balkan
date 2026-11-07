@@ -10,12 +10,13 @@ import { normalizeImageUrl } from "@/lib/product-image"
 export function CartPageClient() {
   const { t, locale } = useLocaleContext()
   const { customer } = useAuth()
-  const { cart, isReady, isMutating, error, refresh, updateItemQuantity, removeItem } = useCart()
+  const { cart, isReady, isMutating, error, stockError, refresh, updateItemQuantity, removeItem } = useCart()
   const money = (value: number) => formatMoney(value, cart?.currency_code ?? "rsd", locale === "sr" ? "sr-Latn-RS" : "en-GB")
   if (!isReady) return <p className="py-6">{t("cartPage.loading")}</p>
   const items = cart?.items ?? []
+  const stockItem = stockError ? items.find(item => item.variant_id === stockError.variantId) : undefined
   return <div>
-    {error && <div role="alert" className="mb-6 rounded bg-red-50 p-3 text-sm text-red-700">{t("cartPage.updateFailed")} <button type="button" className="underline" onClick={() => void refresh().catch(() => undefined)}>{t("common.retry")}</button></div>}
+    {error && <div role="alert" className="mb-6 rounded bg-red-50 p-3 text-sm text-red-700">{stockItem && <strong>{stockItem.product_title ?? stockItem.title}: </strong>}{stockError ? t("cartPage.stockLimit", { n: stockError.available }) : t("cartPage.updateFailed")} <button type="button" className="underline" onClick={() => void refresh().catch(() => undefined)}>{t("common.retry")}</button></div>}
     {!items.length ? <div className="empty-state"><p>{t("cartPage.empty")}</p><Link className="button-secondary mt-6" href="/rs">{t("product.backToCatalog")}</Link></div> : <div className="commerce-layout">
       <div><ul className="cart-items" aria-busy={isMutating}>
         {items.map(item => <li key={item.id} data-line-id={item.id} className="cart-line">

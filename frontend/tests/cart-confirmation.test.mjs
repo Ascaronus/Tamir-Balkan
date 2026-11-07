@@ -32,6 +32,15 @@ test('failed addition reports an error without a success dialog',async()=>{
  const p=provider(async()=>{throw Error('OUT_OF_STOCK')});await assert.rejects(p.render().props.value.addItem('v'),/OUT_OF_STOCK/)
  const tree=p.render();assert.equal(tree.props.value.error,'OUT_OF_STOCK');assert.equal(find(tree,n=>n.type==='Confirmation'),null)
 })
+test('stock failure is exposed without a success dialog and is cleared by the next successful mutation',async()=>{
+ let fail=true
+ const p=provider(async()=>{if(fail)throw Object.assign(Error('CART_STOCK_LIMIT'),{name:'CartStockError',variantId:'v',available:2,inCart:1});return cart})
+ await assert.rejects(p.render().props.value.addItem('v'),/CART_STOCK_LIMIT/)
+ assert.equal(p.render().props.value.stockError.available,2)
+ assert.equal(find(p.render(),n=>n.type==='Confirmation'),null)
+ fail=false;await p.render().props.value.addItem('v')
+ assert.equal(p.render().props.value.stockError,null)
+})
 test('navigation clears confirmation instead of reopening it on a later visit',async()=>{
  const p=provider(async()=>cart);await p.render().props.value.addItem('v');p.navigate();p.render();assert.equal(find(p.render(),n=>n.type==='Confirmation'),null)
 })
