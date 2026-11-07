@@ -3,6 +3,7 @@ import { ArrowDownMini, ArrowUpMini, ArrowUpTray, EllipsisHorizontal, Eye, EyeSl
 import { Alert, Badge, Button, Container, Drawer, DropdownMenu, FocusModal, Heading, IconButton, Input, Label, Select, StatusBadge, Switch, Table, Tabs, Text, Textarea, usePrompt } from '@medusajs/ui'
 import { useEffect, useRef, useState } from 'react'
 import { BannerCarousel } from '../../../shared/banner-carousel'
+import { DevicePreview } from './device-preview'
 import { emptyText, intervals, moveBanner, type Banner, type BannerLocale, type BannerText, type Carousel } from '../../../shared/banner-model'
 import './banners.css'
 
@@ -211,10 +212,10 @@ export default function HomepageBanners() {
       <div className="flex flex-wrap gap-2" role="group" aria-label="Preview device">{([[1200, 'Desktop'], [768, 'Tablet'], [390, 'Mobile']] as const).map(([size, label]) => <Button size="small" variant={width === size ? 'primary' : 'secondary'} key={size} aria-pressed={width === size} onClick={() => setWidth(size)}>{label}</Button>)}</div>
       <div className="flex gap-2" role="group" aria-label="Preview language">{(['sr', 'en'] as const).map(l => <Button size="small" variant={locale === l ? 'primary' : 'secondary'} key={l} aria-pressed={locale === l} onClick={() => setLocale(l)}>{l.toUpperCase()}</Button>)}</div>
      </div>
-     <div className="banner-preview-scroll bg-ui-bg-subtle p-4"><div className="banner-preview-canvas mx-auto" style={{ width }}>
+     <div className="banner-preview-scroll bg-ui-bg-subtle p-4"><DevicePreview width={width}>
       {preview && <BannerCarousel key={`${width}:${locale}:${preview}:${selected}`} carousel={{ ...draft, banners: preview === 'single' && banner ? [{ ...banner, active: true }] : draft.banners }} locale={locale} preview previewWidth={width} assetUrl={asset} />}
       {preview === 'all' && !draft.banners.some(b => b.active) && <Text className="p-6 text-center">No banners are included. Enable “Include in carousel” in a banner’s editor to preview it here.</Text>}
-     </div></div>
+     </DevicePreview></div>
     </FocusModal.Body>
     <FocusModal.Footer><FocusModal.Description className="mr-auto text-sm text-ui-fg-subtle">Includes unsaved edits. Links are disabled. Nothing is published from this preview.</FocusModal.Description><FocusModal.Close asChild><Button size="small" variant="secondary">Close preview</Button></FocusModal.Close></FocusModal.Footer>
    </FocusModal.Content>

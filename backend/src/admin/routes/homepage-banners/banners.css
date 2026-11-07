@@ -3,7 +3,9 @@
 /* Admin controls use Medusa UI and its light/dark tokens. Only preview geometry is custom. */
 .banner-admin{min-width:0}
 .banner-name{max-width:24rem;overflow-wrap:anywhere}
-.banner-preview-scroll{overflow:auto}
+.banner-preview-scroll{min-width:0;overflow:hidden}
+.banner-preview-viewport{width:100%;min-width:0}
+.banner-preview-frame{position:relative;margin-inline:auto}
 /* The preview must match the storefront, regardless of the admin theme. */
-.banner-preview-canvas{background:#fff;color:#0a0a0a;--store-bg:#fff;--store-text:#0a0a0a;--store-border:#e8e8e8}
+.banner-preview-canvas{position:absolute;top:0;left:0;box-sizing:border-box;transform-origin:top left;background:#fff;color:#0a0a0a;--store-bg:#fff;--store-text:#0a0a0a;--store-border:#e8e8e8}
 .banner-preview-canvas .tb-carousel{margin:0}
