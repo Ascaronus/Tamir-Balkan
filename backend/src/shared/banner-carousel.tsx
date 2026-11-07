@@ -16,7 +16,7 @@ export function BannerCarousel({carousel,locale,preview=false,previewWidth,resol
  },[carousel.autoplay,carousel.interval,slides.length,current,hover,focus,hidden,reduced,visited,interaction])
  if(!slides.length)return null
  const sr=locale==='sr'
- return <section className="tb-carousel" aria-label={sr?'Kolekcije':'Collections'} aria-roledescription={sr?'Karusel':'Carousel'}
+ return <section className="tb-carousel" style={previewWidth ? { '--tb-copy-padding': `${Math.min(64, Math.max(24, previewWidth * .025))}px` } as CSSProperties : undefined} aria-label={sr?'Kolekcije':'Collections'} aria-roledescription={sr?'Karusel':'Carousel'}
   onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onFocus={()=>setFocus(true)} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setFocus(false)}}
   onTouchStart={e=>{if(e.touches.length===1)start.current={x:e.touches[0].clientX,y:e.touches[0].clientY}}} onTouchCancel={()=>{start.current=null}}
   onTouchEnd={e=>{if(!start.current||!e.changedTouches.length)return;const d=swipeDirection(e.changedTouches[0].clientX-start.current.x,e.changedTouches[0].clientY-start.current.y);start.current=null;if(d&&slides.length>1)choose(current+d)}}>

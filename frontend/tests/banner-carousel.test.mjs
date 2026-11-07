@@ -59,6 +59,17 @@ test('single banner hides indicators; zero active banners hides hero; drafts can
  const f=fixture(t);f.props.carousel=clone();let tree=f.render();assert.equal(find(tree,n=>n.props.className==='tb-banner-controls'),null)
  f.props.carousel={...clone(),banners:[]};assert.equal(f.render(),null)
 })
+test('preview copy spacing uses the selected viewport and image selection follows device width',t=>{
+ const f=fixture(t);f.props.preview=true;f.c.banners[0].mobile='/mobile.webp'
+ for(const [width,padding] of [[1200,'30px'],[768,'24px'],[390,'24px']]){
+  f.props.previewWidth=width;const tree=f.render()
+  assert.equal(tree.props.style['--tb-copy-padding'],padding)
+  assert.equal(find(tree,n=>n.type==='img').props.src,width<=900?'/mobile.webp':f.c.banners[0].desktop)
+ }
+ f.props.previewWidth=undefined;const tree=f.render()
+ assert.equal(tree.props.style,undefined)
+ assert.equal(find(tree,n=>n.type==='source').props.media,'(max-width: 900px)')
+})
 test('selecting the already active dot also restarts the autoplay interval',t=>{
  const f=fixture(t);f.render();let tree=f.render();t.mock.timers.tick(5000)
  find(tree,n=>n.type==='button'&&n.props['aria-pressed']===true).props.onClick();f.render();t.mock.timers.tick(1000);f.render();assert.match(f.active(),/ 1:/)
