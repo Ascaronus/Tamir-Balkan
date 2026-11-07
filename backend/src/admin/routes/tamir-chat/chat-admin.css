@@ -1,0 +1,129 @@
+.chat-admin {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.chat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto !important;
+  gap: 4px;
+}
+.chat-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.chat-section,
+.chat-settings,
+.chat-drawer {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.chat-section[hidden],
+.chat-settings [hidden] {
+  display: none;
+}
+.chat-field {
+  display: grid;
+  gap: 6px;
+}
+.chat-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.chat-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.chat-pair legend {
+  margin-bottom: 8px;
+}
+.chat-pair label {
+  min-width: 0;
+}
+.chat-template,
+.chat-stat,
+.chat-message {
+  padding: 16px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+}
+.chat-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.chat-table td {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.chat-filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+.chat-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.chat-stats > p {
+  grid-column: 1/-1;
+}
+.chat-result,
+.chat-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  font: inherit;
+}
+.chat-widget-preview {
+  width: 360px;
+  max-width: 100%;
+  background: #fff;
+  color: #222;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.chat-widget-preview span {
+  background: #842154;
+  color: #fff;
+  border-radius: 24px;
+  padding: 12px 18px;
+  justify-self: start;
+}
+.chat-drawer {
+  overflow-y: auto;
+  align-content: start;
+}
+.chat-drawer a {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .chat-pair,
+  .chat-filters {
+    grid-template-columns: 1fr;
+  }
+  .chat-admin {
+    padding: 16px !important;
+  }
+  .chat-actions > button {
+    max-width: 100%;
+    white-space: normal;
+    height: auto;
+    min-height: 32px;
+  }
+}
