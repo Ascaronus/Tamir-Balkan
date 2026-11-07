@@ -531,7 +531,13 @@ body { line-height: 1.5; }
 .cart-preview::before { content: ''; position: absolute; inset: -8px 0 auto; height: 8px; }
 .cart-preview h2 { font-size: 18px; line-height: 26px; font-weight: 500; flex-shrink: 0; }
 .cart-preview-items { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; scrollbar-gutter: stable; }
-.cart-preview-item { display: flex; gap: 12px; min-width: 0; padding: 2px; }
+.cart-preview-row { display: flex; align-items: flex-start; gap: 4px; }
+.cart-preview-item { display: flex; flex: 1; gap: 12px; min-width: 0; padding: 2px; }
+.cart-preview-remove { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--store-text-muted); cursor: pointer; transition: color 120ms ease, background-color 120ms ease; }
+.cart-preview-remove:hover:not(:disabled) { color: var(--store-text); background: var(--store-bg-muted); }
+.cart-preview-remove:focus-visible { outline: 2px solid var(--store-text); outline-offset: -2px; }
+.cart-preview-remove:disabled { opacity: .4; cursor: wait; }
+.cart-preview-row[aria-busy="true"] .cart-preview-item { opacity: .6; }
 .cart-preview-item:focus-visible { outline-offset: -2px; }
 .cart-preview-image { width: 60px; height: 75px; flex: 0 0 60px; overflow: hidden; background: var(--store-bg-muted); }
 .cart-preview-details { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }

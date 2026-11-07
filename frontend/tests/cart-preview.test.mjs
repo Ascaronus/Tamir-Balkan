@@ -43,16 +43,18 @@ test('shared amounts preserve server discounts and zero totals; item URL retains
  assert.equal(display.cartLineHref({...item,product_handle:null},'en'),null)
 })
 function contents(locale,initial={}){
- let state={cart:null,isReady:true,isMutating:false,error:null,displayReady:true,displayError:false,retryDisplay:async()=>{},...initial}
+ const h=hooks()
+ let navigations=0
+ let state={cart:null,isReady:true,isMutating:false,error:null,displayReady:true,displayError:false,retryDisplay:async()=>{},removeItem:async()=>{},...initial}
  const {CartPreviewContents}=load('frontend/src/components/cart/CartPreview.tsx',{
-  react:{},'next/navigation':{},'@/components/i18n/LocalizedLink':{default:'Link'},
+  react:h.react,'next/navigation':{},'@/components/i18n/LocalizedLink':{default:'Link'},
   '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale,t:createTranslator(messages(locale))})},
   '@/components/store/ProductImage':{ProductImage:'Image'},'@/lib/product-image':{normalizeImageUrl:v=>v},
   '@/lib/format-money':{formatMoney},'@/lib/cart/display':display,
   '@/lib/cart/preview-interaction':{CartPreviewInteraction,cartPreviewPosition},
   './CartProvider':{useCart:()=>state},'./CartLink':{CartLink:'Badge'},
- })
- return {render:()=>CartPreviewContents({onNavigate(){}}),set:patch=>state={...state,...patch}}
+ },{document:{activeElement:null}})
+ return {render:()=>h.render(()=>CartPreviewContents({onNavigate(){navigations++}})),set:patch=>state={...state,...patch},navigations:()=>navigations}
 }
 for(const locale of ['sr','en']){
  test(`component ${locale}: empty cart has no amount or cart CTA`,()=>{
@@ -77,15 +79,58 @@ for(const locale of ['sr','en']){
  test(`component ${locale}: loading and failed refresh hide stale cart and expose explicit retry`,async()=>{
   let retries=0;const c=contents(locale,{cart:{currency_code:'rsd',items:[{id:'old',product_title:'STALE'}]},isReady:false,retryDisplay:async()=>retries++})
   assert.equal(c.render().props.role,'status')
-  c.set({isReady:true,error:'private server details'});let tree=c.render();assert.equal(tree.props.role,'alert')
+  c.set({isReady:true,cart:null,error:'private server details'});let tree=c.render();assert.equal(tree.props.role,'alert')
   assert.equal(tree.props.children[0].props.children,locale==='sr'?'Korpa nije mogla da se učita.':'Could not load your cart.')
   assert.ok(!JSON.stringify(tree).includes('STALE'));assert.ok(!JSON.stringify(tree).includes('private server details'))
   find(tree,n=>n.type==='button').props.onClick();await Promise.resolve();assert.equal(retries,1)
   c.set({error:null,displayReady:false,displayError:false});assert.equal(c.render().props.role,'status')
   c.set({displayError:true});assert.equal(c.render().props.role,'alert')
-  c.set({isMutating:true});assert.equal(c.render().props.role,'status')
+  c.set({isMutating:true});assert.equal(c.render().props.role,'alert')
  })
 }
+
+for(const locale of ['sr','en']) test(`component ${locale}: icon-only removal keeps preview open, prevents duplicate requests and updates totals`,async()=>{
+ const item={id:'line_a',title:'Kapa',quantity:2,unit_price:100,total:200,product_handle:'kapa'}
+ const other={...item,id:'line_b',title:'Other',quantity:1,total:100}
+ let resolve;const removed=[]
+ const c=contents(locale,{cart:{currency_code:'rsd',item_total:300,items:[item,other]},removeItem:id=>{
+  removed.push(id);return new Promise(done=>resolve=()=>{c.set({cart:{currency_code:'rsd',item_total:100,items:[other]},isMutating:false});done()})
+ }})
+ let tree=c.render(),button=find(tree,n=>n.props?.className==='cart-preview-remove')
+ assert.equal(button.props['aria-label'],locale==='sr'?'Ukloni Kapa iz korpe':'Remove Kapa from cart')
+ assert.equal(button.props.children.type,'svg')
+ assert.equal(button.props.children.props['aria-hidden'],'true')
+ assert.equal(find(find(tree,n=>n.props?.className==='cart-preview-item'),n=>n.type==='button'),null)
+ const event={currentTarget:{}}
+ button.props.onClick(event);button.props.onClick(event)
+ assert.deepEqual(removed,['line_a']);assert.equal(c.navigations(),0)
+ c.set({isMutating:true});tree=c.render()
+ assert.ok(find(tree,n=>n.props?.className==='cart-preview-name'))
+ assert.equal(find(tree,n=>n.props?.className==='cart-preview-row').props['aria-busy'],true)
+ assert.equal(find(tree,n=>n.props?.className==='cart-preview-remove').props.disabled,true)
+ resolve();await new Promise(done=>setImmediate(done));tree=c.render()
+ assert.equal(find(tree,n=>n.props?.className==='cart-preview-name').props.children,'Other')
+ assert.equal(find(find(tree,n=>n.props?.className==='cart-preview-total'),n=>n.type==='strong').props.children,formatMoney(100,'rsd',locale==='sr'?'sr-Latn-RS':'en-GB'))
+ assert.equal(c.navigations(),0)
+ c.set({removeItem:async()=>c.set({cart:{currency_code:'rsd',item_total:0,items:[]}})})
+ find(c.render(),n=>n.props?.className==='cart-preview-remove').props.onClick(event)
+ await new Promise(done=>setImmediate(done))
+ assert.equal(c.render().props.children,locale==='sr'?'Korpa je prazna':'Your cart is empty')
+})
+
+test('component: failed removal retains the item and re-enables retry without exposing server errors',async()=>{
+ let attempts=0
+ const c=contents('en',{cart:{currency_code:'rsd',item_total:100,items:[{id:'a',title:'Hat',quantity:1,unit_price:100}]},removeItem:async()=>{
+  attempts++;c.set({error:'private server details'});throw Error('private server details')
+ }})
+ find(c.render(),n=>n.props?.className==='cart-preview-remove').props.onClick({currentTarget:{}})
+ await new Promise(done=>setImmediate(done));const tree=c.render()
+ assert.equal(find(tree,n=>n.props?.className==='cart-preview-name').props.children,'Hat')
+ assert.ok(find(tree,n=>n.props?.role==='alert'))
+ assert.ok(!JSON.stringify(tree).includes('private server details'))
+ const button=find(tree,n=>n.props?.className==='cart-preview-remove');assert.equal(button.props.disabled,false)
+ button.props.onClick({currentTarget:{}});await new Promise(done=>setImmediate(done));assert.equal(attempts,2)
+})
 test('component: touch does not open preview; mouse/focus open; cart click is still a link',async t=>{
  t.mock.timers.enable({apis:['setTimeout']})
  const h=hooks(),listeners={},cleanups=[];let hover=true,focusCalls=0

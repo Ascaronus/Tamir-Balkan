@@ -56,7 +56,7 @@ export function CartPreviewControl() {
       aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => interaction.dismiss()}>
       <CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span>
     </Link>
-    {open && <section id={id} aria-label={t("cartPreview.title")} className="cart-preview"
+    {open && <section id={id} tabIndex={-1} aria-label={t("cartPreview.title")} className="cart-preview"
       style={{ ...(position ?? {}), visibility: position ? "visible" : "hidden" }}>
       <h2>{t("cartPreview.title")}</h2>
       <CartPreviewContents onNavigate={() => interaction.dismiss()} />
@@ -65,14 +65,25 @@ export function CartPreviewControl() {
 }
 export function CartPreviewContents({ onNavigate }: { onNavigate: () => void }) {
   const { t, locale } = useLocaleContext()
-  const { cart, isReady, isMutating, error, displayReady, displayError, retryDisplay } = useCart()
+  const { cart, isReady, isMutating, error, displayReady, displayError, retryDisplay, removeItem } = useCart()
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const removalPending = useRef(false)
+  const remove = async (id: string) => {
+    if (removalPending.current || isMutating) return
+    removalPending.current = true
+    setRemovingId(id)
+    try { await removeItem(id) } catch { /* CartProvider exposes the failure; keep the item available for retry. */ }
+    finally { removalPending.current = false; setRemovingId(null) }
+  }
   const money = (amount: number) => formatMoney(amount, cart?.currency_code ?? "rsd", locale === "sr" ? "sr-Latn-RS" : "en-GB")
-  if (!isReady || isMutating) return <p role="status">{t("cartPreview.loading")}</p>
-  if (error || displayError) return <div role="alert"><p>{t("cartPreview.error")}</p><button type="button" className="cart-preview-retry" onClick={() => void retryDisplay().catch(() => undefined)}>{t("common.retry")}</button></div>
+  const failure = <div role="alert"><p>{t(cart && !displayError ? "cartPreview.updateError" : "cartPreview.error")}</p><button type="button" disabled={isMutating || removingId !== null} className="cart-preview-retry" onClick={() => void retryDisplay().catch(() => undefined)}>{t("common.retry")}</button></div>
+  if (!isReady) return <p role="status">{t("cartPreview.loading")}</p>
+  if ((error && !cart) || displayError) return failure
   if (!displayReady) return <p role="status">{t("cartPreview.loading")}</p>
   const items = cart?.items ?? []
-  if (!items.length) return <p>{t("cartPreview.empty")}</p>
+  if (!items.length) return error ? failure : <p role="status">{t("cartPreview.empty")}</p>
   return <>
+    {error && failure}
     <ul className="cart-preview-items">{items.map(item => {
       const href = cartLineHref(item, locale), title = item.product_title ?? item.title
       const details = <><div className="cart-preview-image"><ProductImage src={normalizeImageUrl(item.thumbnail)} alt="" className="h-full w-full object-cover" /></div>
@@ -81,7 +92,18 @@ export function CartPreviewContents({ onNavigate }: { onNavigate: () => void }) 
           <span className="cart-preview-unit">{item.quantity} × {money(item.unit_price)}</span>
           <strong>{money(cartLineTotal(item))}</strong>
         </div></>
-      return <li key={item.id}>{href ? <Link className="cart-preview-item" href={href} onClick={onNavigate}>{details}</Link> : <div className="cart-preview-item">{details}</div>}</li>
+      const removeLabel = t("cartPreview.remove", { title })
+      return <li key={item.id} className="cart-preview-row" aria-busy={removingId === item.id}>
+        {href ? <Link className="cart-preview-item" href={href} onClick={onNavigate}>{details}</Link> : <div className="cart-preview-item">{details}</div>}
+        <button type="button" className="cart-preview-remove" aria-label={removeLabel} title={removeLabel}
+          disabled={isMutating || removingId !== null} onClick={event => {
+            // Keep keyboard focus in the popover when this row (including the last one) disappears.
+            if (document.activeElement === event.currentTarget && event.currentTarget.matches(":focus-visible")) event.currentTarget.closest<HTMLElement>(".cart-preview")?.focus({ preventScroll: true })
+            void remove(item.id)
+          }}>
+          <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6" /></svg>
+        </button>
+      </li>
     })}</ul>
     <div className="cart-preview-footer"><div className="cart-preview-total"><span>{t("cartPreview.total")}</span><strong>{money(cartProductsTotal(cart))}</strong></div>
       <Link href="/rs/cart" className="button-primary" onClick={onNavigate}>{t("cartPreview.viewCart")}</Link>
