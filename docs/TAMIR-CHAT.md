@@ -4,6 +4,14 @@ Feature-ветка: `feat/tamir-telegram-chat`. Production не изменён. 
 
 ## Архитектура
 
+За reverse proxy frontend проверяет Origin POST-запросов чата по `NEXT_PUBLIC_SITE_URL`.
+На stage задайте `NEXT_PUBLIC_SITE_URL=https://test.tamir.rs`, на production — публичный URL
+соответствующего storefront. Переменная уже задаётся `scripts/staging-bootstrap.sh`.
+При её изменении пересоберите и перезапустите frontend: Next.js встраивает `NEXT_PUBLIC_*`
+при сборке. Внутренний URL Next.js (`http://localhost:3000`) не должен заменять публичный URL.
+Без переменной используется origin запроса (локальная разработка); произвольные Host и
+X-Forwarded-* не расширяют список разрешённых источников.
+
 До реализации изучены существующие Customer module, AuthProvider/HttpOnly customer-cookie/BFF,
 SR/EN LocaleProvider, ProductDetails, native Medusa Homepage Banners, Google Translation helper,
 Knex/PG registration, middleware, deployment setup и test discovery. Используются эти механизмы;

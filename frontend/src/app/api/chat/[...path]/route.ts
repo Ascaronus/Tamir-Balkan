@@ -20,11 +20,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return proxy(request)
 }
+function hasValidOrigin(request: Request, url: URL) {
+  // Behind nginx/Cloudflare, request.url can contain the internal HTTP origin.
+  // Use the configured storefront URL, never client-supplied forwarding headers.
+  try {
+    const site = new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || url.origin)
+    if (!['http:', 'https:'].includes(site.protocol) || site.username || site.password) return false
+    return request.headers.get('origin') === site.origin
+  } catch {
+    return false
+  }
+}
 async function proxy(request: Request) {
   const url = new URL(request.url),
     path = url.pathname.slice('/api/chat/'.length)
   if (!paths.has(path)) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 })
-  if (request.method === 'POST' && request.headers.get('origin') !== url.origin)
+  if (request.method === 'POST' && !hasValidOrigin(request, url))
     return NextResponse.json({ code: 'INVALID_ORIGIN' }, { status: 403 })
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' },
