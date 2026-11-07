@@ -18,6 +18,7 @@ export function CartPreview() {
 export function CartPreviewControl() {
   const { t } = useLocaleContext()
   const root = useRef<HTMLDivElement>(null), trigger = useRef<HTMLAnchorElement>(null)
+  const pointerType = useRef<string | null>(null)
   const [open, setOpen] = useState(false)
   const [interaction] = useState(() => new CartPreviewInteraction(setOpen))
   const [position, setPosition] = useState<ReturnType<typeof cartPreviewPosition> | null>(null)
@@ -37,28 +38,45 @@ export function CartPreviewControl() {
       interaction.dismiss()
       if (focusInside) trigger.current?.focus({ preventScroll: true })
     }
+    const dismissOutside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) interaction.dismiss()
+    }
     window.addEventListener("resize", positionPanel)
     window.addEventListener("scroll", positionPanel, true)
     document.addEventListener("keydown", dismiss)
+    document.addEventListener("pointerdown", dismissOutside)
     return () => {
       window.removeEventListener("resize", positionPanel)
       window.removeEventListener("scroll", positionPanel, true)
       document.removeEventListener("keydown", dismiss)
+      document.removeEventListener("pointerdown", dismissOutside)
     }
   }, [open, interaction])
   return <div ref={root} className="header-cart-preview"
     onPointerEnter={event => { if (event.pointerType === "mouse" && window.matchMedia("(any-hover: hover)").matches) interaction.enterPointer() }}
     onPointerLeave={event => { if (event.pointerType === "mouse") interaction.leavePointer() }}
-    onPointerDown={event => { if (event.pointerType === "touch") interaction.dismiss() }}
     onFocus={event => interaction.focusWithin(event.target.matches(":focus-visible"))}
-    onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) interaction.blurOutside() }}>
+    onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) interaction.blurOutside(Boolean(event.relatedTarget)) }}>
     <Link ref={trigger} href="/rs/cart" className="header-action" aria-label={t("header.cartAria")}
-      aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => interaction.dismiss()}>
+      aria-expanded={open} aria-controls={open ? id : undefined}
+      onPointerDown={event => { pointerType.current = event.pointerType }}
+      onKeyDown={() => { pointerType.current = null }}
+      onClick={event => {
+        const touch = pointerType.current === "touch" || pointerType.current === "pen" || !window.matchMedia("(any-hover: hover)").matches
+        pointerType.current = null
+        if (touch) { event.preventDefault(); interaction.toggle() }
+        else interaction.dismiss()
+      }}>
       <CartLink href="/rs/cart" /><span className="header-action-label">{t("header.cart")}</span>
     </Link>
     {open && <section id={id} tabIndex={-1} aria-label={t("cartPreview.title")} className="cart-preview"
       style={{ ...(position ?? {}), visibility: position ? "visible" : "hidden" }}>
-      <h2>{t("cartPreview.title")}</h2>
+      <div className="cart-preview-heading"><h2>{t("cartPreview.title")}</h2>
+        <button type="button" className="cart-preview-close" aria-label={t("common.close")} onClick={() => {
+          interaction.dismiss()
+          trigger.current?.focus({ preventScroll: true })
+        }}><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+      </div>
       <CartPreviewContents onNavigate={() => interaction.dismiss()} />
     </section>}
   </div>

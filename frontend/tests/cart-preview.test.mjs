@@ -131,7 +131,7 @@ test('component: failed removal retains the item and re-enables retry without ex
  const button=find(tree,n=>n.props?.className==='cart-preview-remove');assert.equal(button.props.disabled,false)
  button.props.onClick({currentTarget:{}});await new Promise(done=>setImmediate(done));assert.equal(attempts,2)
 })
-test('component: touch does not open preview; mouse/focus open; cart click is still a link',async t=>{
+test('component: hover and keyboard keep desktop navigation; touch toggles preview and outside taps dismiss',async t=>{
  t.mock.timers.enable({apis:['setTimeout']})
  const h=hooks(),listeners={},cleanups=[];let hover=true,focusCalls=0
  const anchor={getBoundingClientRect:()=>({right:700,bottom:100}),focus:()=>focusCalls++}
@@ -150,5 +150,36 @@ test('component: touch does not open preview; mouse/focus open; cart click is st
  let prevented=false;listeners.keydown({key:'Escape',preventDefault:()=>prevented=true});assert.equal(prevented,true);assert.equal(focusCalls,1);assert.equal(find(render(),n=>n.type==='section'),null)
  tree.props.onBlur({currentTarget:root,relatedTarget:'outside'});tree.props.onFocus({target:{matches:()=>true}});assert.ok(find(render(),n=>n.type==='section'))
  const link=find(render(),n=>n.type==='Link');assert.equal(link.props.href,'/rs/cart');link.props.onClick();assert.equal(find(render(),n=>n.type==='section'),null)
- cleanups.forEach(fn=>fn());assert.equal(listeners.keydown,undefined)
+ let tapPrevented=0
+ const tap=type=>{const link=find(render(),n=>n.type==='Link');link.props.onPointerDown({pointerType:type});link.props.onClick({preventDefault:()=>tapPrevented++})}
+ // Touch must work on hybrid laptops too, even when any-hover matches.
+ tap('touch');assert.ok(find(render(),n=>n.type==='section'));assert.equal(tapPrevented,1)
+ await h.flush()
+ listeners.pointerdown({target:'inside'});assert.ok(find(render(),n=>n.type==='section'))
+ assert.equal(render().props.onPointerDown,undefined)
+ tap('touch');assert.equal(find(render(),n=>n.type==='section'),null)
+ tap('pen');assert.ok(find(render(),n=>n.type==='section'))
+ listeners.pointerdown({target:'outside'});assert.equal(find(render(),n=>n.type==='section'),null)
+ hover=false
+ find(render(),n=>n.type==='Link').props.onClick({preventDefault:()=>tapPrevented++})
+ assert.ok(find(render(),n=>n.type==='section'))
+ find(render(),n=>n.props?.className==='cart-preview-close').props.onClick()
+ assert.equal(find(render(),n=>n.type==='section'),null);assert.equal(focusCalls,2)
+ cleanups.forEach(fn=>fn());assert.equal(listeners.keydown,undefined);assert.equal(listeners.pointerdown,undefined)
+})
+
+test('interaction: explicit toggle cancels pending hover timers and can reopen after dismissal',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let open=false;const c=new CartPreviewInteraction(v=>open=v)
+ c.enterPointer();c.toggle();assert.equal(open,true)
+ c.toggle();t.mock.timers.tick(500);assert.equal(open,false)
+ c.toggle();assert.equal(open,true)
+ c.dismiss();c.focusWithin(true);assert.equal(open,false)
+ c.toggle();assert.equal(open,true);c.dispose()
+})
+
+test('interaction: a touch-opened preview survives removal focus loss but closes when tabbing outside',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let open=false;const c=new CartPreviewInteraction(v=>open=v)
+ c.toggle();c.focusWithin(false);c.blurOutside();t.mock.timers.tick(1000);assert.equal(open,true)
+ c.blurOutside(true);t.mock.timers.tick(220);assert.equal(open,false)
+ c.toggle();c.dismiss();assert.equal(open,false);c.dispose()
 })

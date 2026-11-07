@@ -6,6 +6,7 @@ export class CartPreviewInteraction {
   private focused = false
   private dismissed = false
   private open = false
+  private pinned = false
   constructor(private change: (open: boolean) => void) {}
   private clearTimers() { clearTimeout(this.opening); clearTimeout(this.closing); this.opening = this.closing = undefined }
   private show() { if (!this.dismissed && !this.open) { this.open = true; this.change(true) } }
@@ -18,13 +19,17 @@ export class CartPreviewInteraction {
     this.focused = true; clearTimeout(this.closing)
     if (keyboard) { clearTimeout(this.opening); this.opening = undefined; this.show() }
   }
-  blurOutside() { this.focused = false; this.dismissed = false; this.scheduleClose() }
+  blurOutside(movedFocus = false) { this.focused = false; this.dismissed = false; if (movedFocus) this.pinned = false; this.scheduleClose() }
   private scheduleClose() {
-    if (this.hovered || this.focused) return
+    if (this.hovered || this.focused || this.pinned) return
     clearTimeout(this.opening); this.opening = undefined; clearTimeout(this.closing)
     this.closing = setTimeout(() => { this.closing = undefined; this.open = false; this.change(false) }, 220)
   }
-  dismiss() { this.clearTimers(); this.dismissed = true; this.open = false; this.change(false) }
+  dismiss() { this.clearTimers(); this.dismissed = true; this.pinned = false; this.open = false; this.change(false) }
+  toggle() {
+    if (this.open) { this.dismiss(); return }
+    this.clearTimers(); this.dismissed = false; this.pinned = true; this.show()
+  }
   dispose() { this.clearTimers() }
 }
 export function cartPreviewPosition(anchor: { right: number; bottom: number }, viewport: { width: number; height: number }) {
