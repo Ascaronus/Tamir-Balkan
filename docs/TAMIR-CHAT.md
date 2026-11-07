@@ -227,8 +227,12 @@ BFF. ID диалога не является доказательством до
   worktree), Medusa backend/admin build прошли.
 - Новый `integration-tests/http/tamir-chat.spec.ts` включён в discovery, но локально не запускался:
   нет native PostgreSQL 16/Redis test stack. PGlite не заменяет проверку нескольких PostgreSQL workers.
-- Браузерная проверка использует настоящие React/Medusa-компоненты с подменёнными API boundaries;
-  она не подтверждает живую доставку Telegram/Google. Окончательные результаты указаны в PR.
+- Chromium: SR/EN на 390/1440 px, имя без контактов, восстановление истории, SSE reconnect/dedup,
+  контекст товара, XSS как текст, авторизованный вход без формы и очистка после logout — прошли.
+  В админке прошли сохранение, форма оператора, просмотр оригинала/перевода, закрытие и ошибки
+  Telegram/Google; горизонтального переполнения страницы нет. Проверены настоящие компоненты
+  React/Medusa с подменёнными API/auth boundaries; это не live E2E Telegram/Google.
+  Светлый вид проверен визуально. Отдельная проверка dark theme остаётся для staging.
 
 ```bash
 # frontend

@@ -451,3 +451,7 @@ Node 20.20.2/24.22.1: 308 frontend и 91 backend no-db прошли; 14 SQL-сц
 на PGlite. Telegram/Google transport подменён, реальная доставка не заявляется.
 TypeScript, ESLint, Next webpack и Medusa backend/admin builds прошли.
 Native PostgreSQL 16 multiworker и HTTP-тест локально не запускались: нужны PostgreSQL/Redis.
+
+Chromium с настоящими компонентами и изолированными API/auth boundaries: виджет SR/EN,
+390/1440, восстановление/SSE/XSS/product context, authenticated entry/logout, native admin
+settings/operator/dialog/provider errors прошли. Проверка не подтверждает живые интеграции.

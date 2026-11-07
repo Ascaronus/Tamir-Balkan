@@ -10,18 +10,30 @@ export async function deliverOne(db: Knex, transport: Transport = fetch) {
     // Lock the conversation before the queue entry, matching deletion/claim order.
     const candidates = await trx('tamir_chat_outbox as o')
       .join('tamir_chat_message as m', 'm.id', 'o.message_id')
-      .where('o.done', false).where('o.attempts', '<', 8).where('o.next_at', '<=', new Date())
-      .select('o.message_id', 'm.conversation_id').orderBy('o.next_at').limit(20)
+      .where('o.done', false)
+      .where('o.attempts', '<', 8)
+      .where('o.next_at', '<=', new Date())
+      .select('o.message_id', 'm.conversation_id')
+      .orderBy('o.next_at')
+      .limit(20)
     let task: any, m: any, c: any
     for (const candidate of candidates) {
-      c = await trx('tamir_chat_conversation').where({id:candidate.conversation_id}).forUpdate().skipLocked().first()
+      c = await trx('tamir_chat_conversation').where({ id: candidate.conversation_id }).forUpdate().skipLocked().first()
       if (!c) continue
-      task = await trx('tamir_chat_outbox').where({message_id:candidate.message_id,done:false})
-        .where('attempts','<',8).where('next_at','<=',new Date()).forUpdate().skipLocked().first()
-      if (task) { m = await trx('tamir_chat_message').where({id:task.message_id}).first(); break }
+      task = await trx('tamir_chat_outbox')
+        .where({ message_id: candidate.message_id, done: false })
+        .where('attempts', '<', 8)
+        .where('next_at', '<=', new Date())
+        .forUpdate()
+        .skipLocked()
+        .first()
+      if (task) {
+        m = await trx('tamir_chat_message').where({ id: task.message_id }).first()
+        break
+      }
     }
     if (!task || !m) return false
-    const {config} = await settings(trx)
+    const { config } = await settings(trx)
     const earlier = await trx('tamir_chat_outbox as o')
       .join('tamir_chat_message as m', 'm.id', 'o.message_id')
       .where('m.conversation_id', c.id)

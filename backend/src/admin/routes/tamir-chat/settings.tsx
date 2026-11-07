@@ -117,6 +117,11 @@ export function Settings({ tab }: { tab: string }) {
   useEffect(() => {
     void load().catch((e) => setError(e.message))
   }, [])
+  useEffect(() => {
+    setError('')
+    setSuccess('')
+    setResult(null)
+  }, [tab])
   const dirty = Boolean(state && draft && JSON.stringify(draft) !== JSON.stringify(state.config))
   useEffect(() => {
     if (!dirty) return
