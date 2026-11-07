@@ -32,6 +32,7 @@
     "rs": "Serbia"
   },
   "cartPage": {
+    "stockLimit": "Only {n} units of this item are currently available. Reduce the quantity in your cart.",
     "loading": "Loading…",
     "empty": "Cart is empty.",
     "decreaseQty": "Decrease quantity",
@@ -294,7 +295,8 @@
     "noPhoto": "No photo",
     "priceOnRequest": "Price on request",
     "variant": "Variant",
-    "inStock": "In stock: {n} pcs.",
+    "inStock": "In stock",
+    "stockLimit": "Only {n} units are currently available in total. You already have {inCart} in your cart.",
     "addToCart": "Add to cart",
     "backToCatalog": "← Back to catalog",
     "zoom": "Enlarge photo",

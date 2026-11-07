@@ -19,3 +19,21 @@ for(const locale of ['sr','en'])test(`${locale} cart removal keeps its label and
  button.props.onClick();await Promise.resolve();assert.deepEqual(removed,['line_a'])
  assert.ok(messages.checkout.emailOptional.includes(locale==='sr'?'opciono':'optional'))
 })
+
+for(const locale of ['sr','en'])test(`${locale} cart shows exact stock only after a rejected quantity change`,()=>{
+ const messages=JSON.parse(fs.readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url)))
+ const t=createTranslator(messages)
+ const state={isReady:true,isMutating:false,error:null,stockError:null,cart:{currency_code:'rsd',items:[{id:'line_a',variant_id:'v1',title:'Kapa',quantity:2,unit_price:100}]}}
+ const {CartPageClient}=load('frontend/src/components/cart/CartPageClient.tsx',{
+ '@/components/i18n/LocalizedLink':{default:'a'},'@/components/auth/AuthProvider':{useAuth:()=>({customer:null})},
+ './CartProvider':{useCart:()=>state},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({t,locale})},
+ '@/lib/cart/display':load('frontend/src/lib/cart/display.ts'),'@/lib/format-money':{formatMoney:String},
+ '@/components/store/ProductImage':{ProductImage:'img'},'@/lib/product-image':{normalizeImageUrl:()=>undefined},
+ })
+ assert.equal(find(CartPageClient(),n=>n.props?.role==='alert'),null)
+ state.error='CART_STOCK_LIMIT';state.stockError={variantId:'v1',available:1,inCart:2}
+ const alert=find(CartPageClient(),n=>n.props?.role==='alert')
+ assert.ok(JSON.stringify(alert).includes(t('cartPage.stockLimit',{n:1})))
+ assert.ok(JSON.stringify(alert).includes('Kapa'))
+ assert.ok(!JSON.stringify(alert).includes('CART_STOCK_LIMIT'))
+})
