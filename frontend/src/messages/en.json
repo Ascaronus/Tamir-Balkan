@@ -472,6 +472,8 @@
     "loading": "Loading wishlist…"
   },
   "cartPreview": {
+    "remove": "Remove {title} from cart",
+    "updateError": "Could not update your cart. Please try again.",
     "title": "Your cart",
     "loading": "Loading cart…",
     "error": "Could not load your cart.",

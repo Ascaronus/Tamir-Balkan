@@ -472,6 +472,8 @@
     "loading": "Učitavanje omiljenih proizvoda…"
   },
   "cartPreview": {
+    "remove": "Ukloni {title} iz korpe",
+    "updateError": "Korpa nije mogla da se ažurira. Pokušajte ponovo.",
     "title": "Vaša korpa",
     "loading": "Učitavanje korpe…",
     "error": "Korpa nije mogla da se učita.",
