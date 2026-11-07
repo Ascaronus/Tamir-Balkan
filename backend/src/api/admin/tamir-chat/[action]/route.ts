@@ -1,34 +1,200 @@
-import type {AuthenticatedMedusaRequest,MedusaResponse} from '@medusajs/framework/http'
-import {Modules} from '@medusajs/framework/utils'
-import {randomUUID} from 'node:crypto'
-import {admin,chatDb,failure,limit} from '../../../../utils/chat/http'
-import {audit,settings,saveSettings,saveSecrets} from '../../../../utils/chat/settings'
-import {checkTelegram,connection,installWebhook,telegram,translate} from '../../../../utils/chat/providers'
-import {appendMessage,changeStatus,messages} from '../../../../utils/chat/conversations'
-import {ChatError} from '../../../../utils/chat/security'
-import {kickChat} from '../../../../utils/chat/delivery'
-import {operatorSchema} from '../../../../shared/chat-config'
-export async function GET(req:AuthenticatedMedusaRequest,res:MedusaResponse){res.setHeader('Cache-Control','no-store');try{const actor=await admin(req),db=chatDb(req),action=req.params.action;
- if(action==='access')return res.json(actor);
- if(action==='settings'){await admin(req,'manager');return res.json({...await settings(db),secrets:(await db('tamir_chat_secret').select('name')).map(r=>r.name),connections:await db('tamir_chat_connection'),googleEnvironmentConfigured:Boolean(process.env.GOOGLE_TRANSLATE_API_KEY)})}
- if(action==='operators'){await admin(req,'manager');return res.json({operators:await db('tamir_chat_operator').orderBy('name')})}
- if(action==='conversations'){const q=db('tamir_chat_conversation'),search=String(req.query.search||'').trim().slice(0,100);if(search)q.whereRaw("(profile->>'name' ILIKE ? OR profile->>'email' ILIKE ? OR profile->>'phone' ILIKE ?)",Array(3).fill('%'+search.replace(/[\\%_]/g,'\\$&')+'%'));if(['open','closed'].includes(String(req.query.status)))q.where({status:req.query.status});if(['sr','en'].includes(String(req.query.locale)))q.where({locale:req.query.locale});const offset=Math.max(0,Math.min(100000,Number(req.query.offset)||0)),[{count}]=await q.clone().count('* as count');return res.json({count:Number(count),conversations:await q.select('id','number','customer_id','profile','locale','status','context','updated_at').orderBy('updated_at','desc').limit(30).offset(offset)})}
- if(action==='dialog'){const id=String(req.query.id||'');if(!/^[a-f\d-]{36}$/i.test(id))throw new ChatError(404,'CHAT_NOT_FOUND');const c=await db('tamir_chat_conversation').where({id}).first();if(!c)throw new ChatError(404,'CHAT_NOT_FOUND');if(c.customer_id){try{const p=await req.scope.resolve(Modules.CUSTOMER).retrieveCustomer(c.customer_id);c.profile={name:[p.first_name,p.last_name].filter(Boolean).join(' ')||p.email,email:p.email,phone:p.phone||''};await db('tamir_chat_conversation').where({id}).update({profile:JSON.stringify(c.profile)})}catch{c.profile={name:'Deleted customer',email:'',phone:''}}}delete c.guest_hash;return res.json({conversation:c,messages:await messages(db,id,typeof req.query.before==='string'?req.query.before:undefined)})}
- if(action==='overview'){const [counts]=await db('tamir_chat_conversation').select(db.raw("count(*)::int as total,count(*) FILTER(WHERE status='open')::int as active,count(*) FILTER(WHERE status='closed')::int as closed,count(*) FILTER(WHERE created_at >= (date_trunc('day',now() AT TIME ZONE 'Europe/Belgrade') AT TIME ZONE 'Europe/Belgrade'))::int as today,count(*) FILTER(WHERE locale='sr')::int as sr,count(*) FILTER(WHERE locale='en')::int as en"));const [{count:unread}]=await db('tamir_chat_message').where({sender:'customer',seen_at:null}).count('* as count');return res.json({...counts,unread:Number(unread),errors:await db('tamir_chat_event').whereIn('kind',['translation_error','telegram_error']).select('kind').count('* as count').groupBy('kind')})}
- if(action==='history')return res.json({events:await db('tamir_chat_event').orderBy('id','desc').limit(100).offset(Math.max(0,Math.min(100000,Number(req.query.offset)||0)))})
- throw new ChatError(404,'CHAT_ENDPOINT_NOT_FOUND')
- }catch(e){return failure(e,res)}}
-export async function POST(req:AuthenticatedMedusaRequest,res:MedusaResponse){res.setHeader('Cache-Control','no-store');try{const action=req.params.action,body=req.body as any,db=chatDb(req),actor=await admin(req,['status','reply','seen','retry'].includes(action)?'operator':'manager');await limit(req,'admin-chat',60);
- if(action==='settings')return res.json(await saveSettings(db,body,actor.id));if(action==='secrets')return res.json(await saveSecrets(db,body,actor.id));
- if(action==='telegram-check')return res.json(await checkTelegram(db));if(action==='telegram-webhook'){await checkTelegram(db);return res.json(await installWebhook(db))}
- if(action==='telegram-test'){await checkTelegram(db);await telegram(db,'sendMessage',{chat_id:(await settings(db)).config.telegram.chatId,text:'TAMIR Chat: test connection successful.'});return res.json({sent:true})}
- if(action==='translation-test'){if(typeof body?.text!=='string'||!body.text.trim()||body.text.length>500||!['ru','sr','en'].includes(body.target))throw new ChatError(400,'INVALID_TRANSLATION_TEST');return res.json(await connection(db,'google',()=>translate(db,body.text,body.target)))}
- if(action==='operators'){const p=operatorSchema.parse(body);if(p.userId)await req.scope.resolve(Modules.USER).retrieveUser(p.userId);const value={id:p.id||randomUUID(),name:p.name,user_id:p.userId,telegram_id:p.telegramId,role:p.role,enabled:p.enabled,available:p.available,updated_at:new Date()};await db('tamir_chat_operator').insert(value).onConflict('id').merge();await audit(db,'operator_saved',actor.id);return res.json({operator:value})}
- if(['status','seen','reply','retry','delete'].includes(action)){const id=String(body?.id||'');if(!/^[a-f\d-]{36}$/i.test(id))throw new ChatError(400,'INVALID_CONVERSATION');if(!await db('tamir_chat_conversation').where({id}).first())throw new ChatError(404,'CHAT_NOT_FOUND');
- if(action==='status'){if(!['open','closed'].includes(body.status))throw new ChatError(400,'INVALID_STATUS');return res.json(await changeStatus(db,id,body.status,actor.id))}
- if(action==='seen'){if(!/^\d+$/.test(String(body.seq)))throw new ChatError(400,'INVALID_CURSOR');await db('tamir_chat_message').where({conversation_id:id,sender:'customer',seen_at:null}).where('seq','<=',String(body.seq)).update({seen_at:new Date()});return res.json({saved:true})}
- if(action==='reply'){const result=await appendMessage(db,id,'operator',{text:body.text,clientId:body.clientId});kickChat(db);return res.json(result)}
- if(action==='retry'){await db('tamir_chat_outbox').whereIn('message_id',db('tamir_chat_message').where({conversation_id:id,status:'error'}).select('id')).update({attempts:0,next_at:new Date(),error_code:null});kickChat(db);await audit(db,'delivery_retried',actor.id,id);return res.json({queued:true})}
- if(action==='delete'){await db('tamir_chat_conversation').where({id}).delete();await audit(db,'history_deleted',actor.id);return res.json({deleted:true})}}
- throw new ChatError(404,'CHAT_ENDPOINT_NOT_FOUND')
- }catch(e){return failure(e,res)}}
+import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http'
+import { Modules } from '@medusajs/framework/utils'
+import { randomUUID } from 'node:crypto'
+import { admin, chatDb, failure, limit } from '../../../../utils/chat/http'
+import { audit, settings, saveSettings, saveSecrets } from '../../../../utils/chat/settings'
+import { checkTelegram, connection, installWebhook, telegram, translate } from '../../../../utils/chat/providers'
+import { appendMessage, changeStatus, messages } from '../../../../utils/chat/conversations'
+import { ChatError } from '../../../../utils/chat/security'
+import { kickChat } from '../../../../utils/chat/delivery'
+import { operatorSchema } from '../../../../shared/chat-config'
+export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const actor = await admin(req),
+      db = chatDb(req),
+      action = req.params.action
+    if (action === 'access') return res.json(actor)
+    if (action === 'settings') {
+      await admin(req, 'manager')
+      return res.json({
+        ...(await settings(db)),
+        secrets: (await db('tamir_chat_secret').select('name')).map((r) => r.name),
+        connections: await db('tamir_chat_connection'),
+        googleEnvironmentConfigured: Boolean(process.env.GOOGLE_TRANSLATE_API_KEY),
+      })
+    }
+    if (action === 'operators') {
+      await admin(req, 'manager')
+      return res.json({ operators: await db('tamir_chat_operator').orderBy('name') })
+    }
+    if (action === 'conversations') {
+      const q = db('tamir_chat_conversation'),
+        search = String(req.query.search || '')
+          .trim()
+          .slice(0, 100)
+      if (search)
+        q.whereRaw(
+          "(profile->>'name' ILIKE ? OR profile->>'email' ILIKE ? OR profile->>'phone' ILIKE ?)",
+          Array(3).fill('%' + search.replace(/[\\%_]/g, '\\$&') + '%'),
+        )
+      if (['open', 'closed'].includes(String(req.query.status))) q.where({ status: req.query.status })
+      if (['sr', 'en'].includes(String(req.query.locale))) q.where({ locale: req.query.locale })
+      const offset = Math.max(0, Math.min(100000, Number(req.query.offset) || 0)),
+        [{ count }] = await q.clone().count('* as count')
+      return res.json({
+        count: Number(count),
+        conversations: await q
+          .select('id', 'number', 'customer_id', 'profile', 'locale', 'status', 'context', 'updated_at')
+          .orderBy('updated_at', 'desc')
+          .limit(30)
+          .offset(offset),
+      })
+    }
+    if (action === 'dialog') {
+      const id = String(req.query.id || '')
+      if (!/^[a-f\d-]{36}$/i.test(id)) throw new ChatError(404, 'CHAT_NOT_FOUND')
+      const c = await db('tamir_chat_conversation').where({ id }).first()
+      if (!c) throw new ChatError(404, 'CHAT_NOT_FOUND')
+      if (c.customer_id) {
+        try {
+          const p = await req.scope.resolve(Modules.CUSTOMER).retrieveCustomer(c.customer_id)
+          c.profile = {
+            name: [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email,
+            email: p.email,
+            phone: p.phone || '',
+          }
+          await db('tamir_chat_conversation')
+            .where({ id })
+            .update({ profile: JSON.stringify(c.profile) })
+        } catch {
+          c.profile = { name: 'Deleted customer', email: '', phone: '' }
+        }
+      }
+      delete c.guest_hash
+      return res.json({
+        conversation: c,
+        messages: await messages(db, id, typeof req.query.before === 'string' ? req.query.before : undefined),
+      })
+    }
+    if (action === 'overview') {
+      const [counts] = await db('tamir_chat_conversation').select(
+        db.raw(
+          "count(*)::int as total,count(*) FILTER(WHERE status='open')::int as active,count(*) FILTER(WHERE status='closed')::int as closed,count(*) FILTER(WHERE created_at >= (date_trunc('day',now() AT TIME ZONE 'Europe/Belgrade') AT TIME ZONE 'Europe/Belgrade'))::int as today,count(*) FILTER(WHERE locale='sr')::int as sr,count(*) FILTER(WHERE locale='en')::int as en",
+        ),
+      )
+      const [{ count: unread }] = await db('tamir_chat_message')
+        .where({ sender: 'customer', seen_at: null })
+        .count('* as count')
+      return res.json({
+        ...counts,
+        unread: Number(unread),
+        errors: await db('tamir_chat_event')
+          .whereIn('kind', ['translation_error', 'telegram_error'])
+          .select('kind')
+          .count('* as count')
+          .groupBy('kind'),
+      })
+    }
+    if (action === 'history')
+      return res.json({
+        events: await db('tamir_chat_event')
+          .orderBy('id', 'desc')
+          .limit(100)
+          .offset(Math.max(0, Math.min(100000, Number(req.query.offset) || 0))),
+      })
+    throw new ChatError(404, 'CHAT_ENDPOINT_NOT_FOUND')
+  } catch (e) {
+    return failure(e, res)
+  }
+}
+export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const action = req.params.action,
+      body = req.body as any,
+      db = chatDb(req),
+      actor = await admin(req, ['status', 'reply', 'seen', 'retry'].includes(action) ? 'operator' : 'manager')
+    await limit(req, 'admin-chat', 60)
+    if (action === 'settings') return res.json(await saveSettings(db, body, actor.id))
+    if (action === 'secrets') return res.json(await saveSecrets(db, body, actor.id))
+    if (action === 'telegram-check') return res.json(await checkTelegram(db))
+    if (action === 'telegram-webhook') {
+      await checkTelegram(db)
+      return res.json(await installWebhook(db))
+    }
+    if (action === 'telegram-test') {
+      await checkTelegram(db)
+      await telegram(db, 'sendMessage', {
+        chat_id: (await settings(db)).config.telegram.chatId,
+        text: 'TAMIR Chat: test connection successful.',
+      })
+      return res.json({ sent: true })
+    }
+    if (action === 'translation-test') {
+      if (
+        typeof body?.text !== 'string' ||
+        !body.text.trim() ||
+        body.text.length > 500 ||
+        !['ru', 'sr', 'en'].includes(body.target)
+      )
+        throw new ChatError(400, 'INVALID_TRANSLATION_TEST')
+      return res.json(await connection(db, 'google', () => translate(db, body.text, body.target)))
+    }
+    if (action === 'operators') {
+      const p = operatorSchema.parse(body)
+      if (p.userId) await req.scope.resolve(Modules.USER).retrieveUser(p.userId)
+      const value = {
+        id: p.id || randomUUID(),
+        name: p.name,
+        user_id: p.userId,
+        telegram_id: p.telegramId,
+        role: p.role,
+        enabled: p.enabled,
+        available: p.available,
+        updated_at: new Date(),
+      }
+      await db('tamir_chat_operator').insert(value).onConflict('id').merge()
+      await audit(db, 'operator_saved', actor.id)
+      return res.json({ operator: value })
+    }
+    if (['status', 'seen', 'reply', 'retry', 'delete'].includes(action)) {
+      const id = String(body?.id || '')
+      if (!/^[a-f\d-]{36}$/i.test(id)) throw new ChatError(400, 'INVALID_CONVERSATION')
+      if (!(await db('tamir_chat_conversation').where({ id }).first())) throw new ChatError(404, 'CHAT_NOT_FOUND')
+      if (action === 'status') {
+        if (!['open', 'closed'].includes(body.status)) throw new ChatError(400, 'INVALID_STATUS')
+        return res.json(await changeStatus(db, id, body.status, actor.id))
+      }
+      if (action === 'seen') {
+        if (!/^\d+$/.test(String(body.seq))) throw new ChatError(400, 'INVALID_CURSOR')
+        await db('tamir_chat_message')
+          .where({ conversation_id: id, sender: 'customer', seen_at: null })
+          .where('seq', '<=', String(body.seq))
+          .update({ seen_at: new Date() })
+        return res.json({ saved: true })
+      }
+      if (action === 'reply') {
+        const result = await appendMessage(db, id, 'operator', { text: body.text, clientId: body.clientId })
+        kickChat(db)
+        return res.json(result)
+      }
+      if (action === 'retry') {
+        await db('tamir_chat_outbox')
+          .whereIn('message_id', db('tamir_chat_message').where({ conversation_id: id, status: 'error' }).select('id'))
+          .update({ attempts: 0, next_at: new Date(), error_code: null })
+        kickChat(db)
+        await audit(db, 'delivery_retried', actor.id, id)
+        return res.json({ queued: true })
+      }
+      if (action === 'delete') {
+        await db('tamir_chat_conversation').where({ id }).delete()
+        await audit(db, 'history_deleted', actor.id)
+        return res.json({ deleted: true })
+      }
+    }
+    throw new ChatError(404, 'CHAT_ENDPOINT_NOT_FOUND')
+  } catch (e) {
+    return failure(e, res)
+  }
+}

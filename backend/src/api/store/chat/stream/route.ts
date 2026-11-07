@@ -1,5 +1,52 @@
-import type {AuthenticatedMedusaRequest,MedusaResponse} from '@medusajs/framework/http'
-import {chatDb,failure,identity,limit} from '../../../../utils/chat/http'
-import {owned,messages,customerView,publicConversation} from '../../../../utils/chat/conversations'
-import {publicSettings} from '../../../../utils/chat/settings'
-export async function GET(req:AuthenticatedMedusaRequest,res:MedusaResponse){let closed=false,timer:ReturnType<typeof setTimeout>|undefined;try{const db=chatDb(req);await limit(req,'chat-stream',20);const who=await identity(req),id=String(req.query.id||'');await owned(db,id,who);res.setHeader('Content-Type','text/event-stream');res.setHeader('Cache-Control','no-store, no-transform');res.setHeader('X-Accel-Buffering','no');res.flushHeaders();res.write('retry: 1500\n\n');const deadline=Date.now()+20000;const close=()=>{closed=true;if(timer)clearTimeout(timer)};res.on('close',close);const tick=async()=>{if(closed)return;try{const c=await owned(db,id,who),config=await publicSettings(db);if(!config.enabled){res.write('event: disabled\ndata: {}\n\n');res.end();close();return}res.write(`data: ${JSON.stringify({conversation:publicConversation(c),messages:(await messages(db,id)).map(customerView),available:config.available})}\n\n`);if(Date.now()>=deadline){res.end();close()}else timer=setTimeout(()=>void tick(),2000)}catch{res.write('event: expired\ndata: {}\n\n');res.end();close()}};await tick()}catch(e){if(!res.headersSent)return failure(e,res);res.end()}}
+import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http'
+import { chatDb, failure, identity, limit } from '../../../../utils/chat/http'
+import { readOwn, owned, messages, customerView, publicConversation } from '../../../../utils/chat/conversations'
+import { publicSettings } from '../../../../utils/chat/settings'
+export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
+  let closed = false,
+    timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const db = chatDb(req)
+    await limit(req, 'chat-stream', 20)
+    const who = await identity(req),
+      id = String(req.query.id || '')
+    await owned(db, id, who)
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-store, no-transform')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+    res.write('retry: 1500\n\n')
+    const deadline = Date.now() + 20000
+    const close = () => {
+      closed = true
+      if (timer) clearTimeout(timer)
+    }
+    res.on('close', close)
+    const tick = async () => {
+      if (closed) return
+      try {
+        const snapshot = await readOwn(db, id, who),
+          config = await publicSettings(db)
+        if (!config.enabled) {
+          res.write('event: disabled\ndata: {}\n\n')
+          res.end()
+          close()
+          return
+        }
+        res.write(`data: ${JSON.stringify({ ...snapshot, available: config.available })}\n\n`)
+        if (Date.now() >= deadline) {
+          res.end()
+          close()
+        } else timer = setTimeout(() => void tick(), 2000)
+      } catch {
+        res.write('event: expired\ndata: {}\n\n')
+        res.end()
+        close()
+      }
+    }
+    await tick()
+  } catch (e) {
+    if (!res.headersSent) return failure(e, res)
+    res.end()
+  }
+}
