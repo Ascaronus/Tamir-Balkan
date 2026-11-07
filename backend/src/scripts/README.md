@@ -7,7 +7,7 @@
 | Файл | Действие / условия |
 | --- | --- |
 | `add-store-locales.ts` | Создаёт отсутствующие Translation locales и объединяет локали магазина; по умолчанию `en,sr,sr-RS`, переопределение `STORE_LOCALE_CODES`; npm script `store-locales` |
-| `setup-reviews.ts` | Повторяемое создание review/vote/audit/rate, registration-code, password-reset и product-URL таблиц/indexes в транзакции |
+| `setup-reviews.ts` | Повторяемое создание TAMIR Chat/settings/secrets/outbox, review/vote/audit/rate, registration-code, password-reset и product-URL таблиц/indexes в транзакции |
 | `setup-decimal-attributes.ts` | Расширение размеров/веса variant/inventory до double precision; сохраняет данные, не откатывает тип к integer |
 | `check-email.ts` | Проверка SMTP-соединения/авторизации, без отправки письма |
 | `import-rozetka-xml.ts` | Пакетный XML-импорт; цены, остатки и товары изменяются. [Режимы](../../../docs/IMPORT-MODES.md) |

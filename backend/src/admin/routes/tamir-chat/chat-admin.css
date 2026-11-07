@@ -127,3 +127,7 @@
     min-height: 32px;
   }
 }
+
+.chat-admin,.chat-settings,.chat-section{grid-template-columns:minmax(0,1fr)}
+.chat-admin>div,.chat-settings>div{min-width:0}
+.chat-widget-preview{box-sizing:border-box}
