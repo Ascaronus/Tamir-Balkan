@@ -26,6 +26,8 @@
 
 ## Покупатели и публичные документы
 
+- [TAMIR Chat: архитектура, API, Telegram, переводы и админка](TAMIR-CHAT.md).
+
 - [Регистрация](REGISTRATION.md).
 - [Восстановление аккаунта и гостевое оформление](ACCOUNT-RECOVERY.md).
 - [SMTP и письма](EMAIL.md).

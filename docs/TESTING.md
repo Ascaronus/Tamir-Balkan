@@ -438,3 +438,20 @@ TypeScript, ESLint, production build Next (`--webpack`) и HTTP-проверка
 локализованных маршрутов прошли. Браузерный E2E новых переходов не выполнялся;
 перед выкладкой проверить SR/EN, Back/Forward, прокрутку, избранное, доставку,
 очистку корзины после заказа и выхода на тестовом окружении.
+
+
+### TAMIR Chat (7 ноября 2026)
+
+[Контракт, результаты и ограничения](TAMIR-CHAT.md).
+`tamir-chat.test.cjs` — unit; `tamir-chat.integration.cjs` — SQL с test DB guard;
+`http/tamir-chat.spec.ts` — Medusa in-app HTTP; `tamir-chat.test.mjs` — unit/handler с SR/EN.
+Существующий discovery включает их без изменений CI.
+
+Node 20.20.2/24.22.1: 308 frontend и 91 backend no-db прошли; 14 SQL-сценариев чата
+на PGlite. Telegram/Google transport подменён, реальная доставка не заявляется.
+TypeScript, ESLint, Next webpack и Medusa backend/admin builds прошли.
+Native PostgreSQL 16 multiworker и HTTP-тест локально не запускались: нужны PostgreSQL/Redis.
+
+Chromium с настоящими компонентами и изолированными API/auth boundaries: виджет SR/EN,
+390/1440, восстановление/SSE/XSS/product context, authenticated entry/logout, native admin
+settings/operator/dialog/provider errors прошли. Проверка не подтверждает живые интеграции.

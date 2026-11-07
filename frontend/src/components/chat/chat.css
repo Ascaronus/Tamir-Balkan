@@ -1,0 +1,204 @@
+.tamir-chat {
+  position: fixed;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 65;
+  color: var(--store-text);
+  font: inherit;
+  max-width: calc(100vw - 24px);
+}
+.tamir-chat-right {
+  right: 20px;
+}
+.tamir-chat-left {
+  left: 20px;
+}
+.tamir-chat-launcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 18px;
+  background: var(--store-accent);
+  color: white;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px #0002;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.tamir-chat-launcher svg {
+  flex-shrink: 0;
+}
+.tamir-chat-launcher b {
+  border-radius: 50%;
+  min-width: 22px;
+  background: white;
+  color: var(--store-accent);
+}
+.tamir-chat-panel {
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  max-width: 100%;
+  height: min(650px, calc(100dvh - 104px));
+  margin-bottom: 12px;
+  background: var(--store-bg);
+  border: 1px solid var(--store-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px #0002;
+  animation: chat-open 0.15s ease-out;
+}
+.tamir-chat-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--store-border);
+}
+.tamir-chat-heading > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tamir-chat-heading > button {
+  flex-shrink: 0;
+}
+.tamir-chat-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+.tamir-chat-heading p,
+.tamir-chat-privacy,
+.tamir-chat-notice,
+.tamir-chat-message small {
+  font-size: 12px;
+  color: var(--store-text-muted);
+  line-height: 1.5;
+}
+.tamir-chat-privacy a {
+  text-decoration: underline;
+}
+.tamir-chat-body {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+.tamir-chat-form {
+  display: grid;
+  gap: 10px;
+}
+.tamir-chat-form label,
+.tamir-chat-body > label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+.tamir-chat input,
+.tamir-chat select,
+.tamir-chat textarea {
+  border: 1px solid var(--store-border);
+  border-radius: 4px;
+  background: var(--store-bg);
+  padding: 10px;
+  width: 100%;
+  font: inherit;
+  min-width: 0;
+}
+.tamir-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tamir-chat-message {
+  align-self: flex-start;
+  background: var(--store-bg-muted);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-width: 92%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tamir-chat-message-customer {
+  align-self: flex-end;
+  background: var(--store-tint);
+}
+.tamir-chat-message-system {
+  align-self: center;
+  background: transparent;
+  font-size: 13px;
+}
+.tamir-chat-compose {
+  border-top: 1px solid var(--store-border);
+  padding: 12px;
+}
+.tamir-chat-compose form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.tamir-chat textarea {
+  resize: none;
+  max-height: 100px;
+}
+.tamir-chat-compose p {
+  font-size: 12px;
+  color: var(--store-text-muted);
+}
+.tamir-chat-delete {
+  font-size: 12px;
+  text-decoration: underline;
+  margin-top: 8px;
+  min-height: 32px;
+}
+.tamir-chat button:disabled {
+  opacity: 0.6;
+}
+html:has(dialog[open]) .tamir-chat,
+body:has(#cookie-title) .tamir-chat {
+  visibility: hidden;
+}
+@keyframes chat-open {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tamir-chat-panel {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .tamir-chat-right {
+    right: 12px;
+  }
+  .tamir-chat-left {
+    left: 12px;
+  }
+  .tamir-chat {
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .tamir-chat-launcher {
+    padding: 12px;
+  }
+  .tamir-chat-launcher > span {
+    display: none;
+  }
+  .tamir-chat-panel {
+    width: calc(100vw - 24px);
+    height: calc(100dvh - 96px);
+  }
+  .tamir-chat input,
+  .tamir-chat textarea {
+    font-size: 16px;
+  }
+}

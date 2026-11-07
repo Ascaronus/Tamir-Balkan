@@ -8,6 +8,9 @@ function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, 
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/admin/tamir-chat*", bodyParser: { sizeLimit: "32kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
+  { matcher: "/store/chat*", bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true })] },
+  { matcher: "/hooks/tamir-chat", bodyParser: { sizeLimit: "32kb" }, middlewares: [] },
   { matcher: "/admin/homepage-banners*", bodyParser: { sizeLimit: `${Math.ceil(bannerUploadLimit()*4/3)+4096}b` }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/store/wishlist", methods: ["GET", "POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/store/wishlist/:productId", methods: ["DELETE"], middlewares: [authenticate("customer", ["bearer", "session"])] },

@@ -96,7 +96,8 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
   const imageKey = `${variant?.id ?? ""}:${hero?.url ?? ""}`
   const heroSwipe = useImageSwipe(moveImage, imageKey)
   const enlargedSwipe = useImageSwipe(moveImage, imageKey)
-  return <div className="product-layout">
+  useEffect(() => { if (typeof window !== "undefined") window.dispatchEvent(new Event("tamir:product-context")) }, [product.id, variant?.id])
+  return <div className="product-layout" data-chat-product={product.id} data-chat-variant={variant?.id || ""}>
     <div className={`product-gallery${images.length > 1 ? "" : " product-gallery-single"}`}>
       <button {...heroSwipe} type="button" disabled={!hero} onClick={() => { setZoomedImage(null); dialog.current?.showModal() }} aria-label={t("product.zoom")}
         onPointerMove={event => { if (event.pointerType === "mouse") { const r = event.currentTarget.getBoundingClientRect(); setOrigin(`${(event.clientX - r.left) / r.width * 100}% ${(event.clientY - r.top) / r.height * 100}%`); setZoomedImage(hero?.url ?? null) } }}
