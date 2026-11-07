@@ -69,21 +69,19 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
           !/^\/(?!\/)[^?#\s\\]{0,300}$/.test(body.path)
         )
           throw new ChatError(400, 'INVALID_PRODUCT_CONTEXT')
-        const { data } = await req.scope
-          .resolve(ContainerRegistrationKeys.QUERY)
-          .graph({
-            entity: 'product',
-            fields: [
-              'id',
-              'title',
-              'status',
-              'variants.id',
-              'variants.title',
-              'variants.options.value',
-              'variants.options.option.title',
-            ],
-            filters: { id: body.productId },
-          })
+        const { data } = await req.scope.resolve(ContainerRegistrationKeys.QUERY).graph({
+          entity: 'product',
+          fields: [
+            'id',
+            'title',
+            'status',
+            'variants.id',
+            'variants.title',
+            'variants.options.value',
+            'variants.options.option.title',
+          ],
+          filters: { id: body.productId },
+        })
         const p = data[0]
         if (p?.status !== 'published') throw new ChatError(400, 'INVALID_PRODUCT_CONTEXT')
         const v = body.variantId ? p.variants?.find((x: any) => x.id === body.variantId) : null

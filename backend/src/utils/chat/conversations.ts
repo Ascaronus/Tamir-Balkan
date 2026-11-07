@@ -228,3 +228,30 @@ export async function readOwn(db: Knex, id: string, who: ChatIdentity, before?: 
     return { conversation: publicConversation(c), messages: (await messages(trx, id, before)).map(customerView) }
   })
 }
+
+// Reconnects replay every unseen row in order, even if more than one page arrived offline.
+// Also resend recent older rows so delivery/translation status changes replace prior values.
+export async function streamOwn(db: Knex, id: string, who: ChatIdentity, after?: string) {
+  return db.transaction(async (trx) => {
+    const c = await owned(trx, id, who, true)
+    const fresh = after
+      ? await trx('tamir_chat_message')
+          .where({ conversation_id: id })
+          .where('seq', '>', after)
+          .orderBy('seq')
+          .limit(100)
+      : await messages(trx, id)
+    const previous = after
+      ? await trx('tamir_chat_message')
+          .where({ conversation_id: id })
+          .where('seq', '<=', after)
+          .orderBy('seq', 'desc')
+          .limit(100)
+      : []
+    return {
+      conversation: publicConversation(c),
+      messages: [...previous, ...fresh].map(customerView),
+      cursor: String(fresh.at(-1)?.seq || after || '0'),
+    }
+  })
+}

@@ -29,6 +29,8 @@ async function proxy(request: Request) {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' },
       token = await getCustomerSessionToken()
+    const cursor = request.headers.get('last-event-id')
+    if (path === 'stream' && cursor && /^\d{1,19}$/.test(cursor)) headers['last-event-id'] = cursor
     if (token) headers.authorization = `Bearer ${token}`
     const guest = (await cookies()).get(guestCookie)?.value
     if (guest && /^[a-f0-9]{64}$/.test(guest)) headers['x-tamir-chat-guest'] = guest

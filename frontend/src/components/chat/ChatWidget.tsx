@@ -46,7 +46,9 @@ function Session({ customer }: { customer: boolean }) {
     input = useRef<HTMLTextAreaElement>(null),
     end = useRef<HTMLDivElement>(null),
     activeId = useRef<string | null>(null)
-  activeId.current = conversation?.id || null
+  useEffect(() => {
+    activeId.current = conversation?.id || null
+  }, [conversation?.id])
   const automatic = (key: string) => (config?.templates[key]?.enabled ? config.templates[key].text[locale] : '')
   useEffect(() => {
     alive.current = true

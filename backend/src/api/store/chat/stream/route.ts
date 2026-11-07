@@ -1,6 +1,6 @@
 import type { AuthenticatedMedusaRequest, MedusaResponse } from '@medusajs/framework/http'
 import { chatDb, failure, identity, limit } from '../../../../utils/chat/http'
-import { readOwn, owned, messages, customerView, publicConversation } from '../../../../utils/chat/conversations'
+import { streamOwn, owned } from '../../../../utils/chat/conversations'
 import { publicSettings } from '../../../../utils/chat/settings'
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   let closed = false,
@@ -17,6 +17,10 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     res.flushHeaders()
     res.write('retry: 1500\n\n')
     const deadline = Date.now() + 20000
+    let cursor =
+      typeof req.headers['last-event-id'] === 'string' && /^\d{1,19}$/.test(req.headers['last-event-id'])
+        ? req.headers['last-event-id']
+        : undefined
     const close = () => {
       closed = true
       if (timer) clearTimeout(timer)
@@ -25,7 +29,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     const tick = async () => {
       if (closed) return
       try {
-        const snapshot = await readOwn(db, id, who),
+        const snapshot = await streamOwn(db, id, who, cursor),
           config = await publicSettings(db)
         if (!config.enabled) {
           res.write('event: disabled\ndata: {}\n\n')
@@ -33,7 +37,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
           close()
           return
         }
-        res.write(`data: ${JSON.stringify({ ...snapshot, available: config.available })}\n\n`)
+        cursor = snapshot.cursor
+        res.write(`id: ${cursor}\ndata: ${JSON.stringify({ ...snapshot, available: config.available })}\n\n`)
         if (Date.now() >= deadline) {
           res.end()
           close()
