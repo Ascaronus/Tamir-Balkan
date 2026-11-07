@@ -6,6 +6,42 @@ import { getRegionByCountry } from "@/lib/store/regions"
 
 export type Cart = HttpTypes.StoreCart
 
+export class CartStockError extends Error {
+  readonly name = "CartStockError"
+  constructor(readonly variantId: string, readonly available: number, readonly inCart: number) {
+    super("CART_STOCK_LIMIT")
+  }
+}
+
+/** Only enrich a rejected mutation. Medusa remains the authority for stock and reservations. */
+async function stockFailure(error: unknown, cart: Cart, variantId: string | null | undefined, quantity: number, replaceLineId?: string): Promise<unknown> {
+  const status = (error as { status?: number } | null)?.status
+  if (!variantId || (status !== undefined && status !== 400 && status !== 409) ||
+      !/insufficient inventory|does not have the required inventory|not enough stock/i.test(errMessage(error))) return error
+  try {
+    const { products } = await sdk.client.fetch<{ products: HttpTypes.StoreProduct[] }>("/store/products", {
+      query: {
+        variants: { id: variantId }, limit: 1,
+        fields: "id,variants.id,variants.manage_inventory,variants.allow_backorder,+variants.inventory_quantity",
+        ...(cart.sales_channel_id ? { sales_channel_id: [cart.sales_channel_id] } : {}),
+      },
+      cache: "no-store",
+    })
+    const variant = products.flatMap(product => product.variants ?? []).find(item => item.id === variantId)
+    const available = variant?.inventory_quantity
+    if (!variant?.manage_inventory || variant.allow_backorder || typeof available !== "number" || !Number.isFinite(available)) return error
+    const inCart = (cart.items ?? []).filter(item => item.variant_id === variantId).reduce((sum, item) => sum + item.quantity, 0)
+    const limit = Math.max(0, Math.floor(available))
+    const requested = inCart + quantity - (replaceLineId ? cart.items?.find(item => item.id === replaceLineId)?.quantity ?? 0 : 0)
+    // A different cart item may have caused Medusa's rejection, or stock may have changed since it.
+    if (requested <= limit) return error
+    return new CartStockError(variantId, limit, inCart)
+  } catch {
+    // Never invent a stock count or retry an addition when the diagnostic lookup fails.
+    return error
+  }
+}
+
 /** После оформления заказа корзина на бэкенде остаётся с `completed_at` — её нельзя менять, нужен новый cart. */
 function isCartCompleted(cart: Cart): boolean {
   const c = cart as unknown as Record<string, unknown>
@@ -111,14 +147,15 @@ export async function addToCart(params: {
     const result = await run()
     return result.cart as Cart
   } catch (e) {
-    if (!isCartAlreadyCompletedError(e)) throw e
+    if (!isCartAlreadyCompletedError(e)) throw await stockFailure(e, cart, variantId, quantity)
     clearStoredCartId()
     cart = await getOrCreateCart(countryCode)
-    const result = await sdk.store.cart.createLineItem(cart.id, {
-      variant_id: variantId,
-      quantity,
-    })
-    return result.cart as Cart
+    try {
+      const result = await sdk.store.cart.createLineItem(cart.id, { variant_id: variantId, quantity })
+      return result.cart as Cart
+    } catch (error) {
+      throw await stockFailure(error, cart, variantId, quantity)
+    }
   }
 
 }
@@ -136,7 +173,7 @@ export async function updateLineItem(params: {
     const result = await sdk.store.cart.updateLineItem(cart.id, lineItemId, { quantity })
     return result.cart as Cart
   } catch (e) {
-    if (!isCartAlreadyCompletedError(e)) throw e
+    if (!isCartAlreadyCompletedError(e)) throw await stockFailure(e, cart, cart.items?.find(item => item.id === lineItemId)?.variant_id, quantity, lineItemId)
     clearStoredCartId()
     cart = await getOrCreateCart(countryCode)
     // line item от старой completed-корзины в новой нет — только свежая корзина

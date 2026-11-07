@@ -32,6 +32,7 @@
     "rs": "Srbija"
   },
   "cartPage": {
+    "stockLimit": "Trenutno je dostupno samo {n} komada ovog artikla. Smanjite količinu u korpi.",
     "loading": "Učitavanje…",
     "empty": "Korpa je prazna.",
     "decreaseQty": "Smanji količinu",
@@ -294,7 +295,8 @@
     "noPhoto": "Nema fotografije",
     "priceOnRequest": "Cena na upit",
     "variant": "Varijanta",
-    "inStock": "Na lageru: {n} kom.",
+    "inStock": "Na stanju",
+    "stockLimit": "Trenutno je dostupno ukupno {n} komada. U korpi već imate {inCart}.",
     "addToCart": "U korpu",
     "backToCatalog": "← Nazad u katalog",
     "zoom": "Uvećaj fotografiju",

@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { addToCart, getOrCreateCart, removeLineItem, updateLineItem, type Cart } from "@/lib/cart/cart-client"
+import { addToCart, getOrCreateCart, removeLineItem, updateLineItem, type Cart, type CartStockError } from "@/lib/cart/cart-client"
 import { useAuth } from "@/components/auth/AuthProvider"
 import { stableItems } from "@/lib/store/commerce"
 
@@ -17,6 +17,7 @@ type CartContextValue = {
   isReady: boolean
   isMutating: boolean
   error: string | null
+  stockError: Pick<CartStockError, "variantId" | "available" | "inCart"> | null
   displayReady: boolean
   displayError: boolean
   retryDisplay: () => Promise<void>
@@ -38,6 +39,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   const [isReady, setIsReady] = useState(false)
   const [pending, setPending] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [stockError, setStockError] = useState<CartContextValue["stockError"]>(null)
   const queue = useRef<Promise<unknown>>(Promise.resolve())
   const generation = useRef(0)
   const route = internalStorePath(localizedPath(pathname, "sr"))
@@ -53,11 +55,17 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     const task = queue.current.catch(() => undefined).then(async () => {
       if (version !== generation.current) throw new Error("Cart session changed")
       setError(null)
+      setStockError(null)
       const next = await operation()
       if (version === generation.current) commit(next)
       return next
     }).catch((e: unknown) => {
-      if (version === generation.current) setError(e instanceof Error ? e.message : "Cart request failed")
+      if (version === generation.current) {
+        setError(e instanceof Error ? e.message : "Cart request failed")
+        const stock = e as CartStockError | null
+        setStockError(stock?.name === "CartStockError" && Number.isSafeInteger(stock.available) && stock.available >= 0
+          ? { variantId: stock.variantId, available: stock.available, inCart: stock.inCart } : null)
+      }
       throw e
     }).finally(() => setPending(n => Math.max(0, n - 1)))
     queue.current = task
@@ -73,6 +81,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
       setAddition(null)
       setCart(null)
       setError(null)
+      setStockError(null)
       setIsReady(false)
       void refresh().catch(() => undefined).finally(() => { if (mounted) setIsReady(true) })
     }
@@ -98,7 +107,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   const localizedCart = display.cart
   const value = useMemo<CartContextValue>(() => ({
     cart: localizedCart, displayReady: display.ready, displayError: display.error,
-    retryDisplay: async () => { display.retry(); await refresh() }, isReady, isMutating: pending > 0, error,
+    retryDisplay: async () => { display.retry(); await refresh() }, isReady, isMutating: pending > 0, error, stockError,
     itemCount: cart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
     refresh,
     addItem: async (variantId, quantity = 1, display) => {
@@ -110,7 +119,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     },
     updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, lineItemId, quantity })) },
     removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, lineItemId })) },
-  }), [cart, localizedCart, display, isReady, pending, error, refresh, run, countryCode, pathname, locale])
+  }), [cart, localizedCart, display, isReady, pending, error, stockError, refresh, run, countryCode, pathname, locale])
   return <CartContext.Provider value={value}>{children}{addition && localizedCart && addition.cartId === localizedCart.id && addition.path === pathname && addition.locale === locale && <AddedToCartDialog cart={localizedCart} addition={addition} onDismiss={dismissAddition} />}</CartContext.Provider>
 }
 export function useCart() {

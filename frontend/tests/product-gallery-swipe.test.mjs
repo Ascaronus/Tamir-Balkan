@@ -10,10 +10,11 @@ import * as backdrop from '../src/lib/dialog-backdrop.ts'
 
 const touch = (x, y, id = 1) => ({ clientX: x, clientY: y, identifier: id })
 const event = (touches, changedTouches = touches, timeStamp = 100) => ({ touches, changedTouches, timeStamp })
-function fixture(locale = 'sr', imageCount = 3) {
+function fixture(locale = 'sr', imageCount = 3, overrides = {}) {
   const h = hooks(), t = createTranslator(JSON.parse(readFileSync(new URL(`../src/messages/${locale}.json`, import.meta.url), 'utf8')))
   const swipe = load('frontend/src/components/product/useImageSwipe.ts', { react: h.react })
-  const variant = { id: 'v1', title: 'First', manage_inventory: false, calculated_price: { calculated_amount: 1200, currency_code: 'rsd' } }
+  const variant = { id: 'v1', title: 'First', manage_inventory: false, calculated_price: { calculated_amount: 1200, currency_code: 'rsd' }, ...overrides.variant }
+  const cartState = { cart: null, isReady: true, isMutating: false, ...overrides.cart }
   const props = { product: { id: 'p1', title: 'Šešir', handle: 'hat', images: Array.from({ length: imageCount }, (_, i) => ({ id: `img${i}`, url: `https://images.example.test/${i}.webp` })), variants: [variant, { ...variant, id: 'v2', title: 'Second' }] } }
   const { ProductDetails } = load('frontend/src/components/product/ProductDetails.tsx', {
     react: h.react, './useImageSwipe': swipe, '@/lib/dialog-backdrop': backdrop,
@@ -22,7 +23,7 @@ function fixture(locale = 'sr', imageCount = 3) {
     '@/components/store/ColorSwatch': { ColorSwatch: 'ColorSwatch' }, '@/components/store/ProductImage': { ProductImage: 'ProductImage' },
     '@/components/i18n/LocalizedLink': { default: 'a' }, 'next/navigation': { useSearchParams: () => ({ get: () => null }) },
     '@/components/auth/AuthProvider': { useAuth: () => ({ customer: null, isReady: true }) },
-    '@/components/cart/CartProvider': { useCart: () => ({ cart: null, isReady: true, isMutating: false }) },
+    '@/components/cart/CartProvider': { useCart: () => cartState },
     '@/components/i18n/LocaleProvider': { useLocaleContext: () => ({ locale, t }) },
     '@/lib/product-image': images, '@/lib/store/commerce': commerce, '@/lib/i18n/content': content,
     '@/lib/format-money': { formatMoney: String }, '@/lib/seo/product': { productBrand: () => null },
@@ -44,8 +45,25 @@ function fixture(locale = 'sr', imageCount = 3) {
   const drag = (surface, from, to) => {
     const el = surface(); el.props.onTouchStart(event([from])); el.props.onTouchMove(event([to], [to], 150)); el.props.onTouchEnd(event([], [to], 200))
   }
-  return { render, hero, enlarged, dialog, src, drag, click, t, opened: () => opened }
+  return { render, hero, enlarged, dialog, src, drag, click, t, cartState, opened: () => opened }
 }
+
+for(const locale of ['sr','en']) test(`product ${locale}: stock count is hidden until a rejected addition; quantity is not silently capped`,async()=>{
+  const calls=[]
+  const f=fixture(locale,1,{variant:{manage_inventory:true,inventory_quantity:23},cart:{cart:{items:[{variant_id:'v1',quantity:23}]}}})
+  f.cartState.addItem=async(id,n)=>{calls.push([id,n]);f.cartState.stockError={variantId:id,available:20,inCart:23};throw Error('CART_STOCK_LIMIT')}
+  let tree=f.render()
+  const stock=find(tree,n=>n.props?.className?.startsWith('product-stock'))
+  assert.equal(stock.props.children,locale==='sr'?'Na stanju':'In stock')
+  const input=find(tree,n=>n.props?.id==='product-quantity');assert.equal(input.props.max,undefined)
+  input.props.onChange({target:{value:'24'}});tree=f.render()
+  const add=find(tree,n=>n.props?.className?.includes('button-primary'))
+  assert.equal(add.props.disabled,false)
+  assert.equal(find(tree,n=>n.props?.role==='alert'),null)
+  await add.props.onClick();tree=f.render()
+  assert.deepEqual(calls,[['v1',24]])
+  assert.equal(find(tree,n=>n.props?.role==='alert').props.children,f.t('product.stockLimit',{n:20,inCart:23}))
+})
 for (const locale of ['sr', 'en']) {
   test(`component: ${locale} main and enlarged images swipe in both directions and wrap`, () => {
     const f = fixture(locale)
