@@ -32,7 +32,7 @@
     "rs": "Srbija"
   },
   "cartPage": {
-    "stockLimit": "Trenutno je dostupno samo {n} komada ovog artikla. Smanjite količinu u korpi.",
+    "stockLimit": "Trenutno je dostupno samo {n} komada ovog artikla.",
     "loading": "Učitavanje…",
     "empty": "Korpa je prazna.",
     "decreaseQty": "Smanji količinu",

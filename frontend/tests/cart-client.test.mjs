@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { runInNewContext } from "node:vm"
 import ts from "typescript"
 
-function fixture({ inventory, items = [], lookupFails = false } = {}) {
+function fixture({ inventory, variants, items = [], lookupFails = false } = {}) {
   let cartId = "cart_1"
   let reads = 0
   const before = { id: "cart_1", region_id: "region_rs", sales_channel_id: "sc_store", items }
@@ -23,8 +23,8 @@ function fixture({ inventory, items = [], lookupFails = false } = {}) {
       fetch: async (url, options) => {
         if (url === '/store/products') {
           lookups.push(options)
-          if (lookupFails || inventory === undefined) throw Error('inventory lookup unavailable')
-          return { products: [{ variants: [{ id: 'variant_1', manage_inventory: true, allow_backorder: false, inventory_quantity: inventory }] }] }
+          if (lookupFails || (inventory === undefined && !variants)) throw Error('inventory lookup unavailable')
+          return { products: [{ variants: variants ?? [{ id: 'variant_1', manage_inventory: true, allow_backorder: false, inventory_quantity: inventory }] }] }
         }
         if (++reads > 1) throw Error("network unavailable after mutation")
         return { cart: before }
@@ -93,7 +93,7 @@ for (const method of ['addToCart', 'updateLineItem']) test(`${method}: rejected 
   assert.equal(f.lookups.length, 1)
   assert.equal(f.lookups[0].cache, 'no-store')
   assert.equal(f.lookups[0].query.sales_channel_id[0], 'sc_store')
-  assert.equal(f.lookups[0].query.variants.id, 'variant_1')
+  assert.equal(f.lookups[0].query.variants.id[0], 'variant_1')
 })
 
 test('stock errors preserve zero availability and never invent counts when lookup fails', async () => {
@@ -131,4 +131,25 @@ for (const [method, quantity, expectedStockError] of [
   f.cart[method === 'addToCart' ? 'createLineItem' : 'updateLineItem'] = async () => { throw error }
   await assert.rejects(f.api[method]({ countryCode: 'rs', variantId: 'variant_1', lineItemId: 'line_1', quantity }), e =>
     expectedStockError ? e.available === 5 && e.inCart === 5 : e === error)
+})
+
+test('availability lookup distinguishes reserved-out stock, unlimited variants and unavailable data',async()=>{
+ const f=fixture({variants:[
+  {id:'zero',manage_inventory:true,inventory_quantity:0},
+  {id:'reserved',manage_inventory:true,inventory_quantity:1},
+  {id:'unmanaged',manage_inventory:false},
+  {id:'backorder',manage_inventory:true,allow_backorder:true,inventory_quantity:0},
+  {id:'missing',manage_inventory:true},
+  {id:'unrequested',manage_inventory:true,inventory_quantity:999},
+ ]})
+ const limits=await f.api.getVariantStock(['zero','reserved','unmanaged','backorder','missing'],'sc_store')
+ assert.deepEqual(JSON.parse(JSON.stringify(limits)),{zero:0,reserved:1,unmanaged:null,backorder:null})
+ assert.equal(f.lookups[0].cache,'no-store');assert.equal(f.lookups[0].query.sales_channel_id[0],'sc_store')
+})
+test('availability batches large carts, deduplicates variants and forwards cancellation',async()=>{
+ const variants=Array.from({length:205},(_,i)=>({id:`v${i}`,manage_inventory:true,inventory_quantity:1})),f=fixture({variants}),signal={}
+ const limits=await f.api.getVariantStock([...variants.map(v=>v.id),'v0'],'sc_store',signal)
+ assert.equal(Object.keys(limits).length,205)
+ assert.deepEqual(f.lookups.map(r=>r.query.limit),[100,100,5])
+ assert.ok(f.lookups.every(r=>r.signal===signal))
 })
