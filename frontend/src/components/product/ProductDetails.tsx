@@ -1,4 +1,5 @@
 "use client"
+import { useVariantStock } from "@/lib/cart/useVariantStock"
 import { trackDialogBackdropPress, dismissDialogFromBackdrop } from "@/lib/dialog-backdrop"
 
 import { FavoriteButton } from "@/components/wishlist/FavoriteButton"
@@ -68,7 +69,7 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
   const activeIndex = Math.min(imageIndex, Math.max(0, images.length - 1))
   const hero = images[activeIndex]
   const [quantity, setQuantity] = useState(1)
-  const [message, setMessage] = useState<"added" | "error" | null>(null)
+  const [message, setMessage] = useState<"added" | "error" | "stock" | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
   const [origin, setOrigin] = useState("50% 50%")
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
@@ -76,9 +77,20 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
   const description = localizedText(product, "description", product.description ?? "", locale).replace(/<[^>]*>/g, " ")
   const material = localizedText(product, "material", product.material ?? "", locale).trim()
   const care = localizedText(product, "care", typeof product.metadata?.care === "string" ? product.metadata.care : "", locale).trim()
-  const limit = stockLimit(variant)
   const inCart = cart?.items?.filter(item => item.variant_id === variant?.id).reduce((n, item) => n + item.quantity, 0) ?? 0
-  const purchasable = canPurchase(variant)
+  const stock = useVariantStock(variant ? [variant.id] : [], cart?.sales_channel_id, `${cart?.id ?? ""}:${inCart}:${stockError?.available ?? ""}`)
+  const fetchedLimit = variant ? stock[variant.id] : undefined
+  const limit = fetchedLimit !== undefined ? fetchedLimit : stockError && stockError.variantId === variant?.id ? stockError.available : stockLimit(variant)
+  const remaining = limit === null ? null : Math.max(0, limit - inCart)
+  const purchasable = canPurchase(variant && { ...variant, manage_inventory: false }) && remaining !== 0
+  const fixedQuantity = remaining !== null && remaining <= 1
+  function changeQuantity(next: number) {
+    next = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(next || 1)))
+    if (remaining !== null && next > remaining) {
+      setQuantity(Math.max(1, remaining))
+      setMessage("stock")
+    } else { setQuantity(next); setMessage(null) }
+  }
   function selectVariant(id: string) {
     setVariantId(id); setImageIndex(0); setQuantity(1); setMessage(null)
     const next = variants.find(v => v.id === id)
@@ -142,12 +154,12 @@ function ProductSelection({ product, delivery, initialVariantId, ratingSummary, 
       {!product.options?.length && variants.length > 1 && <label className="mt-6 grid gap-2">{t("product.variant")}<select value={variant?.id} onChange={e => selectVariant(e.target.value)} className="rounded border p-3">{variants.map(v => <option key={v.id} value={v.id}>{v.title}</option>)}</select></label>}
       <p className={`product-stock mt-6${canPurchase(variant) ? " product-stock-available" : ""}`} aria-live="polite">{limit === null ? variant?.allow_backorder ? t("product.backorder") : t("product.available") : limit > 0 ? t("product.inStock") : t("product.outOfStock")}</p>
       {inCart > 0 && <p className="mt-1 text-sm text-[var(--store-text-muted)]">{t("product.alreadyInCart", { n: inCart })}</p>}
-      <div className="mt-6 flex items-center justify-between gap-3 text-sm"><label htmlFor="product-quantity">{t("product.quantity")}</label><div className="quantity-stepper"><button type="button" className="quantity-button" disabled={!purchasable || isMutating || quantity <= 1} aria-label={t("cartPage.decreaseQty")} onClick={() => setQuantity(n => Math.max(1, n - 1))}>−</button><input id="product-quantity" type="number" min={1} step={1} value={quantity} disabled={!purchasable || isMutating} onChange={e => setQuantity(Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(e.target.value) || 1))))} className="quantity-value" /><button type="button" className="quantity-button" disabled={!purchasable || isMutating} aria-label={t("cartPage.increaseQty")} onClick={() => setQuantity(n => Math.min(Number.MAX_SAFE_INTEGER, n + 1))}>+</button></div></div>
-      <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity, { title, thumbnail: hero?.url, options: (product.options ?? []).flatMap(option => {
+      <div className="mt-6 flex items-center justify-between gap-3 text-sm"><label htmlFor="product-quantity">{t("product.quantity")}</label><div className="quantity-stepper"><button type="button" className="quantity-button" disabled={!purchasable || isMutating || quantity <= 1} aria-label={t("cartPage.decreaseQty")} onClick={() => changeQuantity(quantity - 1)}>−</button><input id="product-quantity" type="number" min={1} step={1} value={quantity} disabled={!purchasable || isMutating || fixedQuantity} onChange={e => changeQuantity(Number(e.target.value))} className="quantity-value" /><button type="button" className="quantity-button" disabled={!purchasable || isMutating || fixedQuantity} aria-label={t("cartPage.increaseQty")} onClick={() => changeQuantity(quantity + 1)}>+</button></div></div>
+      <button type="button" disabled={!isReady || !pricingReady || isMutating || !purchasable || (remaining !== null && quantity > remaining)} onClick={async () => { setMessage(null); try { await addItem(variant!.id, quantity, { title, thumbnail: hero?.url, options: (product.options ?? []).flatMap(option => {
         const value = selectedOptions[option.id]
         return value ? [{ label: optionLabel(option.title, locale), value: value === "One size" ? t("product.oneSize") : value }] : []
       }) }); setMessage("added"); setQuantity(1) } catch { setMessage("error") } }} className="button-primary mt-4 w-full disabled:opacity-40">{isMutating ? t("product.adding") : t("product.addToCart")}</button>
-      <div className={message ? "mt-3 text-sm" : "sr-only"} aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "error" && <span role="alert" className="text-red-700">{stockError && stockError.variantId === variant?.id ? t("product.stockLimit", { n: stockError.available, inCart: stockError.inCart }) : t("product.addFailed")}</span>}</div>
+      <div className={message ? "mt-3 text-sm" : "sr-only"} aria-live="polite">{message === "added" && <Link href="/rs/cart" className="text-green-800 underline">{t("product.added")}</Link>}{message === "stock" && limit !== null && <span role="alert" className="text-red-700">{t("product.stockLimit", { n: limit, inCart })}</span>}{message === "error" && <span role="alert" className="text-red-700">{stockError && stockError.variantId === variant?.id ? t("product.stockLimit", { n: stockError.available, inCart: stockError.inCart }) : t("product.addFailed")}</span>}</div>
       {description && <div className="product-description mt-6 text-sm leading-relaxed"><h2 className="mb-3 font-medium">{t("design.description")}</h2><p className="whitespace-pre-line text-[var(--store-text-muted)]">{description}</p></div>}
       <ProductAttributes product={product} />
       {(material || care) && <details className="product-policy"><summary>{t("product.compositionCare")}</summary>{material && <p>{material}</p>}{care && <p className="whitespace-pre-line">{care}</p>}</details>}

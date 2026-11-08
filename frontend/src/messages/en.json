@@ -32,7 +32,7 @@
     "rs": "Serbia"
   },
   "cartPage": {
-    "stockLimit": "Only {n} units of this item are currently available. Reduce the quantity in your cart.",
+    "stockLimit": "Only {n} units of this item are currently available.",
     "loading": "Loading…",
     "empty": "Cart is empty.",
     "decreaseQty": "Decrease quantity",

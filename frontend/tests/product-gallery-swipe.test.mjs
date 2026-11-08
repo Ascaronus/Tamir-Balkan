@@ -24,6 +24,7 @@ function fixture(locale = 'sr', imageCount = 3, overrides = {}) {
     '@/components/i18n/LocalizedLink': { default: 'a' }, 'next/navigation': { useSearchParams: () => ({ get: () => null }) },
     '@/components/auth/AuthProvider': { useAuth: () => ({ customer: null, isReady: true }) },
     '@/components/cart/CartProvider': { useCart: () => cartState },
+    '@/lib/cart/useVariantStock': { useVariantStock: () => overrides.stock ?? {} },
     '@/components/i18n/LocaleProvider': { useLocaleContext: () => ({ locale, t }) },
     '@/lib/product-image': images, '@/lib/store/commerce': commerce, '@/lib/i18n/content': content,
     '@/lib/format-money': { formatMoney: String }, '@/lib/seo/product': { productBrand: () => null },
@@ -48,21 +49,45 @@ function fixture(locale = 'sr', imageCount = 3, overrides = {}) {
   return { render, hero, enlarged, dialog, src, drag, click, t, cartState, opened: () => opened }
 }
 
-for(const locale of ['sr','en']) test(`product ${locale}: stock count is hidden until a rejected addition; quantity is not silently capped`,async()=>{
-  const calls=[]
-  const f=fixture(locale,1,{variant:{manage_inventory:true,inventory_quantity:23},cart:{cart:{items:[{variant_id:'v1',quantity:23}]}}})
-  f.cartState.addItem=async(id,n)=>{calls.push([id,n]);f.cartState.stockError={variantId:id,available:20,inCart:23};throw Error('CART_STOCK_LIMIT')}
-  let tree=f.render()
-  const stock=find(tree,n=>n.props?.className?.startsWith('product-stock'))
-  assert.equal(stock.props.children,locale==='sr'?'Na stanju':'In stock')
-  const input=find(tree,n=>n.props?.id==='product-quantity');assert.equal(input.props.max,undefined)
-  input.props.onChange({target:{value:'24'}});tree=f.render()
-  const add=find(tree,n=>n.props?.className?.includes('button-primary'))
-  assert.equal(add.props.disabled,false)
+for(const locale of ['sr','en']) test(`product ${locale}: plus shows the stock limit before any addition, including items already in cart`,()=>{
+  const calls=[],f=fixture(locale,1,{variant:{manage_inventory:true,inventory_quantity:20},stock:{v1:5},cart:{cart:{items:[{variant_id:'v1',quantity:3}]},addItem:async(...args)=>calls.push(args)}})
+  const input=()=>find(f.render(),n=>n.props?.id==='product-quantity')
+  const plus=()=>find(f.render(),n=>n.props?.['aria-label']===f.t('cartPage.increaseQty'))
+  assert.equal(find(f.render(),n=>n.props?.className?.startsWith('product-stock')).props.children,locale==='sr'?'Na stanju':'In stock')
+  assert.equal(find(f.render(),n=>n.props?.role==='alert'),null)
+  assert.equal(input().props.max,undefined)
+  plus().props.onClick();assert.equal(input().props.value,2)
+  assert.equal(find(f.render(),n=>n.props?.role==='alert'),null)
+  plus().props.onClick();assert.equal(input().props.value,2)
+  assert.equal(find(f.render(),n=>n.props?.role==='alert').props.children,f.t('product.stockLimit',{n:5,inCart:3}))
+  assert.deepEqual(calls,[])
+  input().props.onChange({target:{value:'1'}});assert.equal(find(f.render(),n=>n.props?.role==='alert'),null)
+  input().props.onChange({target:{value:'50'}});assert.equal(input().props.value,2)
+  assert.ok(find(f.render(),n=>n.props?.role==='alert'))
+  find(f.render(),n=>n.type==='select').props.onChange({target:{value:'v2'}})
+  assert.equal(input().props.value,1);assert.equal(find(f.render(),n=>n.props?.role==='alert'),null)
+})
+for(const options of [
+  {variant:{manage_inventory:true,inventory_quantity:1}},
+  {variant:{manage_inventory:true,inventory_quantity:10},stock:{v1:1}},
+  {variant:{manage_inventory:true,inventory_quantity:5},cart:{cart:{items:[{variant_id:'v1',quantity:4}]}}},
+]) test('product with one available unit disables both controls and manual editing',()=>{
+  const f=fixture('en',1,options),tree=f.render()
+  for(const key of ['increaseQty','decreaseQty'])assert.equal(find(tree,n=>n.props?.['aria-label']===f.t('cartPage.'+key)).props.disabled,true)
+  assert.equal(find(tree,n=>n.props?.id==='product-quantity').props.disabled,true)
+  assert.equal(find(tree,n=>n.props?.className?.includes('button-primary')).props.disabled,false)
   assert.equal(find(tree,n=>n.props?.role==='alert'),null)
-  await add.props.onClick();tree=f.render()
-  assert.deepEqual(calls,[['v1',24]])
-  assert.equal(find(tree,n=>n.props?.role==='alert').props.children,f.t('product.stockLimit',{n:20,inCart:23}))
+})
+test('unmanaged and backorder stock are not capped; server stock failures remain visible',async()=>{
+  for(const variant of [{manage_inventory:false},{manage_inventory:true,allow_backorder:true,inventory_quantity:0}]){
+    const f=fixture('en',1,{variant});const input=()=>find(f.render(),n=>n.props?.id==='product-quantity')
+    input().props.onChange({target:{value:'99'}});assert.equal(input().props.value,99)
+    assert.equal(find(f.render(),n=>n.props?.role==='alert'),null)
+  }
+  const f=fixture('en',1,{variant:{manage_inventory:true,inventory_quantity:5}})
+  f.cartState.addItem=async()=>{f.cartState.stockError={variantId:'v1',available:0,inCart:0};throw Error('stock changed')}
+  await find(f.render(),n=>n.props?.className?.includes('button-primary')).props.onClick()
+  assert.equal(find(f.render(),n=>n.props?.role==='alert').props.children,f.t('product.stockLimit',{n:0,inCart:0}))
 })
 for (const locale of ['sr', 'en']) {
   test(`component: ${locale} main and enlarged images swipe in both directions and wrap`, () => {

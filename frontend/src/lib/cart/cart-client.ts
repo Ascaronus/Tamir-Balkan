@@ -13,25 +13,39 @@ export class CartStockError extends Error {
   }
 }
 
+/** Medusa availability already excludes reservations. Missing data is unknown, never zero. */
+export async function getVariantStock(variantIds: string[], salesChannelId?: string | null, signal?: AbortSignal): Promise<Record<string, number | null>> {
+  const ids = [...new Set(variantIds.filter(Boolean))]
+  const limits: Record<string, number | null> = {}
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const batch = ids.slice(offset, offset + 100)
+    const { products } = await sdk.client.fetch<{ products: HttpTypes.StoreProduct[] }>("/store/products", {
+      query: {
+        variants: { id: batch }, limit: batch.length,
+        fields: "id,variants.id,variants.manage_inventory,variants.allow_backorder,+variants.inventory_quantity",
+        ...(salesChannelId ? { sales_channel_id: [salesChannelId] } : {}),
+      }, cache: "no-store", signal,
+    })
+    for (const variant of products.flatMap(product => product.variants ?? [])) {
+      if (!batch.includes(variant.id)) continue
+      if (variant.manage_inventory === false || variant.allow_backorder) limits[variant.id] = null
+      else if (variant.manage_inventory && typeof variant.inventory_quantity === "number" && Number.isFinite(variant.inventory_quantity)) {
+        limits[variant.id] = Math.max(0, Math.floor(variant.inventory_quantity))
+      }
+    }
+  }
+  return limits
+}
+
 /** Only enrich a rejected mutation. Medusa remains the authority for stock and reservations. */
 async function stockFailure(error: unknown, cart: Cart, variantId: string | null | undefined, quantity: number, replaceLineId?: string): Promise<unknown> {
   const status = (error as { status?: number } | null)?.status
   if (!variantId || (status !== undefined && status !== 400 && status !== 409) ||
       !/insufficient inventory|does not have the required inventory|not enough stock/i.test(errMessage(error))) return error
   try {
-    const { products } = await sdk.client.fetch<{ products: HttpTypes.StoreProduct[] }>("/store/products", {
-      query: {
-        variants: { id: variantId }, limit: 1,
-        fields: "id,variants.id,variants.manage_inventory,variants.allow_backorder,+variants.inventory_quantity",
-        ...(cart.sales_channel_id ? { sales_channel_id: [cart.sales_channel_id] } : {}),
-      },
-      cache: "no-store",
-    })
-    const variant = products.flatMap(product => product.variants ?? []).find(item => item.id === variantId)
-    const available = variant?.inventory_quantity
-    if (!variant?.manage_inventory || variant.allow_backorder || typeof available !== "number" || !Number.isFinite(available)) return error
+    const limit = (await getVariantStock([variantId], cart.sales_channel_id))[variantId]
+    if (typeof limit !== "number") return error
     const inCart = (cart.items ?? []).filter(item => item.variant_id === variantId).reduce((sum, item) => sum + item.quantity, 0)
-    const limit = Math.max(0, Math.floor(available))
     const requested = inCart + quantity - (replaceLineId ? cart.items?.find(item => item.id === replaceLineId)?.quantity ?? 0 : 0)
     // A different cart item may have caused Medusa's rejection, or stock may have changed since it.
     if (requested <= limit) return error
