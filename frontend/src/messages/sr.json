@@ -33,6 +33,7 @@
   },
   "cartPage": {
     "stockLimit": "Trenutno je dostupno samo {n} komada ovog artikla.",
+    "stockChanged": "Trenutno dostupno: {n}. U korpi imate {quantity}. Smanjite količinu ili uklonite ovaj artikal.",
     "loading": "Učitavanje…",
     "empty": "Korpa je prazna.",
     "decreaseQty": "Smanji količinu",

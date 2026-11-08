@@ -238,7 +238,7 @@ export function CheckoutPageClient({ countryCode }: { countryCode: string }) {
             const result = await completeCart(cart.id)
             if (result.type !== "order" || !result.order?.id) throw new Error(t("checkout.failed"))
             saveReceipt(result.order)
-            clearCartId()
+            clearCartId(customer?.id)
             router.push(`/${countryCode}/order/${result.order.id}`)
           } catch (e: unknown) {
             setError(e instanceof Error ? e.message : t("checkout.failed"))

@@ -1,3 +1,4 @@
+import { protectCustomerCart } from "../utils/customer-cart"
 import { bannerUploadLimit } from "../utils/banner-media"
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
 import { catalogMiddlewares } from "../utils/catalog-http"
@@ -8,6 +9,8 @@ function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, 
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
 export default defineMiddlewares({ routes: [
+  { matcher: "/store/customer-cart", methods: ["POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
+  { matcher: "/store/carts/*", middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true }), protectCustomerCart] },
   { matcher: "/admin/tamir-chat*", bodyParser: { sizeLimit: "32kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
   { matcher: "/store/chat*", bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true })] },
   { matcher: "/hooks/tamir-chat", bodyParser: { sizeLimit: "32kb" }, middlewares: [] },

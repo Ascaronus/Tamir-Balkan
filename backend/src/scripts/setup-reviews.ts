@@ -1,3 +1,4 @@
+import { customerCartSchema } from "../utils/customer-cart"
 import { setupChat } from "../utils/chat/schema"
 import { setupBanners } from "../utils/homepage-banners"
 import { wishlistSchema } from "../utils/wishlist"
@@ -19,6 +20,7 @@ export default async function setupReviews({ container }: ExecArgs) {
     await setupBanners(trx)
     await setupChat(trx)
     await trx.raw(wishlistSchema)
+    await trx.raw(customerCartSchema)
     await trx.raw(reviewSchema)
     await trx.raw(productUrlSchema)
     await trx.raw(registrationSchema)

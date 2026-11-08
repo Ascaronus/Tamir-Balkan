@@ -30,11 +30,14 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | null>(null)
 
 export function CartProvider({ countryCode, children }: { countryCode: string; children: React.ReactNode }) {
-  const { isReady: authReady } = useAuth()
+  const { customer, isReady: authReady, isMutating: authMutating } = useAuth()
+  const customerId = customer?.id ?? null
+  const identity = customerId ?? "guest"
   const pathname = usePathname()
   const { locale } = useLocaleContext()
   const [addition, setAddition] = useState<(CartAddition & { path: string; locale: string }) | null>(null)
   const dismissAddition = useCallback(() => setAddition(null), [])
+  const [loadedIdentity, setLoadedIdentity] = useState<string | null>(identity)
   const [cart, setCart] = useState<Cart | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [pending, setPending] = useState(0)
@@ -45,9 +48,10 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   const route = internalStorePath(localizedPath(pathname, "sr"))
   const previousRoute = useRef(route)
   const commit = useCallback((next: Cart) => {
+    setLoadedIdentity(identity)
     setCart(previous => ({ ...next, items: stableItems(next.items ?? [], previous?.id === next.id ? previous.items ?? [] : []) }))
     return next
-  }, [])
+  }, [identity])
 
   const run = useCallback((operation: () => Promise<Cart>): Promise<Cart> => {
     const version = generation.current
@@ -72,14 +76,15 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     return task
   }, [commit])
 
-  const refresh = useCallback(() => run(() => getOrCreateCart(countryCode)), [countryCode, run])
+  const refresh = useCallback(() => run(() => getOrCreateCart(countryCode, customerId)), [countryCode, customerId, run])
   useEffect(() => {
-    if (!authReady) return
+    if (!authReady || authMutating) return
     let mounted = true
     const initialize = () => {
       generation.current += 1
       setAddition(null)
       setCart(null)
+      setLoadedIdentity(identity)
       setError(null)
       setStockError(null)
       setIsReady(false)
@@ -88,7 +93,7 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
     initialize()
     window.addEventListener("tb-cart-reset", initialize)
     return () => { mounted = false; generation.current += 1; window.removeEventListener("tb-cart-reset", initialize) }
-  }, [refresh, authReady])
+  }, [refresh, authReady, authMutating, identity])
 
   useEffect(() => {
     if (!authReady || previousRoute.current === route) return
@@ -103,23 +108,25 @@ export function CartProvider({ countryCode, children }: { countryCode: string; c
   }, [route, authReady, refresh])
 
   if (addition && (addition.path !== pathname || addition.locale !== locale)) setAddition(null)
-  const display = useLocalizedCartState(cart)
+  const sessionReady = authReady && !authMutating && loadedIdentity === identity
+  const visibleCart = sessionReady ? cart : null
+  const display = useLocalizedCartState(visibleCart)
   const localizedCart = display.cart
   const value = useMemo<CartContextValue>(() => ({
     cart: localizedCart, displayReady: display.ready, displayError: display.error,
-    retryDisplay: async () => { display.retry(); await refresh() }, isReady, isMutating: pending > 0, error, stockError,
-    itemCount: cart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
+    retryDisplay: async () => { display.retry(); await refresh() }, isReady: isReady && sessionReady, isMutating: pending > 0 || Boolean(authMutating), error: sessionReady ? error : null, stockError: sessionReady ? stockError : null,
+    itemCount: visibleCart?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0,
     refresh,
     addItem: async (variantId, quantity = 1, display) => {
       const version = generation.current
       const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      const next = await run(() => addToCart({ countryCode, variantId, quantity }))
+      const next = await run(() => addToCart({ countryCode, customerId, variantId, quantity }))
       const item = next.items?.find(item => item.variant_id === variantId)
       if (version === generation.current && item) setAddition({ cartId: next.id, lineId: item.id, quantity, trigger, display, path: pathname, locale })
     },
-    updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, lineItemId, quantity })) },
-    removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, lineItemId })) },
-  }), [cart, localizedCart, display, isReady, pending, error, stockError, refresh, run, countryCode, pathname, locale])
+    updateItemQuantity: async (lineItemId, quantity) => { await run(() => updateLineItem({ countryCode, customerId, lineItemId, quantity })) },
+    removeItem: async (lineItemId) => { await run(() => removeLineItem({ countryCode, customerId, lineItemId })) },
+  }), [localizedCart, display, isReady, pending, error, stockError, refresh, run, countryCode, customerId, pathname, locale, sessionReady, visibleCart, authMutating])
   return <CartContext.Provider value={value}>{children}{addition && localizedCart && addition.cartId === localizedCart.id && addition.path === pathname && addition.locale === locale && <AddedToCartDialog cart={localizedCart} addition={addition} onDismiss={dismissAddition} />}</CartContext.Provider>
 }
 export function useCart() {

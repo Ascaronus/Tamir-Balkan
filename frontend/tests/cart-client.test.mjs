@@ -153,3 +153,10 @@ test('availability batches large carts, deduplicates variants and forwards cance
  assert.deepEqual(f.lookups.map(r=>r.query.limit),[100,100,5])
  assert.ok(f.lookups.every(r=>r.signal===signal))
 })
+
+test('deleted or unpublished variants report zero only after a successful catalogue response',async()=>{
+ const f=fixture({variants:[]})
+ assert.equal((await f.api.getVariantStock(['deleted'],'sc_store')).deleted,0)
+ const failed=fixture({variants:[],lookupFails:true})
+ await assert.rejects(failed.api.getVariantStock(['deleted'],'sc_store'),/unavailable/)
+})

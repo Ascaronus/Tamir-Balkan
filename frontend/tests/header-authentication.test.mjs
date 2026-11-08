@@ -151,7 +151,8 @@ for(const outcome of ['success','http-error','network-error'])test(`client bound
  const client=load('frontend/src/lib/auth/auth-client.ts',{
  '@/lib/medusa':{},'@/lib/cart/cart-storage':{clearStoredCartId(){cleared++}},
  },{fetch:async(path,init)=>{assert.equal(path,'/api/auth/logout');assert.equal(init.method,'POST');if(outcome==='network-error')throw Error('offline');return {ok:outcome==='success'}},window:{dispatchEvent(){events++}},Event:class{}})
- if(outcome==='success'){await client.logout();assert.equal(cleared,1);assert.equal(events,1)}
+ // Logout resets the visible session but preserves unclaimed guest storage and the server account cart.
+ if(outcome==='success'){await client.logout();assert.equal(cleared,0);assert.equal(events,1)}
  else {await assert.rejects(client.logout());assert.equal(cleared,0);assert.equal(events,0)}
 })
 test('component: account dropdown closes on outside pointer press',async()=>{
