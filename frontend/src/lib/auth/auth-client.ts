@@ -1,6 +1,5 @@
 import type { HttpTypes } from "@medusajs/types"
 import { sdk } from "@/lib/medusa"
-import { clearStoredCartId } from "@/lib/cart/cart-storage"
 
 /**
  * Аутентификация покупателя (H4). JWT живёт только в httpOnly-куке, а в
@@ -81,7 +80,7 @@ export async function logout() {
   const res = await fetch("/api/auth/logout", { method: "POST", cache: "no-store" })
   // Keep the current session visible if the server could not clear its cookie.
   if (!res.ok) throw new Error("LOGOUT_FAILED")
-  clearStoredCartId()
+  // The account cart stays in Medusa; a separate unclaimed guest cart stays in browser storage.
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("tb-cart-reset"))
   }

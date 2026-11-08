@@ -61,9 +61,31 @@ for(const locale of ['sr','en'])test(`${locale}: cart quantity controls use avai
  stock.v1=1;assert.equal(control('increaseQty').props.disabled,true);assert.equal(control('decreaseQty').props.disabled,false)
  assert.ok(JSON.stringify(find(render(),n=>n.props?.role==='alert')).includes(t('cartPage.stockLimit',{n:1})))
  control('decreaseQty').props.onClick();assert.deepEqual(calls.at(-1),['line_a',2])
- assert.equal(find(render(),n=>n.props?.role==='alert'),null)
+ // The current cart still exceeds newly reserved stock; the persistent row warning remains.
+ assert.ok(JSON.stringify(find(render(),n=>n.props?.role==='alert')).includes(t('cartPage.stockChanged',{n:1,quantity:3})))
  state.cart.items[0].quantity=1;stock.v1=3;state.cart.items.push({id:'line_b',variant_id:'v1',quantity:2})
  assert.equal(control('increaseQty').props.disabled,true)
  stock.v1=null;assert.equal(control('increaseQty').props.disabled,false)
  delete stock.v1;assert.equal(control('increaseQty').props.disabled,false)
+})
+
+for(const locale of ['sr','en'])test(`${locale}: returning cart retains unavailable lines and warns before any mutation`,()=>{
+ const h=hooks(),t=createTranslator(JSON.parse(fs.readFileSync(new URL(`../src/messages/${locale}.json`,import.meta.url)))),stock={v1:0,v2:2}
+ const items=[{id:'a',variant_id:'v1',title:'A',quantity:1},{id:'b',variant_id:'v2',title:'B',quantity:4}]
+ const state={isReady:true,isMutating:false,error:null,cart:{id:'cart_saved',items}}
+ const {CartPageClient}=load('frontend/src/components/cart/CartPageClient.tsx',{
+  react:h.react,'@/lib/cart/useVariantStock':{useVariantStock:()=>stock},
+  '@/components/i18n/LocalizedLink':{default:'a'},'@/components/auth/AuthProvider':{useAuth:()=>({customer:{id:'customer_a'}})},
+  './CartProvider':{useCart:()=>state},'@/components/i18n/LocaleProvider':{useLocaleContext:()=>({t,locale})},
+  '@/lib/cart/display':load('frontend/src/lib/cart/display.ts'),'@/lib/format-money':{formatMoney:String},
+  '@/components/store/ProductImage':{ProductImage:'img'},'@/lib/product-image':{normalizeImageUrl:()=>undefined},
+ })
+ const render=()=>h.render(CartPageClient),tree=render()
+ assert.ok(JSON.stringify(tree).includes(t('cartPage.stockChanged',{n:0,quantity:1})))
+ assert.ok(JSON.stringify(tree).includes(t('cartPage.stockChanged',{n:2,quantity:4})))
+ const checkout=find(tree,n=>n.props?.href==='/rs/checkout');assert.equal(checkout.props['aria-disabled'],true)
+ let prevented=false;checkout.props.onClick({preventDefault(){prevented=true}});assert.equal(prevented,true)
+ assert.equal(state.cart.items.length,2);assert.equal(state.cart.items[1].quantity,4)
+ stock.v1=1;stock.v2=4;assert.equal(find(render(),n=>n.props?.role==='alert'),null)
+ assert.equal(find(render(),n=>n.props?.href==='/rs/checkout').props['aria-disabled'],false)
 })

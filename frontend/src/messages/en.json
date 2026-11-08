@@ -33,6 +33,7 @@
   },
   "cartPage": {
     "stockLimit": "Only {n} units of this item are currently available.",
+    "stockChanged": "Available now: {n}. Your cart contains {quantity}. Reduce the quantity or remove this item.",
     "loading": "Loading…",
     "empty": "Cart is empty.",
     "decreaseQty": "Decrease quantity",

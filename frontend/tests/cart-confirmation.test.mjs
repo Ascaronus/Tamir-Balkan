@@ -11,7 +11,7 @@ function provider(addToCart){
  const {CartProvider}=load('frontend/src/components/cart/CartProvider.tsx',{
  react:h.react,'next/navigation':{usePathname:()=>path},
  '@/components/i18n/LocaleProvider':{useLocaleContext:()=>({locale:'sr'})},
- '@/components/auth/AuthProvider':{useAuth:()=>({isReady:false})},
+ '@/components/auth/AuthProvider':{useAuth:()=>({isReady:true})},
  '@/lib/cart/cart-client':{addToCart},'@/lib/store/commerce':{stableItems:items=>items},
  './useLocalizedCart':{useLocalizedCartState:cart=>({cart,ready:true,error:false,retry(){}})},'./AddedToCartDialog':{AddedToCartDialog:'Confirmation'}
  },{document:{activeElement:trigger},HTMLElement:Element,Error})

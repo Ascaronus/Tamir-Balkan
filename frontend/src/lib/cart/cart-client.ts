@@ -13,7 +13,7 @@ export class CartStockError extends Error {
   }
 }
 
-/** Medusa availability already excludes reservations. Missing data is unknown, never zero. */
+/** Medusa availability excludes reservations. Missing inventory is unknown; an absent catalogue variant is unavailable. */
 export async function getVariantStock(variantIds: string[], salesChannelId?: string | null, signal?: AbortSignal): Promise<Record<string, number | null>> {
   const ids = [...new Set(variantIds.filter(Boolean))]
   const limits: Record<string, number | null> = {}
@@ -26,7 +26,9 @@ export async function getVariantStock(variantIds: string[], salesChannelId?: str
         ...(salesChannelId ? { sales_channel_id: [salesChannelId] } : {}),
       }, cache: "no-store", signal,
     })
-    for (const variant of products.flatMap(product => product.variants ?? [])) {
+    const variants = products.flatMap(product => product.variants ?? [])
+    for (const id of batch) if (!variants.some(variant => variant.id === id)) limits[id] = 0
+    for (const variant of variants) {
       if (!batch.includes(variant.id)) continue
       if (variant.manage_inventory === false || variant.allow_backorder) limits[variant.id] = null
       else if (variant.manage_inventory && typeof variant.inventory_quantity === "number" && Number.isFinite(variant.inventory_quantity)) {
@@ -90,25 +92,40 @@ async function retrieveCart(cartId: string): Promise<Cart | null> {
 
 const pendingCarts = new Map<string, Promise<Cart>>()
 
-export function getOrCreateCart(countryCode: string): Promise<Cart> {
+export function getOrCreateCart(countryCode: string, customerId: string | null = null): Promise<Cart> {
   const cc = countryCode.toLowerCase()
-  const pending = pendingCarts.get(cc)
+  const key = `${cc}:${customerId ?? "guest"}`
+  const pending = pendingCarts.get(key)
   if (pending) return pending
-  const request = loadOrCreateCart(cc).finally(() => pendingCarts.delete(cc))
-  pendingCarts.set(cc, request)
+  const request = loadOrCreateCart(cc, customerId).finally(() => pendingCarts.delete(key))
+  pendingCarts.set(key, request)
   return request
 }
 
-async function loadOrCreateCart(countryCode: string): Promise<Cart> {
+async function loadOrCreateCart(countryCode: string, customerId: string | null): Promise<Cart> {
   const cc = countryCode.toLowerCase()
   const region = await getRegionByCountry(cc)
   if (!region?.id) {
     throw new Error(`No region found for country ${cc}`)
   }
 
+  if (customerId) {
+    const guestId = getStoredCartId()
+    const restored = await sdk.client.fetch<{ cart_id: string; claimed_guest: boolean }>("/store/customer-cart", {
+      method: "POST", cache: "no-store", body: { region_id: region.id, country_code: cc, guest_cart_id: guestId },
+    })
+    // Only clear the guest pointer that was actually claimed; a late response cannot clear a newer guest cart.
+    if (restored.claimed_guest && getStoredCartId() === guestId) clearStoredCartId()
+    const cart = await retrieveCart(restored.cart_id)
+    if (!cart) throw new Error("CUSTOMER_CART_UNAVAILABLE")
+    return cart
+  }
   const existingId = getStoredCartId()
   if (existingId) {
-    const existing = await retrieveCart(existingId)
+    const existing = await retrieveCart(existingId).catch(error => {
+      if ([401, 403].includes((error as { status?: number }).status ?? 0)) return null
+      throw error
+    })
     if (existing) {
       // Ensure region matches selected country
       if (existing.region_id && existing.region_id !== region.id) {
@@ -135,21 +152,23 @@ async function loadOrCreateCart(countryCode: string): Promise<Cart> {
   }
 
   const created = await sdk.store.cart
-    .create({ region_id: region.id, shipping_address: { country_code: cc } })
+    .create({ region_id: region.id, shipping_address: { country_code: cc } }, { fields: "+customer.has_account" })
     .then(({ cart }) => cart as Cart)
 
+  if ((created as Cart & { customer?: { has_account?: boolean } }).customer?.has_account) throw new Error("Cart session changed")
   setStoredCartId(created.id)
   return created
 }
 
 export async function addToCart(params: {
   countryCode: string
+  customerId?: string | null
   variantId: string
   quantity?: number
 }): Promise<Cart> {
-  const { countryCode, variantId, quantity = 1 } = params
+  const { countryCode, customerId = null, variantId, quantity = 1 } = params
   requireQuantity(quantity)
-  let cart = await getOrCreateCart(countryCode)
+  let cart = await getOrCreateCart(countryCode, customerId)
 
   const run = () =>
     sdk.store.cart.createLineItem(cart.id, {
@@ -162,8 +181,8 @@ export async function addToCart(params: {
     return result.cart as Cart
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw await stockFailure(e, cart, variantId, quantity)
-    clearStoredCartId()
-    cart = await getOrCreateCart(countryCode)
+    if (!customerId) clearStoredCartId()
+    cart = await getOrCreateCart(countryCode, customerId)
     try {
       const result = await sdk.store.cart.createLineItem(cart.id, { variant_id: variantId, quantity })
       return result.cart as Cart
@@ -176,20 +195,21 @@ export async function addToCart(params: {
 
 export async function updateLineItem(params: {
   countryCode: string
+  customerId?: string | null
   lineItemId: string
   quantity: number
 }): Promise<Cart> {
-  const { countryCode, lineItemId, quantity } = params
+  const { countryCode, customerId = null, lineItemId, quantity } = params
   requireQuantity(quantity)
-  let cart = await getOrCreateCart(countryCode)
+  let cart = await getOrCreateCart(countryCode, customerId)
 
   try {
     const result = await sdk.store.cart.updateLineItem(cart.id, lineItemId, { quantity })
     return result.cart as Cart
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw await stockFailure(e, cart, cart.items?.find(item => item.id === lineItemId)?.variant_id, quantity, lineItemId)
-    clearStoredCartId()
-    cart = await getOrCreateCart(countryCode)
+    if (!customerId) clearStoredCartId()
+    cart = await getOrCreateCart(countryCode, customerId)
     // line item от старой completed-корзины в новой нет — только свежая корзина
   }
 
@@ -198,10 +218,11 @@ export async function updateLineItem(params: {
 
 export async function removeLineItem(params: {
   countryCode: string
+  customerId?: string | null
   lineItemId: string
 }): Promise<Cart> {
-  const { countryCode, lineItemId } = params
-  let cart = await getOrCreateCart(countryCode)
+  const { countryCode, customerId = null, lineItemId } = params
+  let cart = await getOrCreateCart(countryCode, customerId)
 
   try {
     const result = await sdk.store.cart.deleteLineItem(cart.id, lineItemId)
@@ -209,15 +230,15 @@ export async function removeLineItem(params: {
   } catch (e) {
     if (!isCartAlreadyCompletedError(e)) throw e
     // Позиции от старой корзины уже неактуальны — только новая пустая корзина
-    clearStoredCartId()
-    cart = await getOrCreateCart(countryCode)
+    if (!customerId) clearStoredCartId()
+    cart = await getOrCreateCart(countryCode, customerId)
   }
 
   return cart
 }
 
-export async function clearCartId() {
-  clearStoredCartId()
+export async function clearCartId(customerId?: string | null) {
+  if (!customerId) clearStoredCartId()
   if (typeof window !== "undefined") window.dispatchEvent(new Event("tb-cart-reset"))
 }
 

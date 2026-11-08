@@ -1,3 +1,4 @@
+import { customerCartSchema } from "../../src/utils/customer-cart"
 import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { createCartWorkflow, createRegionsWorkflow } from "@medusajs/medusa/core-flows"
@@ -7,6 +8,7 @@ medusaIntegrationTestRunner({ inApp: true, env: {}, testSuite: ({ api, getContai
   describe("guest checkout email over HTTP", () => {
     it("clears a previously entered guest email and customer link without restoring it on the next update", async () => {
       const container = getContainer()
+      await container.resolve(ContainerRegistrationKeys.PG_CONNECTION).raw(customerCartSchema)
       const { result: [region] } = await createRegionsWorkflow(container).run({ input: { regions: [{ name: "Guest checkout test", currency_code: "eur", countries: ["rs"] }] } })
       const query = container.resolve(ContainerRegistrationKeys.QUERY)
       const { data: channels } = await query.graph({ entity: "sales_channel", fields: ["id"] })
