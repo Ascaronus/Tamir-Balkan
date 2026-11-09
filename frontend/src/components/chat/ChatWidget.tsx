@@ -10,6 +10,7 @@ import {
   imageFileError,
   imageData,
   systemText,
+  systemTemplateKey,
   type Conversation,
   type ChatMessage,
   type WidgetConfig,
@@ -94,10 +95,12 @@ function Session({ customer }: { customer: boolean }) {
     setBusy(true)
     setError('')
     try {
-      if (!customer && !guest) {
+      let returning = false
+      if (!guest) {
         const r = await chatRequest<{ conversations: Conversation[] }>('conversations')
         if (!alive.current) return
-        if (!r.conversations.length) {
+        returning = r.conversations.length > 0
+        if (!customer && !returning) {
           setGuestForm(true)
           return
         }
@@ -112,7 +115,7 @@ function Session({ customer }: { customer: boolean }) {
       setThreads(r.conversations)
       setClaim(r.claimAvailable)
       setGuestForm(false)
-      setNotice('welcome')
+      setNotice(returning ? 'returning' : 'welcome')
     } catch (e) {
       if (alive.current) {
         setError((e as Error).message)
@@ -219,7 +222,6 @@ function Session({ customer }: { customer: boolean }) {
         setText('')
         setImage(null)
         pending.current = null
-        setNotice('sent')
         input.current?.focus()
       }
     } catch (e) {
@@ -259,6 +261,15 @@ function Session({ customer }: { customer: boolean }) {
       if (alive.current) setBusy(false)
     }
   }
+  const robotEvent = (body: string, key?: string) => (
+    <div key={key} className="tamir-chat-event" role="status">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <path d="M12 3v3M8 11v2m8-2v2M9 17h6M3 11v5m18-5v5" />
+        <rect x="5" y="6" width="14" height="15" rx="4" />
+      </svg>
+      <div><small>{t('chat.automatic')}</small><p>{body}</p></div>
+    </div>
+  )
   if (!config?.enabled || !config.locales.includes(locale)) return null
   return (
     <div className={`tamir-chat tamir-chat-${config.position}`}>
@@ -400,39 +411,47 @@ function Session({ customer }: { customer: boolean }) {
               </button>
             )}
             <div className="tamir-chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
-              {!config.available && automatic('offline') && (
-                <article className="tamir-chat-message tamir-chat-message-system"><p>{automatic('offline')}</p></article>
-              )}
-              {rows.map((m) => (
-                <article key={m.id} className={`tamir-chat-message tamir-chat-message-${m.sender}`}>
-                  {m.has_image && conversation && (
-                    <a href={`/api/chat/image?id=${conversation.id}&image=${m.id}`} target="_blank" rel="noreferrer">
-                      <img className="tamir-chat-image" src={`/api/chat/image?id=${conversation.id}&image=${m.id}`} alt={t('chat.image')} loading="lazy" />
-                    </a>
-                  )}
-                  {(m.text !== '' || !m.has_image) && <p>{systemText(m, config, locale) ?? t('chat.awaitingTranslation')}</p>}
-                  <small>
-                    {new Date(m.created_at).toLocaleTimeString(locale === 'sr' ? 'sr-Latn-RS' : 'en-GB', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}{' '}
-                    ·{' '}
-                    {t(
-                      m.status === 'delivered'
-                        ? 'chat.delivered'
-                        : m.status === 'error'
-                          ? 'chat.deliveryError'
-                          : 'chat.sent',
-                    )}
-                  </small>
-                  {m.status === 'error' && automatic('error') && <p>{automatic('error')}</p>}
-                </article>
-              ))}
               {notice && automatic(notice) && (
-                <article className="tamir-chat-message tamir-chat-message-system" role="status">
+                <article className="tamir-chat-message tamir-chat-message-greeting" role="status">
                   <p>{automatic(notice)}</p>
                 </article>
               )}
+              {!config.available && automatic('offline') && robotEvent(automatic('offline'))}
+              {rows.map((m) => {
+                if (m.sender === 'system') {
+                  const body = systemText(m, config, locale)
+                  if (!body) return null
+                  const key = systemTemplateKey(m, config)
+                  if (key === 'welcome' || key === 'returning')
+                    return <article key={m.id} className="tamir-chat-message tamir-chat-message-greeting"><p>{body}</p></article>
+                  if (key === 'error') return <div key={m.id} className="tamir-chat-delivery-error" role="status">{body}</div>
+                  return robotEvent(body, m.id)
+                }
+                return (
+                  <article key={m.id} className={`tamir-chat-message tamir-chat-message-${m.sender}`}>
+                    {m.has_image && conversation && (
+                      <a href={`/api/chat/image?id=${conversation.id}&image=${m.id}`} target="_blank" rel="noreferrer">
+                        <img className="tamir-chat-image" src={`/api/chat/image?id=${conversation.id}&image=${m.id}`} alt={t('chat.image')} loading="lazy" />
+                      </a>
+                    )}
+                    {(m.text !== '' || !m.has_image) && <p>{m.text ?? t('chat.awaitingTranslation')}</p>}
+                    <small className="tamir-chat-message-meta">
+                      <time dateTime={m.created_at}>{new Date(m.created_at).toLocaleTimeString(locale === 'sr' ? 'sr-Latn-RS' : 'en-GB', {
+                        hour: '2-digit', minute: '2-digit',
+                      })}</time>
+                      {m.sender === 'customer' && m.status === 'delivered' && config.templates.sent?.enabled && (
+                        <span className="tamir-chat-delivered" role="img" aria-label={t('chat.delivered')} title={t('chat.delivered')}>
+                          <svg width="18" height="14" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m2 9 4 4L16 3M12 13 22 3" />
+                          </svg>
+                        </span>
+                      )}
+                      {m.status === 'error' && <span className="tamir-chat-delivery-error" role="status">{t('chat.deliveryError')}</span>}
+                    </small>
+                    {m.status === 'error' && automatic('error') && <div className="tamir-chat-delivery-error">{automatic('error')}</div>}
+                  </article>
+                )
+              })}
             </div>
             {error && (
               <div role="alert">

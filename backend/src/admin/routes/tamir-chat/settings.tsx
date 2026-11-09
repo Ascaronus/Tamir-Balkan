@@ -357,7 +357,7 @@ export function Settings({ tab }: { tab: string }) {
                 [
                   'Приветствие',
                   'Оператор недоступен',
-                  'Подтверждение отправки',
+                  'Индикатор доставки — две галочки',
                   'Ошибка доставки',
                   'Возвращение посетителя',
                   'Закрытие диалога',
@@ -369,6 +369,9 @@ export function Settings({ tab }: { tab: string }) {
                 patch({ templates: { ...draft.templates, [key]: { ...draft.templates[key], enabled } } })
               }
             />
+            {key === 'sent' ? (
+              <Text size="small">Две маленькие галочки тёмной фуксии рядом со временем вашего сообщения после доставки в Telegram. Это не отметка о прочтении. Текстовое подтверждение в переписке не показывается.</Text>
+            ) : <>
             <Pair
               label={key}
               value={draft.templates[key].text}
@@ -378,6 +381,8 @@ export function Settings({ tab }: { tab: string }) {
             />
             <Text size="small">Предпросмотр SR: {draft.templates[key].text.sr}</Text>
             <Text size="small">Предпросмотр EN: {draft.templates[key].text.en}</Text>
+            </>}
+
           </section>
         ))}
       </div>
