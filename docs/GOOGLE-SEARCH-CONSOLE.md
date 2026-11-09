@@ -41,11 +41,22 @@ curl -I https://tamir.rs/en
 
 ## Стенд закрыт от поисковиков
 
-Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины и служебные маршруты backend вроде `/app` и `/health`. Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
+Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Исключения описаны в «Два зазора на backend-хосте стенда». Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
 
 На закрытом хосте `robots.txt` намеренно остаётся разрешающим (`Allow: /`, без строки `Sitemap:`), а `sitemap.xml` отдаёт пустой `<urlset>` без обращений к API. Причина: Google снимает URL с индекса, только когда может прочитать `noindex` в ответе, — `Disallow: /` в robots.txt как раз помешал бы роботу этот ответ увидеть. Ужесточать robots.txt имеет смысл лишь после того, как стендовые URL исчезнут из индекса; до этого это закрепило бы их в выдаче.
 
-Проверка закрытия (заголовки, а не только тело ответа):
+Публичные прод-хосты входят в ту же allow-list, поэтому деплой на прод для самого прода незаметен: `X-Robots-Tag` на `tamir.rs` и `api.tamir.rs` не появляется.
+
+### Проверка закрытия
+
+Проверяются заголовки ответов, а не только тело:
+
+```bash
+bash scripts/seo-headers-check.sh          # стенд, прод, robots, sitemap, canonical
+SEO_STRICT=1 bash scripts/seo-headers-check.sh   # известные зазоры считаются провалом
+```
+
+Скрипт обращается к тем же публичным адресам, что и поисковый робот, секретов не требует, только GET. Отдельные `curl`-проверки:
 
 ```bash
 curl -sSI https://test.tamir.rs/rs | grep -i x-robots-tag
@@ -55,7 +66,51 @@ curl -fsS https://test.tamir.rs/robots.txt
 curl -fsS https://test.tamir.rs/sitemap.xml
 ```
 
-На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно. Если стендовый адрес всё ещё виден в Search Console, порядок действий: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить свойство `test.tamir.rs` из Search Console. Тот же заголовок можно выдать и на уровне Cloudflare (Transform Rule / Modify Response Header), если приложение его не отдаёт.
+На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно.
+
+### Два зазора на backend-хосте стенда
+
+На `test-api.tamir.rs` приложение не управляет двумя ответами, поэтому `X-Robots-Tag` в них нет:
+
+| URL | Ответ | Причина |
+| --- | --- | --- |
+| `https://test-api.tamir.rs/app` | 200, HTML кабинета | Medusa раздаёт admin-статику раньше глобального middleware |
+| `https://test-api.tamir.rs/store/products` | 400, JSON | `ensurePublishableApiKeyMiddleware` бросает ошибку до него |
+
+Замена дефолтного `errorHandler` Medusa ради этих двух ответов трогает и прод, поэтому их закрывает правило Cloudflare — Transform Rules → Transform Rule → Modify Response Header:
+
+```
+If: (http.host eq "test.tamir.rs" or http.host eq "test-api.tamir.rs")
+Then: Set header "X-Robots-Tag" = "noindex, nofollow, noarchive, nosnippet" (overwrite)
+```
+
+Правило действует после приложения и не меняет ни тело, ни статус ответа. Проверка после включения: `curl -sSI https://test-api.tamir.rs/app`, затем `SEO_STRICT=1 bash scripts/seo-headers-check.sh`.
+
+### Состояние индекса по отчёту «Страницы» (9 ноября 2026)
+
+Свойство — доменное `sc-domain:tamir.rs`, оно охватывает и поддомены, включая `test.tamir.rs`. Проиндексировано 54 URL: `tamir.rs` — 44, `test.tamir.rs` — 9, `www.tamir.rs` — 1. Не проиндексировано 280, из них 47 — `noindex` (служебные страницы, закрытые самим приложением), 177 — 404 (прежние товарные адреса и `rozetka-*`-заглушки, [политика 404](#что-делать-при-замене-товара)), 31 — «Вариант страницы с тегом canonical», 10 — «Страница с переадресацией», 9 — «Просканирована, не включена», 4 — «Дубли с содержимым, отличной от canonical», 2 — закрыто robots.txt.
+
+Стендовые URL в индексе (снимок до деплоя закрытия, обход ещё не показал `noindex`):
+
+```
+https://test.tamir.rs/
+https://test.tamir.rs/cookies
+https://test.tamir.rs/terms
+https://test.tamir.rs/rs/catalog/kape
+https://test.tamir.rs/rs/products/muska-zimska-kapa-sa-sivom-flis-podstavom
+https://test.tamir.rs/en/products/men-s-khaki-winter-hat-with-fleece-lining
+https://test.tamir.rs/en/products/dark-gray-knitted-hat-with-a-pompom
+https://test.tamir.rs/en/products/men-s-winter-hat-in-gray-color
+https://test.tamir.rs/en/products/black-winter-hat-for-men
+```
+
+Порядок снятия: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить отдельное свойство `test.tamir.rs` из Search Console и лишь тогда ужесточать его `robots.txt`. Отчёт обновляется с задержкой; массовые запросы индексирования не ускоряют снятие.
+
+### Дубли хостов
+
+`www.tamir.rs` и `tamir.ua` входят в `SEARCHABLE_HOSTS` намеренно: они закрыты не `noindex`, а canonical — витрина строит canonical из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Это отдельное изменение прод-роутинга: перед ним сверяют, что правило не ломает переключение языка и уже работающий canonical.
+
+Отдельный долг — 177 URL группы 404: прежние слаги переименованных товаров и `rozetka-*`-заглушки, а также обходимость адресов с `?page=` и `?v_id=`. Товарные перенаправления отключены решением владельца, поэтому вопрос о 301 для этих адресов остаётся за владельцем.
 
 Обновление сервера: [DEPLOY.md](../DEPLOY.md). Структурированные данные и подтверждённые ограничения контента: [PRODUCT-SEO.md](PRODUCT-SEO.md).
 
