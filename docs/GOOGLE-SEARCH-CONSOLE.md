@@ -41,11 +41,24 @@ curl -I https://tamir.rs/en
 
 ## Стенд закрыт от поисковиков
 
-Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины и служебные маршруты backend вроде `/app` и `/health`. Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
+Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Три ответа на стенде, которыми приложение не управляет, добирает правило Cloudflare («Зазоры, которые закрывает правило Cloudflare»). Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
 
 На закрытом хосте `robots.txt` намеренно остаётся разрешающим (`Allow: /`, без строки `Sitemap:`), а `sitemap.xml` отдаёт пустой `<urlset>` без обращений к API. Причина: Google снимает URL с индекса, только когда может прочитать `noindex` в ответе, — `Disallow: /` в robots.txt как раз помешал бы роботу этот ответ увидеть. Ужесточать robots.txt имеет смысл лишь после того, как стендовые URL исчезнут из индекса; до этого это закрепило бы их в выдаче.
 
-Проверка закрытия (заголовки, а не только тело ответа):
+Публичные прод-хосты входят в ту же allow-list, поэтому деплой на прод для самого прода незаметен: `X-Robots-Tag` на `tamir.rs` и `api.tamir.rs` не появляется.
+
+### Проверка закрытия
+
+Проверяются заголовки ответов, а не только тело:
+
+```bash
+bash scripts/seo-headers-check.sh          # стенд, прод, robots, sitemap, canonical
+SEO_STRICT=1 bash scripts/seo-headers-check.sh   # зазоры (строки `gap`) считаются провалом
+```
+
+Норма для исправного стенда и незадетого прода — `PASS=21 FAIL=0 GAP=0` (9 ответов стенда, 6 ответов прода, canonical `www`, robots и sitemap). Измерено 9 ноября 2026 после включения правила Cloudflare.
+
+Скрипт обращается к тем же публичным адресам, что и поисковый робот, секретов не требует, только GET. Отдельные `curl`-проверки:
 
 ```bash
 curl -sSI https://test.tamir.rs/rs | grep -i x-robots-tag
@@ -55,7 +68,98 @@ curl -fsS https://test.tamir.rs/robots.txt
 curl -fsS https://test.tamir.rs/sitemap.xml
 ```
 
-На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно. Если стендовый адрес всё ещё виден в Search Console, порядок действий: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить свойство `test.tamir.rs` из Search Console. Тот же заголовок можно выдать и на уровне Cloudflare (Transform Rule / Modify Response Header), если приложение его не отдаёт.
+На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно.
+
+### Зазоры, которые закрывает правило Cloudflare (закрыты 9 ноября 2026)
+
+Три ответа на стенде приложение не формирует, поэтому `X-Robots-Tag` в них не было:
+
+| URL | Ответ | Причина |
+| --- | --- | --- |
+| `https://test-api.tamir.rs/app` | 200, HTML кабинета | Medusa раздаёт admin-статику раньше глобального middleware |
+| `https://test-api.tamir.rs/store/products` | 400, JSON | `ensurePublishableApiKeyMiddleware` бросает ошибку до него |
+| `https://youtrack.tamir.rs/*` | 200, HTML YouTrack | внешний трекер, кода которого в репозитории нет; хост в той же зоне Cloudflare |
+
+Замена дефолтного `errorHandler` Medusa ради первых двух ответов трогает и прод, а YouTrack вообще не наш код, поэтому все три закрывает правило Cloudflare — Transform Rules → Transform Rule → Modify Response Header:
+
+```
+If: (http.host eq "test.tamir.rs" or http.host eq "test-api.tamir.rs" or http.host eq "youtrack.tamir.rs")
+Then: Set header "X-Robots-Tag" = "noindex, nofollow, noarchive, nosnippet" (overwrite)
+```
+
+Правило действует после приложения и не меняет ни тело, ни статус ответа. Применено 9 ноября 2026 и проверено: `https://test-api.tamir.rs/app` отвечает 200 с заголовком, `https://test-api.tamir.rs/store/products` — 400 с заголовком, `https://youtrack.tamir.rs/login` — 200 с заголовком.
+
+Координаты в Cloudflare (зона `tamir.rs`), чтобы не искать вслепую:
+
+| | |
+| --- | --- |
+| Дашборд | Rules → Overview → тип `Modify Response Header` (`.../tamir.rs/rules/overview?type=http_response_headers_transform`) |
+| Ruleset | `seo-noindex-staging`, id `7acf450c8daf42f4a34d012f5e96a77b`, phase `http_response_headers_transform` |
+| Правило | id `2ffeeb55183f4f8aa40c73db45e49a08`, `enabled: true` |
+
+Это entrypoint фазы, то есть единственные правила этой фазы в зоне; в API — `GET /zones/<zone>/rulesets/phases/http_response_headers_transform/entrypoint`. Правку вносить `PUT` на этот же entrypoint (повторный `POST` на `/rulesets` отдаёт `20217 exceeded maximum number of zone rulesets for phase`). В выражении только стендовые хосты — `tamir.rs`, `www.tamir.rs` и `api.tamir.rs` под это правило добавлять нельзя: оно снимало бы индексацию с настоящего магазина.
+
+### Состояние индекса по отчёту «Страницы» (9 ноября 2026)
+
+Свойство — доменное `sc-domain:tamir.rs`, оно охватывает и поддомены, включая `test.tamir.rs`. Проиндексировано 54 URL: `tamir.rs` — 44, `test.tamir.rs` — 9, `www.tamir.rs` — 1. Не проиндексировано 280, из них 47 — `noindex` (служебные страницы, закрытые самим приложением), 177 — 404 (прежние товарные адреса и `rozetka-*`-заглушки, [политика 404](#что-делать-при-замене-товара)), 31 — «Вариант страницы с тегом canonical», 10 — «Страница с переадресацией», 9 — «Просканирована, не включена», 4 — «Дубли с содержимым, отличной от canonical», 2 — закрыто robots.txt.
+
+Стендовые URL в индексе (снимок до деплоя закрытия, обход ещё не показал `noindex`):
+
+```
+https://test.tamir.rs/
+https://test.tamir.rs/cookies
+https://test.tamir.rs/terms
+https://test.tamir.rs/rs/catalog/kape
+https://test.tamir.rs/rs/products/muska-zimska-kapa-sa-sivom-flis-podstavom
+https://test.tamir.rs/en/products/men-s-khaki-winter-hat-with-fleece-lining
+https://test.tamir.rs/en/products/dark-gray-knitted-hat-with-a-pompom
+https://test.tamir.rs/en/products/men-s-winter-hat-in-gray-color
+https://test.tamir.rs/en/products/black-winter-hat-for-men
+```
+
+9 ноября 2026 для `https://test.tamir.rs/` выполнена инспекция и отправлен запрос индексирования, чтобы Google быстрее принёс свежий ответ с `noindex`. Остальные стендовые URL дожимать не нужно — robot-crawl открыт, и при следующем обходе `noindex` сработает сам.
+
+### Факт обхода виден в аналитике Cloudflare, а не в панели Search Console
+
+Отчёт Search Console догоняет недели, поэтому подтверждение берут из аналитики самой зоны: GraphQL дашборда `POST https://dash.cloudflare.com/api/v4/graphql` (не `api.cloudflare.com` — тот блокируется CORS из страницы дашборда), датасеты `httpRequestsAdaptive` и `httpRequestsAdaptiveGroups` у `zone`. `firewallEventsAdaptive` для этого не годится: на стендовых хостах событий WAF нет, запрос всегда пустой.
+
+```graphql
+query {
+  viewer { zones(filter: { zoneTag: "<zone id>" }) {
+    httpRequestsAdaptive(filter: {
+      datetime_geq: "2026-11-09T09:27:00Z", datetime_lt: "2026-11-09T12:00:00Z",
+      clientRequestHTTPHost_in: ["test.tamir.rs", "test-api.tamir.rs", "youtrack.tamir.rs"],
+      verifiedBotCategory_in: ["Search Engine Crawler"]
+    }, limit: 30) { datetime clientRequestHTTPHost clientRequestPath edgeResponseStatus userAgent }
+  } }
+}
+```
+
+Время задают только парой `datetime_geq`/`datetime_lt` внутри `filter`, фильтры плоские (`clientRequestHTTPHost_in`, `userAgent_like`), у датасета нет `edges`/`node` — это плоский список объектов. Поля `botScore` и `payPerCrawlStatus` этой зоне недоступны (`authz`).
+
+Снимок 9 ноября 2026 (время UTC). Строки по витрине — уже после релиза `20261109T092752Z-ce092c81b41b`, который поставил `noindex` на приложение стенда; строка YouTrack — за 8 ноября, до правила в Cloudflare:
+
+| Время | Хост | Путь | Код | Обходчик |
+| --- | --- | --- | --- | --- |
+| 09:40:17, 09:46:43, 09:58:04 | `test.tamir.rs` | `/robots.txt` | 200 | Googlebot/2.1 |
+| 09:46:45 | `test-api.tamir.rs` | `/robots.txt` | 200 | Googlebot/2.1 |
+| 10:08:54 | `test.tamir.rs` | `/en` | 200 | Googlebot/2.1 |
+| 10:08:56 | `test.tamir.rs` | `/rs` | 200 | Googlebot/2.1 + Google Smartphone (Nexus) |
+| 8 нояб. 15:45:10 | `youtrack.tamir.rs` | `/robots.txt` | 200 | YandexBot/3.0 |
+
+Группировка за 6–9 ноября по той же зоне: Googlebot сделал 28 запросов `test.tamir.rs/robots.txt`, обошёл `/rs`, `/en`, `/rs/catalog`, `/cookies`, `/terms`, товарные страницы и статические чанки; `Googlebot-Image/1.0` сделал 68 запросов к `test-api.tamir.rs/static/rozetka-*.jpg` (больше сорока разных файлов) — то есть стендовые файлы уже попадали в поиск по картинкам, и заголовок нужен в том числе API-хосту. Отдельный обход `youtrack.tamir.rs` (YandexBot) — то самое основание добавить этот хост в правило Cloudflare.
+
+Заголовок `X-Robots-Tag: noindex` в этих ответах ставили два слоя: приложение стенда — с релиза 09:27 UTC, правило зоны — с 10:16 UTC для `test.tamir.rs`/`test-api.tamir.rs` и с 10:23 UTC для `youtrack.tamir.rs` (версии ruleset видно через `GET /zones/<zone>/rulesets/<id>/versions`: 10:16:51, 10:17:29, 10:23:08). Поэтому обход `youtrack.tamir.rs` 8 ноября заголовка ещё не получал — это и стало основанием добавить хост в правило. По остальным строкам вывод такой: обход с `noindex` состоялся, осталась только перестройка индекса, и повторять запросы индексирования бессмысленно. Сама панель инспекции `https://test.tamir.rs/` в 10:35 UTC показывала старую запись — «URL есть в индексе Google», «Эта страница проиндексирована»; это ожидаемо, индекс перестраивается днями. Тем же запросом с `userAgent_like: "%Googlebot%"` удобно смотреть прод: видно, какие товарные адреса Google обходит и получает по ним `404`.
+
+Порядок снятия: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить отдельное свойство `test.tamir.rs` из Search Console и лишь тогда ужесточать его `robots.txt`. Подтверждение, что пошёл нужный обход: инспекция `https://test.tamir.rs/` показывает `307` и «Индексирование страницы запрещено тегом `noindex`» вместо старой версии страницы. Отчёт обновляется с задержкой; массовые запросы индексирования не ускоряют снятие.
+
+### Дубли хостов
+
+`www.tamir.rs` входит в `SEARCHABLE_HOSTS` намеренно: он закрыт не `noindex`, а canonical — витрина строит canonical из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Это отдельное изменение прод-роутинга: перед ним сверяют, что правило не ломает переключение языка и уже работающий canonical.
+
+`tamir.ua` и `www.tamir.ua` в allow-list были по ошибке: это внешний магазин — источник фида Rozetka, к нашим адресам отношения не имеет. Их убрали из `SEARCHABLE_HOSTS`, и ответ витрины, к которому обратились по чужому `Host`, получает `noindex` как любой не-прод-хост. На импорт это не влияет: разрешение `tamir.ua` живёт в отдельной проверке источника фида (`backend/src/utils/rozetka-preview.ts`) и в `images.remotePatterns` вместе с CSP — там эти домены остаются.
+
+Отдельный долг — 177 URL группы 404: прежние слаги переименованных товаров и `rozetka-*`-заглушки, а также обходимость адресов с `?page=` и `?v_id=`. Товарные перенаправления отключены решением владельца, поэтому вопрос о 301 для этих адресов остаётся за владельцем.
 
 Обновление сервера: [DEPLOY.md](../DEPLOY.md). Структурированные данные и подтверждённые ограничения контента: [PRODUCT-SEO.md](PRODUCT-SEO.md).
 

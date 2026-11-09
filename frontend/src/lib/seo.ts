@@ -2,8 +2,11 @@ import { headers } from "next/headers"
 import type { Locale } from "./i18n/config"
 import { localizedPath } from "./i18n/paths"
 
-/** Public production origins. Any other host is treated as a non-searchable instance. */
-export const SEARCHABLE_HOSTS = new Set(["tamir.rs", "www.tamir.rs", "tamir.ua", "www.tamir.ua", "api.tamir.rs"])
+/**
+ * Public production origins. Any other host is treated as a non-searchable instance.
+ * `tamir.ua` is the external Rozetka feed source, not one of our sites, so it is not listed here.
+ */
+export const SEARCHABLE_HOSTS = new Set(["tamir.rs", "www.tamir.rs", "api.tamir.rs"])
 /** nofollow keeps links crawlable so Google re-crawls the page and reads the directive again. */
 export const ROBOTS_NOINDEX_TAG = "noindex, nofollow, noarchive, nosnippet"
 

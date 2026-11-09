@@ -82,9 +82,10 @@ test('staging sitemap is empty',async()=>{
  assert.equal(entries.length,0)
 })
 test('only public production hosts may be indexed',()=>{
- for(const host of ['tamir.rs','www.tamir.rs','tamir.ua','www.tamir.ua','api.tamir.rs'])
+ for(const host of ['tamir.rs','www.tamir.rs','api.tamir.rs'])
   assert.equal(hostBlocksSearchEngines(host,'https:'),false,host)
- for(const host of ['test.tamir.rs','test-api.tamir.rs','tamir-staging.local','','..','192.168.1.143'])
+ // Чужой домен источника фида Rozetka не даёт права индексировать то, что отвечает на нашем стенде.
+ for(const host of ['test.tamir.rs','test-api.tamir.rs','tamir.ua','www.tamir.ua','tamir-staging.local','','..','192.168.1.143'])
   assert.equal(hostBlocksSearchEngines(host,'https:'),true,JSON.stringify(host))
  assert.equal(hostBlocksSearchEngines('localhost','http:'),false)
  assert.equal(hostBlocksSearchEngines('localhost',null),false)
