@@ -4,7 +4,7 @@ require('ts-node/register/transpile-only')
 const nodemailer=require('nodemailer').default
 const {orderMessage}=require('../src/utils/order-email')
 const {default:subscriber,config}=require('../src/subscribers/order-confirmation')
-const {ContainerRegistrationKeys:Keys,remoteQueryObjectFromString}=require('@medusajs/framework/utils')
+const {ContainerRegistrationKeys:Keys,remoteQueryObjectFromString,BigNumber}=require('@medusajs/framework/utils')
 const order={id:'order_test',display_id:42,email:'customer@example.test',currency_code:'rsd',total:3000,shipping_total:300,items:[{title:'Crni šešir',variant_title:'M / Black',quantity:2,unit_price:1500,total:2700}]}
 test('receipt includes order number, variants, quantities and calculated discounted totals in major units',()=>{
  const mail=orderMessage(order)
@@ -73,4 +73,19 @@ test('HTML escapes product content and preserves authoritative discounted amount
  assert.ok(mail.html.includes('&lt;script&gt;'))
  assert.ok(!/<img|<script|<iframe|<link\b/i.test(mail.html))
  assert.ok(mail.html.includes('2.700'));assert.ok(mail.html.includes('max-width:640px'));assert.ok(mail.html.includes('name="viewport"'))
+})
+
+// query.graph returns Medusa numeric objects before HTTP JSON serialization.
+test('receipt handles native Medusa BigNumber quantities and amounts identically to HTTP JSON',()=>{
+ const native={...order,total:new BigNumber(7500),shipping_total:new BigNumber(300),items:[
+  {title:'Plava kapa',quantity:new BigNumber(2),unit_price:new BigNumber(1440),total:new BigNumber(2880)},
+  {title:'Siva kapa',quantity:new BigNumber(3),unit_price:new BigNumber(1440),total:new BigNumber(4320)},
+ ]}
+ const mail=orderMessage(native)
+ assert.deepEqual(mail,orderMessage(JSON.parse(JSON.stringify(native))))
+ assert.match(mail.text,/Quantity: 2 ×/);assert.match(mail.text,/Quantity: 3 ×/)
+ assert.match(mail.text,/Units: 5/)
+ for(const quantity of [new BigNumber(0),new BigNumber(-1),new BigNumber(1.5),new BigNumber('NaN'),new BigNumber('Infinity'),new BigNumber('9007199254740992')]){
+  assert.throws(()=>orderMessage({...order,items:[{...order.items[0],quantity}]}),/invalid quantity/)
+ }
 })

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import { BigNumber } from "@medusajs/framework/utils"
 import { mailConfig } from "./registration-email"
 
 export type ReceiptOrder = {
@@ -8,7 +9,7 @@ export type ReceiptOrder = {
   currency_code: string
   total: number
   shipping_total: number
-  items: { title: string; variant_title?: string | null; quantity: number; unit_price: number; total: number }[]
+  items: { title: string; variant_title?: string | null; quantity: number | BigNumber; unit_price: number; total: number }[]
 }
 
 function escapeHtml(value: string) {
@@ -24,12 +25,14 @@ export function orderMessage(order: ReceiptOrder) {
   }
   if (!Number.isSafeInteger(order.display_id) || order.display_id < 1 || !order.items?.length) throw new Error("Order email: incomplete order")
   const items = order.items.map(item => {
-    if (!Number.isSafeInteger(item.quantity) || item.quantity < 1) throw new Error("Order email: invalid quantity")
+    // Graph results retain Medusa BigNumber values until HTTP JSON serialization.
+    const quantity = item.quantity instanceof BigNumber ? item.quantity.numeric : item.quantity
+    if (!Number.isSafeInteger(quantity) || quantity < 1) throw new Error("Order email: invalid quantity")
     if (typeof item.title !== "string" || !item.title.trim()) throw new Error("Order email: incomplete item")
     return {
       title: item.title,
       variant: item.variant_title && item.variant_title !== "Default variant" ? item.variant_title : "",
-      quantity: item.quantity,
+      quantity,
       unit: money(item.unit_price),
       total: money(item.total),
     }
