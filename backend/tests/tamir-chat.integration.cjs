@@ -250,6 +250,59 @@ test('SQL webhook authorization, duplicate update and current response locale', 
   await db('tamir_chat_operator').where({ telegram_id: '555' }).update({ enabled: false })
   assert.equal((await telegramUpdate(db, webhook, { ...update, update_id: 2 })).ignored, true)
 })
+test('SQL numeric chat id jsonb heals on read, keeps operator replies routed and settings bindings', async () => {
+  const c = await start()
+  await send(c)
+  await deliverOne(db, fake)
+  const bound = await owned(db, c.id, who)
+  assert.equal(bound.telegram_chat_id, '-100123')
+  assert.ok(bound.telegram_thread_id)
+  const legacy = (config) => ({ ...config, telegram: { ...config.telegram, chatId: -100123 } })
+  // Legacy rows carry telegram.chatId as a jsonb number, which used to make every
+  // operator reply look like it belonged to another chat and be ignored.
+  let row = await db('tamir_chat_settings').where({ id: 1 }).first()
+  await db('tamir_chat_settings').where({ id: 1 }).update({ config: JSON.stringify(legacy(row.config)) })
+  assert.equal(typeof (await db('tamir_chat_settings').where({ id: 1 }).first()).config.telegram.chatId, 'number')
+  const healed = await settings(db)
+  assert.equal(healed.config.telegram.chatId, '-100123')
+  assert.equal(healed.revision, row.revision)
+  assert.equal(typeof (await db('tamir_chat_settings').where({ id: 1 }).first()).config.telegram.chatId, 'string')
+  await db('tamir_chat_operator').insert({
+    id: randomUUID(),
+    name: 'Ops',
+    telegram_id: '555',
+    role: 'operator',
+    enabled: true,
+    available: false,
+  })
+  const reply = {
+    update_id: 77,
+    message: {
+      message_id: 2000,
+      chat: { id: -100123 },
+      message_thread_id: Number(bound.telegram_thread_id),
+      from: { id: 555, is_bot: false },
+      text: 'Готово',
+    },
+  }
+  assert.equal((await telegramUpdate(db, await secret(db, 'webhook'), reply)).accepted, true)
+  // A manager saving an unrelated field with the numeric id from the UI must not unbind topics.
+  row = await db('tamir_chat_settings').where({ id: 1 }).first()
+  const numeric = legacy(row.config)
+  await db('tamir_chat_settings').where({ id: 1 }).update({ config: JSON.stringify(numeric) })
+  await saveSettings(
+    db,
+    { revision: row.revision, config: { ...numeric, title: { sr: 'Podrška', en: 'Support' } } },
+    'admin',
+  )
+  const kept = await owned(db, c.id, who)
+  assert.equal(kept.telegram_chat_id, '-100123')
+  assert.equal(kept.telegram_thread_id, bound.telegram_thread_id)
+  const saved = (await db('tamir_chat_settings').where({ id: 1 }).first()).config
+  assert.equal(saved.telegram.chatId, '-100123')
+  assert.equal(saved.title.en, 'Support')
+  assert.equal((await messages(db, c.id)).at(-1).sender, 'operator')
+})
 test('SQL system templates never enqueue translation or notification loops', async () => {
   const c = await start()
   await changeStatus(db, c.id, 'closed', 'admin')

@@ -120,7 +120,26 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
       actor = await admin(req, ['status', 'reply', 'seen', 'retry'].includes(action) ? 'operator' : 'manager')
     await limit(req, 'admin-chat', 60)
     if (action === 'settings') return res.json(await saveSettings(db, body, actor.id))
-    if (action === 'secrets') return res.json(await saveSecrets(db, body, actor.id))
+    if (action === 'secrets') {
+      const saved = await saveSecrets(db, body, actor.id)
+      // A new bot token rotates the webhook secret, so the old registration is already broken.
+      // Re-check and re-install inside this request; a failing Telegram must not undo the saved secret.
+      if (body?.kind === 'telegram') {
+        let status: Record<string, unknown> = { state: 'error', code: 'TELEGRAM_UNAVAILABLE' }
+        try {
+          status = { state: 'ok', ...(await checkTelegram(db)) }
+          try {
+            Object.assign(status, await installWebhook(db))
+          } catch (e) {
+            status.installCode = e instanceof ChatError ? e.code : 'TELEGRAM_UNAVAILABLE'
+          }
+        } catch (e) {
+          status = { state: 'error', code: e instanceof ChatError ? e.code : 'TELEGRAM_UNAVAILABLE' }
+        }
+        return res.json({ ...saved, telegram: status })
+      }
+      return res.json(saved)
+    }
     if (action === 'telegram-check') return res.json(await checkTelegram(db))
     if (action === 'telegram-webhook') {
       await checkTelegram(db)

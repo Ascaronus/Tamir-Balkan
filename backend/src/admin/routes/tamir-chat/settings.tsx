@@ -318,7 +318,7 @@ export function Settings({ tab }: { tab: string }) {
           disabled={busy || !token}
           onClick={() =>
             void run(async () => {
-              await request('secrets', { kind: 'telegram', value: token })
+              setResult(await request('secrets', { kind: 'telegram', value: token }))
               setToken('')
               await refreshConnection()
             })
@@ -343,7 +343,9 @@ export function Settings({ tab }: { tab: string }) {
           ))}
         </div>
         <Text size="small">
-          После замены токена установите webhook повторно. При смене группы или бота темы будут созданы заново.
+          После замены токена приложение проверяет Telegram и устанавливает webhook автоматически. Если в ответе
+          есть ошибка — исправьте токен или настройки группы и нажмите «Установить webhook» вручную. При смене Chat ID
+          или режима тем привязки диалогов к темам сбрасываются, темы создаются заново.
         </Text>
       </div>
       <div hidden={tab !== 'templates'} className="chat-section">

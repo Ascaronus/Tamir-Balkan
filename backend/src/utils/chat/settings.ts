@@ -1,10 +1,22 @@
 import type { Knex } from 'knex'
 import { chatConfigSchema, type ChatConfig } from '../../shared/chat-config'
 import { ChatError, encryptSecret, decryptSecret, newGuestToken } from './security'
+// Legacy rows stored telegram.chatId as a jsonb number; readers and comparisons need the canonical string.
+function normalizeChatConfig(config: any): ChatConfig {
+  const chatId = config?.telegram?.chatId
+  if (typeof chatId !== 'number' && !(typeof chatId === 'string' && chatId !== chatId.trim())) return config
+  return { ...config, telegram: { ...config.telegram, chatId: String(chatId).trim() } }
+}
 export async function settings(db: Knex): Promise<{ config: ChatConfig; revision: number }> {
   const row = await db('tamir_chat_settings').where({ id: 1 }).first()
   if (!row) throw new ChatError(503, 'CHAT_NOT_INITIALIZED')
-  return row
+  const config = normalizeChatConfig(row.config)
+  // Repair the stored document once so every consumer, including SQL reports, sees the same value.
+  if (config !== row.config)
+    await db('tamir_chat_settings')
+      .where({ id: 1 })
+      .update({ config: JSON.stringify(config) })
+  return { ...row, config }
 }
 export async function audit(db: Knex, kind: string, actor?: string, conversation?: string, code?: string) {
   await db('tamir_chat_event').insert({
@@ -36,7 +48,9 @@ export async function saveSettings(db: Knex, input: any, actor: string) {
       (!config.telegram.chatId || !(await trx('tamir_chat_secret').where({ name: 'telegram' }).first()))
     )
       throw new ChatError(400, 'TELEGRAM_NOT_CONFIGURED')
-    if (config.telegram.chatId !== row.config.telegram.chatId || config.telegram.topics !== row.config.telegram.topics)
+    // Compare canonical forms so a legacy numeric chatId in jsonb is not treated as a new target.
+    const currentConfig = normalizeChatConfig(row.config)
+    if (config.telegram.chatId !== currentConfig.telegram.chatId || config.telegram.topics !== currentConfig.telegram.topics)
       await trx('tamir_chat_conversation').update({ telegram_chat_id: null, telegram_thread_id: null })
     await trx('tamir_chat_settings')
       .where({ id: 1 })
