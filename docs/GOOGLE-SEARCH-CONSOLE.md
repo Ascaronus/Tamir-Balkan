@@ -119,6 +119,38 @@ https://test.tamir.rs/en/products/black-winter-hat-for-men
 
 9 ноября 2026 для `https://test.tamir.rs/` выполнена инспекция и отправлен запрос индексирования, чтобы Google быстрее принёс свежий ответ с `noindex`. Остальные стендовые URL дожимать не нужно — robot-crawl открыт, и при следующем обходе `noindex` сработает сам.
 
+### Факт обхода виден в аналитике Cloudflare, а не в панели Search Console
+
+Отчёт Search Console догоняет недели, поэтому подтверждение берут из аналитики самой зоны: GraphQL дашборда `POST https://dash.cloudflare.com/api/v4/graphql` (не `api.cloudflare.com` — тот блокируется CORS из страницы дашборда), датасеты `httpRequestsAdaptive` и `httpRequestsAdaptiveGroups` у `zone`. `firewallEventsAdaptive` для этого не годится: на стендовых хостах событий WAF нет, запрос всегда пустой.
+
+```graphql
+query {
+  viewer { zones(filter: { zoneTag: "<zone id>" }) {
+    httpRequestsAdaptive(filter: {
+      datetime_geq: "2026-11-09T09:27:00Z", datetime_lt: "2026-11-09T12:00:00Z",
+      clientRequestHTTPHost_in: ["test.tamir.rs", "test-api.tamir.rs", "youtrack.tamir.rs"],
+      verifiedBotCategory_in: ["Search Engine Crawler"]
+    }, limit: 30) { datetime clientRequestHTTPHost clientRequestPath edgeResponseStatus userAgent }
+  } }
+}
+```
+
+Время задают только парой `datetime_geq`/`datetime_lt` внутри `filter`, фильтры плоские (`clientRequestHTTPHost_in`, `userAgent_like`), у датасета нет `edges`/`node` — это плоский список объектов. Поля `botScore` и `payPerCrawlStatus` этой зоне недоступны (`authz`).
+
+Снимок 9 ноября 2026 (время UTC). Строки по витрине — уже после релиза `20261109T092752Z-ce092c81b41b`, который поставил `noindex` на приложение стенда; строка YouTrack — за 8 ноября, до правила в Cloudflare:
+
+| Время | Хост | Путь | Код | Обходчик |
+| --- | --- | --- | --- | --- |
+| 09:40:17, 09:46:43, 09:58:04 | `test.tamir.rs` | `/robots.txt` | 200 | Googlebot/2.1 |
+| 09:46:45 | `test-api.tamir.rs` | `/robots.txt` | 200 | Googlebot/2.1 |
+| 10:08:54 | `test.tamir.rs` | `/en` | 200 | Googlebot/2.1 |
+| 10:08:56 | `test.tamir.rs` | `/rs` | 200 | Googlebot/2.1 + Google Smartphone (Nexus) |
+| 8 нояб. 15:45:10 | `youtrack.tamir.rs` | `/robots.txt` | 200 | YandexBot/3.0 |
+
+Группировка за 6–9 ноября по той же зоне: Googlebot сделал 28 запросов `test.tamir.rs/robots.txt`, обошёл `/rs`, `/en`, `/rs/catalog`, `/cookies`, `/terms`, товарные страницы и статические чанки; `Googlebot-Image/1.0` сделал 68 запросов к `test-api.tamir.rs/static/rozetka-*.jpg` (больше сорока разных файлов) — то есть стендовые файлы уже попадали в поиск по картинкам, и заголовок нужен в том числе API-хосту. Отдельный обход `youtrack.tamir.rs` (YandexBot) — то самое основание добавить этот хост в правило Cloudflare.
+
+Заголовок `X-Robots-Tag: noindex` в этих ответах ставили два слоя: приложение стенда — с релиза 09:27 UTC, правило зоны — с 10:16 UTC для `test.tamir.rs`/`test-api.tamir.rs` и с 10:23 UTC для `youtrack.tamir.rs` (версии ruleset видно через `GET /zones/<zone>/rulesets/<id>/versions`: 10:16:51, 10:17:29, 10:23:08). Поэтому обход `youtrack.tamir.rs` 8 ноября заголовка ещё не получал — это и стало основанием добавить хост в правило. По остальным строкам вывод такой: обход с `noindex` состоялся, осталась только перестройка индекса, и повторять запросы индексирования бессмысленно. Сама панель инспекции `https://test.tamir.rs/` в 10:35 UTC показывала старую запись — «URL есть в индексе Google», «Эта страница проиндексирована»; это ожидаемо, индекс перестраивается днями. Тем же запросом с `userAgent_like: "%Googlebot%"` удобно смотреть прод: видно, какие товарные адреса Google обходит и получает по ним `404`.
+
 Порядок снятия: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить отдельное свойство `test.tamir.rs` из Search Console и лишь тогда ужесточать его `robots.txt`. Подтверждение, что пошёл нужный обход: инспекция `https://test.tamir.rs/` показывает `307` и «Индексирование страницы запрещено тегом `noindex`» вместо старой версии страницы. Отчёт обновляется с задержкой; массовые запросы индексирования не ускоряют снятие.
 
 ### Дубли хостов
