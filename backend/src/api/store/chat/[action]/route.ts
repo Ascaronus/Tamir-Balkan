@@ -4,6 +4,7 @@ import { chatDb, failure, identity, limit } from '../../../../utils/chat/http'
 import { publicSettings, settings } from '../../../../utils/chat/settings'
 import {
   readOwn,
+  appendMessage,
   claimGuest,
   customerMessage,
   customerView,
@@ -14,6 +15,7 @@ import {
   startConversation,
   changeStatus,
 } from '../../../../utils/chat/conversations'
+import { prepareImage, readImage, imageResponse } from '../../../../utils/chat/images'
 import { ChatError } from '../../../../utils/chat/security'
 import { kickChat } from '../../../../utils/chat/delivery'
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
@@ -24,6 +26,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     if (req.params.action === 'config') return res.json(await publicSettings(db))
     const who = await identity(req)
     if (req.params.action === 'conversations') return res.json({ conversations: await listOwn(db, who) })
+    if (req.params.action === 'image')
+      return imageResponse(res, await readImage(db, String(req.query.id || ''), String(req.query.image || ''), who))
     if (req.params.action === 'messages') {
       return res.json(
         await readOwn(
@@ -46,12 +50,18 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
       who = await identity(req),
       body = req.body as any,
       action = req.params.action
-    await limit(req, 'chat-' + action, action === 'session' ? 15 : 40)
+    await limit(req, 'chat-' + action, action === 'session' ? 15 : action === 'image-message' ? 10 : 40)
     if (action === 'session') return res.json(await startConversation(db, who, body))
     if (action === 'claim') return res.json(await claimGuest(db, who))
     const c = await owned(db, String(body?.id || ''), who),
       { config } = await settings(db)
     if (!config.enabled && action !== 'delete') throw new ChatError(409, 'CHAT_DISABLED')
+    if (action === 'image-message') {
+      const image = await prepareImage(body.image)
+      const result = await appendMessage(db, c.id, 'customer', { text: body.text, clientId: body.clientId }, who.profile, who, image)
+      kickChat(db)
+      return res.json(result)
+    }
     if (action === 'messages') {
       const result = await customerMessage(db, c.id, who, { text: body.text, clientId: body.clientId })
       kickChat(db)

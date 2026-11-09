@@ -484,6 +484,11 @@ export default function TamirChat() {
                     </Text>
                     <Label>Оригинал ({m.source_language || '…'})</Label>
                     <p>{m.original}</p>
+                    {m.has_image && (
+                      <a href={`/admin/tamir-chat/image?id=${dialog.conversation.id}&image=${m.id}`} target="_blank" rel="noreferrer">
+                        <img src={`/admin/tamir-chat/image?id=${dialog.conversation.id}&image=${m.id}`} alt="Изображение покупателя" loading="lazy" style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8 }} />
+                      </a>
+                    )}
                     {m.translated && (
                       <>
                         <Label>Перевод ({m.target_language})</Label>

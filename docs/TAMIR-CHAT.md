@@ -82,6 +82,7 @@ CREATE TABLE/INDEX IF NOT EXISTS выполняется в общей транз
 | tamir_chat_guest | Hash proof, контакты, expiry |
 | tamir_chat_conversation | Владелец, номер, профиль, локаль/статус, товар, topic mapping |
 | tamir_chat_message | Original/translation, языки, sender, timestamp, seq, status, idempotency key |
+| tamir_chat_image | Приватный JPEG (bytea), размер; FK message_id, каскадное удаление |
 | tamir_chat_outbox | attempts, next_at, done, безопасный error_code |
 | tamir_chat_telegram_ref | Telegram ID каждого фрагмента → message |
 | tamir_chat_update | Дедупликация update_id в пространстве бота |
@@ -206,6 +207,9 @@ BFF. ID диалога не является доказательством до
 | GET | /store/chat/conversations | Собственные диалоги |
 | GET | /store/chat/messages?id=&before= | До 100 сообщений |
 | POST | /store/chat/messages | id, text, UUID clientId |
+| POST | /store/chat/image-message | id, text (может быть пустым), UUID clientId, image (data URL) |
+| GET | /store/chat/image?id=&image= | Приватное изображение по ID диалога и сообщения; только владелец |
+| GET | /admin/tamir-chat/image?id=&image= | Изображение для авторизованного участника поддержки |
 | POST | /store/chat/context | id, locale, optional productId/variantId/path, серверная валидация товара |
 | POST | /store/chat/claim | Явная привязка гостя к аккаунту |
 | POST | /store/chat/reopen | Возобновление |
@@ -284,3 +288,34 @@ native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudf
 
 Изменены: backend middlewares/setup-reviews и README jobs/scripts;
 frontend StoreProviders/ProductDetails, SR/EN dictionaries; docs index/TESTING.
+
+
+## Ввод, автоматические сообщения и изображения
+
+Enter отправляет, Shift+Enter добавляет строку; ввод через IME и удержание Enter не создают повторных отправок.
+Форма использует отдельные строки для статуса, вложения и ввода. Автоматические сообщения отображаются
+в пузырях; шаблон выбирается по ключу на текущей SR/EN локали, без обращения к Google.
+Новые закрытия/возобновления сохраняют `template_key`; старые записи восстанавливают ключ при совпадении
+с текущим шаблоном. Исторический вручную изменённый текст, который уже не совпадает с шаблоном, сохраняется.
+
+Покупатель может приложить одну статичную JPG/PNG/WebP картинку, с текстом или без него. Лимит исходного
+файла 5 MiB, 20 мегапикселей, соотношение сторон не более 20:1. SVG, GIF, анимация и другие файлы запрещены.
+Сервер декодирует изображение через sharp, удаляет метаданные, учитывает ориентацию и сохраняет JPEG
+до 1600×1600 и 2 MiB. Ограничение: 10 запросов загрузки/минуту и 50 изображений на диалог.
+
+Изображение, сообщение и outbox сохраняются одной транзакцией. Повтор с тем же clientId не создаёт копию.
+Telegram получает файл через multipart sendPhoto в тему диалога; изображение не отправляется на перевод.
+Текстовая подпись переводится обычным путём. Сбой Telegram оставляет вложение в очереди для повторной доставки.
+Как и текстовая доставка, Telegram имеет семантику at-least-once: таймаут после принятия фото Telegram может
+привести к повтору. При подтверждённой отправке служебного текста он не повторяется при повторе фото.
+
+Файлы хранятся в PostgreSQL отдельно от строк сообщений: SSE и списки не содержат бинарные данные.
+GET изображения проверяет владельца либо права поддержки; ответы private/no-store, nosniff.
+Удаление истории и retention удаляют файлы каскадно. Резервные копии БД и Telegram-копии обслуживаются отдельно.
+Загрузка в этой версии идёт с сайта в Telegram; ответы оператора из Telegram остаются текстовыми.
+
+Для обновления установить backend зависимости (`npm ci`) и выполнить существующий `setup-reviews.ts`
+перед запуском приложения. Он идемпотентно добавляет `has_image`, `template_key` и `tamir_chat_image`.
+Новых секретов или переменных окружения не требуется. Если перед приложениями стоит nginx/иной proxy,
+разрешить тело запроса не менее 7 MiB для `/api/chat/image-message` и `/store/chat/image-message`;
+остальные chat API сохраняют ограничение 8 KiB. Увеличение размера БД нужно учитывать в резервных копиях.

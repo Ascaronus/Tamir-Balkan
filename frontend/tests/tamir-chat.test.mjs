@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { load } from '../test-support/component-harness.mjs'
-import { guestValid, mergeMessages } from '../src/components/chat/chat-client.ts'
+import { load, hooks, find } from '../test-support/component-harness.mjs'
+import { guestValid, mergeMessages, imageFileError, imageData, systemText } from '../src/components/chat/chat-client.ts'
 test('chat guest requires name and independently validates optional contacts', () => {
   assert.equal(guestValid('Ana', '', ''), true)
   assert.equal(guestValid('Ana', 'ana@example.test', ''), true)
@@ -150,4 +150,111 @@ test('chat BFF fails closed for invalid configured origins and supports local de
     method: 'POST', headers: { origin: 'http://localhost:3000' },
   }))
   assert.equal(result.status, 200)
+})
+
+
+test('chat composer submits Enter through the Send form and preserves Shift+Enter and IME', async () => {
+  const h = hooks(), calls = [], noop = () => {}, refresh = async () => {}
+  let release, locale = 'en'
+  const config = { enabled: true, locales: ['en', 'sr'], available: true, templates: { welcome: { enabled: true, text: { en: 'Hello!', sr: 'Zdravo!' } }, sent: { enabled: true, text: { en: 'Saved', sr: 'Sačuvano' } } }, title: { en: 'Support' }, button: { en: 'Chat' } }
+  const client = {
+    guestValid, mergeMessages, imageFileError, imageData: async () => 'data:image/png;base64,dGVzdA==', systemText,
+    chatRequest: async (action, body) => {
+      calls.push({ action, body })
+      if (action === 'config') return config
+      if (action === 'session') return { conversation: { id: 'chat_1', status: 'open' }, conversations: [] }
+      if (action === 'messages') await new Promise(resolve => { release = resolve })
+      return {}
+    },
+  }
+  const { default: Widget } = load('frontend/src/components/chat/ChatWidget.tsx', {
+    react: h.react, 'next/navigation': { usePathname: () => '/en' },
+    '@/components/auth/AuthProvider': { useAuth: () => ({ customer: { id: 'cus_1' }, isReady: true, refresh }) },
+    '@/components/i18n/LocaleProvider': { useLocaleContext: () => ({ locale, t: key => key }) },
+    './chat-client': client, './chat.css': {},
+  }, {
+    AbortController, setInterval: () => 1, clearInterval: noop,
+    document: { addEventListener: noop, removeEventListener: noop, querySelector: () => null },
+    window: { addEventListener: noop, removeEventListener: noop },
+    EventSource: class { addEventListener() {} close() {} },
+    crypto: { randomUUID: () => 'message-1' },
+  })
+  const session = Widget(), render = () => h.render(() => session.type(session.props))
+  render(); await h.flush()
+  let tree = render()
+  find(tree, n => n.props.className === 'tamir-chat-launcher').props.onClick()
+  render(); await h.flush(); tree = render(); await h.flush()
+  const bubble = () => find(render(), n => n.type === 'article' && n.props.role === 'status')
+  assert.equal(find(bubble(), n => n.type === 'p').props.children, 'Hello!')
+  locale = 'sr'
+  assert.equal(find(bubble(), n => n.type === 'p').props.children, 'Zdravo!')
+  locale = 'en'
+  const input = () => find(render(), n => n.type === 'textarea')
+  const press = (overrides = {}) => {
+    let prevented = false
+    const form = find(render(), n => n.type === 'form' && find(n, c => c.type === 'textarea'))
+    input().props.onKeyDown({ key: 'Enter', nativeEvent: {}, preventDefault: () => { prevented = true },
+      currentTarget: { form: { requestSubmit: () => form.props.onSubmit({ preventDefault: noop }) } }, ...overrides })
+    return prevented
+  }
+  input().props.onChange({ target: { value: 'Zdravo!' } })
+  assert.equal(press({ shiftKey: true }), false)
+  assert.equal(press({ nativeEvent: { isComposing: true } }), false)
+  assert.equal(press({ nativeEvent: { keyCode: 229 } }), false)
+  assert.equal(press({ repeat: true }), true)
+  assert.equal(calls.filter(c => c.action === 'messages').length, 0)
+  assert.equal(press(), true)
+  await h.flush()
+  press(); await h.flush()
+  assert.equal(calls.filter(c => c.action === 'messages').length, 1)
+  assert.equal(calls.find(c => c.action === 'messages').body.text, 'Zdravo!')
+  release(); await h.flush()
+  assert.equal(input().props.value, '')
+  press(); await h.flush()
+  assert.equal(calls.filter(c => c.action === 'messages').length, 1)
+  input().props.onChange({ target: { value: 'Button message' } })
+  const form = find(render(), n => n.type === 'form' && find(n, c => c.type === 'textarea'))
+  assert.equal(find(form, n => n.type === 'button').props.type, 'submit')
+  form.props.onSubmit({ preventDefault: noop }); await h.flush()
+  assert.equal(calls.filter(c => c.action === 'messages').length, 2)
+  release(); await h.flush()
+  const choose = () => find(render(), n => n.type === 'input' && n.props.type === 'file')
+  await choose().props.onChange({ target: { files: [{ name: 'photo.png', type: 'image/png', size: 20 }], value: 'photo.png' } })
+  assert.ok(find(render(), n => n.type === 'img' && n.props.src.startsWith('data:')))
+  press(); await h.flush()
+  const upload = calls.find(c => c.action === 'image-message')
+  assert.equal(upload.body.text, '')
+  assert.equal(upload.body.image, 'data:image/png;base64,dGVzdA==')
+  assert.equal(find(render(), n => n.type === 'img' && n.props.src.startsWith('data:')), null)
+
+})
+
+
+test('automatic status messages resolve the current locale, including legacy stored text', () => {
+  const config = { templates: { closed: { enabled: true, text: { sr: 'Zatvoreno', en: 'Closed' } } } }
+  for (const message of [
+    { sender: 'system', template_key: 'closed', text: 'Old custom text' },
+    { sender: 'system', text: 'Zatvoreno' },
+  ]) {
+    assert.equal(systemText(message, config, 'en'), 'Closed')
+    assert.equal(systemText(message, config, 'sr'), 'Zatvoreno')
+  }
+  assert.equal(systemText({ sender: 'customer', text: 'Zatvoreno' }, config, 'en'), 'Zatvoreno')
+})
+test('image chooser restricts types and size before reading files', () => {
+  assert.equal(imageFileError({ type: 'image/png', size: 5 * 1024 * 1024 }), '')
+  assert.equal(imageFileError({ type: 'image/png', size: 5 * 1024 * 1024 + 1 }), 'CHAT_IMAGE_TOO_LARGE')
+  for (const type of ['image/svg+xml', 'image/gif', 'application/pdf'])
+    assert.equal(imageFileError({ type, size: 100 }), 'CHAT_IMAGE_INVALID')
+})
+test('image BFF forwards image identity with private no-store responses and bounded uploads', async () => {
+  const r = route({ customer: 'customer-token' })
+  const image = await r.GET(new Request('https://tamir.rs/api/chat/image?id=c&image=m&token=evil'))
+  assert.equal(image.headers.get('cache-control'), 'private, no-store')
+  assert.equal(image.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(r.calls[0].url, 'http://backend.test/store/chat/image?id=c&image=m')
+  assert.equal(r.calls[0].options.headers.authorization, 'Bearer customer-token')
+  assert.equal((await r.POST(post('image-message', { image: 'x'.repeat(9000) }))).status, 200)
+  assert.equal((await r.POST(post('image-message', { image: 'x'.repeat(7 * 1024 * 1024) }))).status, 413)
+  assert.equal((await r.POST(post('image-message', {}, 'https://evil.test'))).status, 403)
 })

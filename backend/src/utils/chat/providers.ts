@@ -10,8 +10,8 @@ export async function telegram(db: Knex, method: string, body: any = {}, transpo
   try {
     const response = await transport(`https://api.telegram.org/bot${token}/${method}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        headers: body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
+        body: body instanceof FormData ? body : JSON.stringify(body),
         signal: AbortSignal.timeout(12000),
       }),
       data = await response.json()

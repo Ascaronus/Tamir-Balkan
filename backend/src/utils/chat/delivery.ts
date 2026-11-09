@@ -51,7 +51,11 @@ export async function deliverOne(db: Knex, transport: Transport = fetch) {
     try {
       const target = m.sender === 'customer' ? config.translation.operatorLanguage : c.locale
       if (m.translation_state === 'pending' || (m.sender === 'operator' && m.target_language !== target)) {
-        if (config.translation.enabled) {
+        if (!m.original && m.has_image) {
+          m.translated = ''
+          m.source_language = 'und'
+          m.translation_state = 'skipped'
+        } else if (config.translation.enabled) {
           const translated = await translate(trx, m.original, target, transport)
           m.translated = translated.text
           m.source_language = translated.source
@@ -100,7 +104,11 @@ export async function deliverOne(db: Knex, transport: Transport = fetch) {
           .first())
         const text = `#${c.number} | ${p.name} | ${c.locale.toUpperCase()}\n${p.email || ''} ${p.phone || ''}\n${c.customer_id ? 'Customer: ' + c.customer_id : 'Guest conversation: ' + c.number}${context}\n\nOriginal (${m.source_language}):\n${m.original}\n\n${m.translation_state === 'disabled' ? 'AUTO TRANSLATION DISABLED — original text' : target.toUpperCase()}:\n${m.translated}`
         // Keep every chunk's ID so direct replies work even without forum topics.
-        for (const chunk of text.match(/[\s\S]{1,3800}/gu) || []) {
+        const chunks = text.match(/[\s\S]{1,3800}/gu) || []
+        const confirmed = m.has_image
+          ? Number((await trx('tamir_chat_telegram_ref').where({ message_id: m.id, chat_id: config.telegram.chatId }).count('* as count'))[0].count)
+          : 0
+        for (const chunk of chunks.slice(confirmed)) {
           const result = await telegram(
             trx,
             'sendMessage',
@@ -120,6 +128,18 @@ export async function deliverOne(db: Knex, transport: Transport = fetch) {
           await trx('tamir_chat_message')
             .where({ id: m.id })
             .update({ telegram_chat_id: config.telegram.chatId, telegram_message_id: result.message_id })
+        }
+        if (m.has_image) {
+          const image = await trx('tamir_chat_image').where({ message_id: m.id }).first()
+          if (!image) throw new ChatError(500, 'CHAT_IMAGE_MISSING')
+          const form = new FormData()
+          form.set('chat_id', config.telegram.chatId)
+          if (thread) form.set('message_thread_id', String(thread))
+          form.set('disable_notification', String(!(first ? config.telegram.notifyNew : config.telegram.notifyMessages)))
+          form.set('photo', new Blob([new Uint8Array(image.content)], { type: image.mime }), 'chat-image.jpg')
+          const result = await telegram(trx, 'sendPhoto', form, transport)
+          await trx('tamir_chat_telegram_ref').insert({ chat_id: config.telegram.chatId, telegram_id: result.message_id, message_id: m.id }).onConflict(['chat_id', 'telegram_id']).ignore()
+          await trx('tamir_chat_message').where({ id: m.id }).update({ telegram_chat_id: config.telegram.chatId, telegram_message_id: result.message_id })
         }
       }
       await trx('tamir_chat_message').where({ id: m.id }).update({ status: 'delivered', updated_at: new Date() })

@@ -10,6 +10,9 @@ CREATE INDEX IF NOT EXISTS tamir_chat_owner ON tamir_chat_conversation(customer_
 CREATE INDEX IF NOT EXISTS tamir_chat_guest_owner ON tamir_chat_conversation(guest_hash);
 CREATE UNIQUE INDEX IF NOT EXISTS tamir_chat_thread ON tamir_chat_conversation(telegram_chat_id,telegram_thread_id) WHERE telegram_thread_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS tamir_chat_message(id uuid PRIMARY KEY,seq bigserial UNIQUE,conversation_id uuid NOT NULL REFERENCES tamir_chat_conversation(id) ON DELETE CASCADE,sender text NOT NULL CHECK(sender IN ('customer','operator','system')),original text NOT NULL,translated text,source_language text,target_language text,locale text NOT NULL,translation_state text NOT NULL DEFAULT 'pending',status text NOT NULL DEFAULT 'sent',client_id text NOT NULL,operator_id uuid,telegram_message_id bigint,telegram_chat_id text,seen_at timestamptz,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),UNIQUE(conversation_id,client_id));
+ALTER TABLE tamir_chat_message ADD COLUMN IF NOT EXISTS has_image boolean NOT NULL DEFAULT false;
+ALTER TABLE tamir_chat_message ADD COLUMN IF NOT EXISTS template_key text;
+CREATE TABLE IF NOT EXISTS tamir_chat_image(message_id uuid PRIMARY KEY REFERENCES tamir_chat_message(id) ON DELETE CASCADE,content bytea NOT NULL CHECK(octet_length(content)<=2097152),mime text NOT NULL CHECK(mime='image/jpeg'),width integer NOT NULL,height integer NOT NULL);
 CREATE INDEX IF NOT EXISTS tamir_chat_message_page ON tamir_chat_message(conversation_id,seq);
 CREATE TABLE IF NOT EXISTS tamir_chat_outbox(message_id uuid PRIMARY KEY REFERENCES tamir_chat_message(id) ON DELETE CASCADE,attempts integer NOT NULL DEFAULT 0,next_at timestamptz NOT NULL DEFAULT now(),done boolean NOT NULL DEFAULT false,error_code text);
 CREATE INDEX IF NOT EXISTS tamir_chat_outbox_due ON tamir_chat_outbox(next_at) WHERE done=false AND attempts<8;
@@ -25,4 +28,8 @@ export async function setupChat(db: Knex) {
     .insert({ id: 1, config: JSON.stringify(defaultChatConfig) })
     .onConflict('id')
     .ignore()
+  await db.raw(`UPDATE tamir_chat_message m SET template_key=t.key
+    FROM tamir_chat_settings s, LATERAL jsonb_each(s.config->'templates') t
+    WHERE s.id=1 AND m.sender='system' AND m.template_key IS NULL
+    AND t.key IN ('closed','reopened') AND m.original=t.value->'text'->>m.locale`)
 }

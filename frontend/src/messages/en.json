@@ -485,6 +485,14 @@
     "viewCart": "View cart"
   },
   "chat": {
+    "image": "Attached image",
+    "attachImage": "Attach image",
+    "removeImage": "Remove image",
+    "imageRules": "JPG, PNG or WebP · up to 5 MB · one image per message",
+    "imageInvalid": "Choose a valid, still JPG, PNG or WebP image (up to 20 megapixels).",
+    "imageTooLarge": "The image is too large. Maximum file size: 5 MB.",
+    "imageLimit": "This conversation has reached its limit of 50 images.",
+
     "available": "Support available",
     "support": "Customer support",
     "privacy": "Messages and contact details are shared with our support team via Telegram and translated by Google. Inactive history is kept for up to {days} days; guest sessions expire after 30 days.",

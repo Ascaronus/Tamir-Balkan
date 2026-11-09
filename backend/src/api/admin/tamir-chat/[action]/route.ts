@@ -5,6 +5,7 @@ import { admin, chatDb, failure, limit } from '../../../../utils/chat/http'
 import { audit, settings, saveSettings, saveSecrets } from '../../../../utils/chat/settings'
 import { checkTelegram, connection, installWebhook, telegram, translate } from '../../../../utils/chat/providers'
 import { appendMessage, changeStatus, messages } from '../../../../utils/chat/conversations'
+import { readImage, imageResponse } from '../../../../utils/chat/images'
 import { ChatError } from '../../../../utils/chat/security'
 import { kickChat } from '../../../../utils/chat/delivery'
 import { operatorSchema } from '../../../../shared/chat-config'
@@ -14,6 +15,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     const actor = await admin(req),
       db = chatDb(req),
       action = req.params.action
+    if (action === 'image')
+      return imageResponse(res, await readImage(db, String(req.query.id || ''), String(req.query.image || '')))
     if (action === 'access') return res.json(actor)
     if (action === 'settings') {
       await admin(req, 'manager')

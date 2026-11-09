@@ -4,6 +4,8 @@ import {load} from '../test-support/component-harness.mjs'
 
 test('legacy identity registration and direct customer creation cannot bypass OTP',()=>{
  const routes=load('backend/src/api/middlewares.ts',{
+  // Chat body-limit handling is covered by backend/tests/tamir-chat-http-errors.test.cjs.
+  '../utils/chat/http-errors':{chatBodyErrorHandler:()=>{}},
   '../utils/customer-cart':{protectCustomerCart:()=>{}},
   '../utils/banner-media':{bannerUploadLimit:()=>5*1024*1024},
   '@medusajs/framework/http':{defineMiddlewares:x=>x,authenticate:()=>()=>{}},

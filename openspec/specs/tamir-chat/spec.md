@@ -40,3 +40,45 @@ SR/EN SHALL cover labels and configurable templates. Account users SHALL bypass 
 ### Requirement: Honest status and retention
 
 Availability SHALL require an enabled operator explicitly marked available, not bot connectivity. Delivered SHALL NOT mean read. The widget SHALL disclose Telegram/Google processing and retention. System templates SHALL NOT enqueue recursive external delivery. Deletion/retention SHALL cascade through chat storage; external copies require separate handling.
+
+
+#### Scenario: Send from the message composer
+
+- WHEN Enter is pressed in the message field
+- THEN the same form submission as the Send button runs without adding a newline
+- WHEN Shift+Enter is pressed or an IME composition is being confirmed
+- THEN typing continues without sending
+- Empty drafts, held-key repeats and attempts during an in-flight send SHALL NOT submit another message
+
+
+### Requirement: Automatic messages follow the active locale
+Automatic messages MUST use the chat bubble presentation and resolve SR/EN text using template identity at render time.
+
+#### Scenario: Switch locale after a greeting or delivery acknowledgement
+- GIVEN an automatic greeting, returning, offline, acknowledgement or status message is visible
+- WHEN the shopper changes SR to EN or EN to SR
+- THEN the configured text changes without translating it through Google or re-sending it to Telegram
+
+### Requirement: Private image attachments
+Shoppers MAY send one static JPEG, PNG or WebP image per message, with optional text. The server MUST decode and re-encode uploads, reject invalid/animated/oversized input, strip metadata and enforce ownership and rate limits.
+
+#### Scenario: Image-only submission and replay
+- WHEN a shopper sends an image up to 5 MiB and 20 megapixels
+- THEN a normalized private JPEG, message and delivery task are persisted atomically
+- AND replaying the client ID creates no duplicate
+- AND Telegram receives the photo in the matching conversation topic without invoking text translation for the image
+
+#### Scenario: Isolation and deletion
+- WHEN another account or a logged-out visitor requests an attachment
+- THEN access is denied even if the image and conversation IDs are known
+- AND deleting or expiring the conversation deletes its stored images
+
+#### Scenario: Mobile composer
+- WHEN the chat is opened on a 320px-wide viewport
+- THEN status, attachment controls, textarea and send button have separate space without horizontal overflow
+
+
+#### Scenario: Oversized chat HTTP bodies
+- WHEN the body parser rejects a request exceeding the text or image upload limit
+- THEN chat endpoints return HTTP 413 with `PAYLOAD_TOO_LARGE`, without reflecting the request body
+- AND unrelated API errors retain the default Medusa error handling

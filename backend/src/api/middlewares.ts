@@ -1,3 +1,4 @@
+import { chatBodyErrorHandler } from "../utils/chat/http-errors"
 import { protectCustomerCart } from "../utils/customer-cart"
 import { bannerUploadLimit } from "../utils/banner-media"
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
@@ -38,12 +39,13 @@ function blockSearchEngines(req: MedusaRequest, res: MedusaResponse, next: Medus
   }
   return next()
 }
-export default defineMiddlewares({ routes: [
+export default defineMiddlewares({ errorHandler: chatBodyErrorHandler, routes: [
   // "*" is the global bucket of the Medusa route sorter; a bare "/" matcher is dropped.
   { matcher: "*", middlewares: [blockSearchEngines] },
   { matcher: "/store/customer-cart", methods: ["POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/store/carts/*", middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true }), protectCustomerCart] },
   { matcher: "/admin/tamir-chat*", bodyParser: { sizeLimit: "32kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
+  { matcher: "/store/chat/image-message", methods: ["POST"], bodyParser: { sizeLimit: "7mb" }, middlewares: [] },
   { matcher: "/store/chat*", bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true })] },
   { matcher: "/hooks/tamir-chat", bodyParser: { sizeLimit: "32kb" }, middlewares: [] },
   { matcher: "/admin/homepage-banners*", bodyParser: { sizeLimit: `${Math.ceil(bannerUploadLimit()*4/3)+4096}b` }, middlewares: [authenticate("user", ["bearer", "session"])] },
