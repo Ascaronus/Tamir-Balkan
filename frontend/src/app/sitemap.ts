@@ -3,11 +3,14 @@ import { listProductsByCountry } from "@/lib/store/products"
 import { listStoreProductCategories } from "@/lib/store/categories"
 import { categoryPath } from "@/lib/store/category-url"
 import { localizedPath, productPath, englishReady } from "@/lib/i18n/paths"
-import { siteUrl } from "@/lib/seo"
+import { blocksSearchEngines, siteUrl } from "@/lib/seo"
 
 export const dynamic = "force-dynamic"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Staging publishes no URL list: an empty <urlset> tells crawlers there is
+  // nothing here to discover.
+  if (await blocksSearchEngines()) return []
   const entries: MetadataRoute.Sitemap = []
   function pair(srPath: string, enPath = localizedPath(srPath, "en"), lastModified?: Date) {
     const languages = { sr: siteUrl(srPath), en: siteUrl(enPath) }

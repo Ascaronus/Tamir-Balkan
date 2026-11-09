@@ -3,18 +3,33 @@ import assert from 'node:assert/strict'
 import { load, hooks, find } from '../test-support/component-harness.mjs'
 import * as paths from '../src/lib/i18n/paths.ts'
 import * as config from '../src/lib/i18n/config.ts'
-import { languageAlternates, siteUrl } from '../src/lib/seo.ts'
+import { languageAlternates, siteUrl, hostBlocksSearchEngines, ROBOTS_NOINDEX_TAG } from '../src/lib/seo.ts'
 
 const response = {
  redirect: (url, status) => ({url:String(url),status,headers:new Headers()}),
  rewrite: (url, options) => ({rewrite:String(url),...options}),
- next: options => ({next:true,...options}),
+ next: options => ({next:true,headers:new Headers(),...options}),
 }
-const {proxy}=load('frontend/src/proxy.ts',{'next/server':{NextResponse:response},'./lib/i18n/config':config,'./lib/i18n/paths':paths},{Headers})
-function request(path, language, cookie) {
- const url=new URL(path,'https://tamir.rs');url.clone=()=>{const copy=new URL(url);copy.clone=url.clone;return copy}
+const {proxy, config: proxyConfig}=load('frontend/src/proxy.ts',{'next/server':{NextResponse:response},'./lib/i18n/config':config,'./lib/i18n/paths':paths,'./lib/seo':{hostBlocksSearchEngines,ROBOTS_NOINDEX_TAG}},{Headers})
+function request(path, language, cookie, host='tamir.rs') {
+ const url=new URL(path,`https://${host}`);url.clone=()=>{const copy=new URL(url);copy.clone=url.clone;return copy}
  return {nextUrl:url,headers:new Headers({'accept-language':language||'', 'x-tamir-locale':'en'}),cookies:{get:()=>cookie?{value:cookie}:undefined}}
 }
+test('every host that is not a public production origin is closed to search engines, entry redirects included',()=>{
+ for(const host of ['test.tamir.rs','test-api.tamir.rs','192.168.1.143','tamir-staging.local']) {
+  for(const path of ['/','/rs','/rs/catalog','/en/privacy']) {
+   const result=proxy(request(path,'en',undefined,host))
+   assert.match(result.headers.get('x-robots-tag'),/noindex/,`${host}${path}`)
+  }
+ }
+ for(const host of ['tamir.rs','www.tamir.rs'])
+  for(const path of ['/','/rs','/rs/catalog/hats'])
+   assert.equal(proxy(request(path,'en',undefined,host)).headers.get('x-robots-tag'),null,`${host}${path}`)
+ // The metadata routes answer without the proxy, so they must not be matched.
+ for(const path of ['/robots.txt','/sitemap.xml','/api/store/x','/_next/static/x.js','/favicon.ico'])
+  assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test(path),false,path)
+ assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test('/rs/catalog'),true)
+})
 test('only an unqualified entry selects browser/saved language, using temporary uncacheable redirects',()=>{
  for(const browser of ['en','en-GB,en;q=0.8','en-US']) {
   const result=proxy(request('/?q=hat',browser));assert.equal(result.status,307);assert.equal(result.url,'https://tamir.rs/en?q=hat');assert.match(result.headers.get('cache-control'),/no-store/)

@@ -2,8 +2,9 @@
 # Комплексная проверка staging после деплоя (ТЗ: staging smoke suite).
 #
 # Проверяет: контейнеры, pm2-процессы, loopback-health, витрину, витринный API
-# (publishable key из staging-БД), почтовый тракт (отправка + приём в Mailpit)
-# и публичные HTTPS-адреса, когда выпущен cloudflared-туннель.
+# (publishable key из staging-БД), почтовый тракт (отправка + приём в Mailpit),
+# публичные HTTPS-адреса и закрытие стенда от поисковиков, когда выпущен
+# cloudflared-туннель.
 #
 # Запуск: sudo -u actions-runner bash scripts/staging-smoke.sh
 set -Eeuo pipefail
@@ -68,13 +69,9 @@ api_base="${api_base:-$STAGING_API_URL}"
 # --- Loopback-вход приложений -----------------------------------------------
 check "backend http://127.0.0.1:${backend_port}/health" curl -fsS --max-time 20 "http://127.0.0.1:${backend_port}/health"
 check "frontend http://127.0.0.1:${frontend_port}/robots.txt" curl -fsS --max-time 30 -o /dev/null "http://127.0.0.1:${frontend_port}/robots.txt"
-# /sitemap.xml строится запросами витрины к API по публичному URL, поэтому до
-# выпуска туннеля он законно отвечает 500.
-if staging_public_checks_enabled; then
-  check "frontend http://127.0.0.1:${frontend_port}/sitemap.xml" curl -fsS --max-time 60 -o /dev/null "http://127.0.0.1:${frontend_port}/sitemap.xml"
-else
-  notes+=("/sitemap.xml не проверялся: витрина строит его через $STAGING_API_URL, нужен туннель")
-fi
+# На закрытом хосте витрина отдаёт пустой <urlset> без обращений к API, поэтому
+# проверка работает и до выпуска туннеля.
+check "frontend http://127.0.0.1:${frontend_port}/sitemap.xml" curl -fsS --max-time 60 -o /dev/null "http://127.0.0.1:${frontend_port}/sitemap.xml"
 
 # --- Витринный API через publishable key из staging-БД -----------------------
 publishable="$(staging_psql_value "SELECT token FROM api_key WHERE type='publishable' AND revoked_at IS NULL AND token LIKE 'pk_%' ORDER BY created_at LIMIT 1;" 2>/dev/null || true)"
@@ -131,6 +128,30 @@ fi
 if staging_public_checks_enabled; then
   check "публичный ${STAGING_API_URL}/health" curl -fsS --retry 5 --retry-delay 3 --max-time 30 "${STAGING_API_URL}/health"
   check "публичный ${STAGING_SITE_URL}/robots.txt" curl -fsS --retry 5 --retry-delay 3 --max-time 30 -o /dev/null "${STAGING_SITE_URL}/robots.txt"
+  # Стенд работает тем же кодом, что и прод, поэтому закрытие от поисковиков держится
+  # на X-Robots-Tag по имени хоста. robots.txt остаётся разрешающим: Google снимает
+  # URL с индекса, только когда может прочитать noindex в HTML/заголовках ответа.
+  if curl -fsS --retry 5 --retry-delay 3 --max-time 30 "${STAGING_SITE_URL}/robots.txt" | tr -d '\r' | grep -qi '^sitemap:'; then
+    bad "robots.txt публикует Sitemap: — стенд выдает карту сайта поисковикам"
+  else
+    ok "robots.txt без Sitemap: (стенд не публикует карту сайта)"
+  fi
+  for noindex_url in "${STAGING_SITE_URL}/rs" "${STAGING_API_URL}/health"; do
+    if curl -fsS --retry 5 --retry-delay 3 --max-time 30 -D - -o /dev/null "$noindex_url" | tr -d '\r' \
+      | grep -qi '^x-robots-tag:.*noindex'; then
+      ok "X-Robots-Tag: noindex отвечает ${noindex_url}"
+    else
+      bad "нет X-Robots-Tag: noindex на ${noindex_url} — стенд открыт поисковикам"
+    fi
+  done
+  # Витрина закрывает и входной redirect: Google снимает URL с индекса по заголовкам
+  # и того ответа. -D - без -f: 307 — легальный ответ, тело не нужно.
+  if curl -sS --max-time 30 --max-redirs 0 -o /dev/null -D - "${STAGING_SITE_URL}/" | tr -d '\r' \
+    | grep -qi '^x-robots-tag:.*noindex'; then
+    ok "X-Robots-Tag: noindex отвечает ${STAGING_SITE_URL}/ (307)"
+  else
+    bad "нет X-Robots-Tag: noindex на редиректе ${STAGING_SITE_URL}/ — прокси его не закрыл"
+  fi
   if [ -n "${publishable:-}" ]; then
     check "публичный ${STAGING_API_URL}/store/products с publishable key" \
       curl -fsS --retry 5 --retry-delay 3 --max-time 30 -H "x-publishable-api-key: $publishable" -o /dev/null "${STAGING_API_URL}/store/products?limit=1"

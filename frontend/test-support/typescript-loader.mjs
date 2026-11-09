@@ -22,7 +22,14 @@ export async function load(url, context, nextLoad) {
 export async function resolve(specifier, context, nextResolve) {
   try { return await nextResolve(specifier, context) }
   catch (error) {
-    if (error.code === "ERR_MODULE_NOT_FOUND" && /^\.{1,2}\//.test(specifier) && !/\.[a-z]+$/i.test(specifier)) return nextResolve(specifier + ".ts", context)
+    if (error.code !== "ERR_MODULE_NOT_FOUND") throw error
+    // Next.js ships extensionless subpaths such as next/headers that only resolve
+    // through require or the Next bundler; these tests import the sources as ESM.
+    if (!/\.[a-z]+$/i.test(specifier)) {
+      for (const suffix of [".ts", ".js"]) {
+        try { return await nextResolve(specifier + suffix, context) } catch { /* try the next suffix */ }
+      }
+    }
     throw error
   }
 }

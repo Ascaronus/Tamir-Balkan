@@ -8,7 +8,39 @@ import { loginRateLimit } from "../utils/login-rate-limit"
 function verifiedRegistrationRequired(_req: MedusaRequest, res: MedusaResponse, _next: MedusaNextFunction) {
   return res.status(403).json({ code: "EMAIL_VERIFICATION_REQUIRED", message: "EMAIL_VERIFICATION_REQUIRED" })
 }
+/** Public production API origins. Any other public host is a non-searchable instance. */
+const SEARCHABLE_API_HOSTS = new Set(["api.tamir.rs", "www.api.tamir.rs"])
+const NOINDEX_TAG = "noindex, nofollow, noarchive, nosnippet"
+/**
+ * Behind the local proxy the API also answers requests whose Host is the bind address.
+ * Such a request carries no public hostname that a crawler could index, and treating it
+ * as searchable keeps the production API working when its proxy forwards $proxy_host.
+ */
+const LOCAL_BIND_HOST = /^(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|\[::1\])$/
+
+function requestHostname(req: MedusaRequest): string {
+  // Host is the only authoritative origin: Express ignores X-Forwarded-Host when routing,
+  // that header is attacker controlled, while cloudflared keeps the public Host header.
+  const host = req.headers.host
+  const value = Array.isArray(host) ? host[0] : host
+  return (value || "").trim().toLowerCase().replace(/:\d+$/, "")
+}
+
+/**
+ * Staging runs the same code as production and serves the admin UI at /app, so the
+ * durable protection is a response header: any public hostname that is not a
+ * production API origin gets an unconditional X-Robots-Tag.
+ */
+function blockSearchEngines(req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunction) {
+  const hostname = requestHostname(req)
+  if (!hostname || (!SEARCHABLE_API_HOSTS.has(hostname) && !LOCAL_BIND_HOST.test(hostname))) {
+    res.setHeader("X-Robots-Tag", NOINDEX_TAG)
+  }
+  return next()
+}
 export default defineMiddlewares({ routes: [
+  // "*" is the global bucket of the Medusa route sorter; a bare "/" matcher is dropped.
+  { matcher: "*", middlewares: [blockSearchEngines] },
   { matcher: "/store/customer-cart", methods: ["POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/store/carts/*", middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true }), protectCustomerCart] },
   { matcher: "/admin/tamir-chat*", bodyParser: { sizeLimit: "32kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
