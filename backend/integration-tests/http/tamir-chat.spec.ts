@@ -66,7 +66,12 @@ medusaIntegrationTestRunner({
       expect((await api.get(imageUrl, cfg())).status).toBe(404)
       expect((await api.get(imageUrl, cfg(b.id))).status).toBe(404)
       expect((await api.post('/store/chat/image-message', attachment, cfg(b.id))).status).toBe(404)
-      expect((await api.post('/store/chat/messages', { ...body, text: 'x'.repeat(9000) }, cfg(a.id))).status).toBe(413)
+      const oversizedText = await api.post('/store/chat/messages', { ...body, text: 'x'.repeat(9000) }, cfg(a.id))
+      expect(oversizedText.status).toBe(413)
+      expect(oversizedText.data).toEqual({ code: 'PAYLOAD_TOO_LARGE' })
+      const oversizedImage = await api.post('/store/chat/image-message', { ...attachment, image: 'x'.repeat(7 * 1024 * 1024) }, cfg(a.id))
+      expect(oversizedImage.status).toBe(413)
+      expect(oversizedImage.data).toEqual({ code: 'PAYLOAD_TOO_LARGE' })
       expect((await api.post('/store/chat/image-message', { ...attachment, image: 'data:image/svg+xml;base64,PHN2Zy8+' }, cfg(a.id))).status).toBe(400)
       expect((await api.get('/admin/tamir-chat/image?id=' + body.id + '&image=' + upload.data.id, cfg())).status).toBe(401)
 

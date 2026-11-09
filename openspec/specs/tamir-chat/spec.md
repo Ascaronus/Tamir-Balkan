@@ -76,3 +76,9 @@ Shoppers MAY send one static JPEG, PNG or WebP image per message, with optional 
 #### Scenario: Mobile composer
 - WHEN the chat is opened on a 320px-wide viewport
 - THEN status, attachment controls, textarea and send button have separate space without horizontal overflow
+
+
+#### Scenario: Oversized chat HTTP bodies
+- WHEN the body parser rejects a request exceeding the text or image upload limit
+- THEN chat endpoints return HTTP 413 with `PAYLOAD_TOO_LARGE`, without reflecting the request body
+- AND unrelated API errors retain the default Medusa error handling

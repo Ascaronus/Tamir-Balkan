@@ -1,3 +1,4 @@
+import { chatBodyErrorHandler } from "../utils/chat/http-errors"
 import { protectCustomerCart } from "../utils/customer-cart"
 import { bannerUploadLimit } from "../utils/banner-media"
 import { authenticate, defineMiddlewares, type MedusaRequest, type MedusaResponse, type MedusaNextFunction } from "@medusajs/framework/http"
@@ -38,7 +39,7 @@ function blockSearchEngines(req: MedusaRequest, res: MedusaResponse, next: Medus
   }
   return next()
 }
-export default defineMiddlewares({ routes: [
+export default defineMiddlewares({ errorHandler: chatBodyErrorHandler, routes: [
   // "*" is the global bucket of the Medusa route sorter; a bare "/" matcher is dropped.
   { matcher: "*", middlewares: [blockSearchEngines] },
   { matcher: "/store/customer-cart", methods: ["POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
