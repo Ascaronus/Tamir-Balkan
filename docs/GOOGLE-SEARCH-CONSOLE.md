@@ -97,7 +97,7 @@ Then: Set header "X-Robots-Tag" = "noindex, nofollow, noarchive, nosnippet" (ove
 | Ruleset | `seo-noindex-staging`, id `7acf450c8daf42f4a34d012f5e96a77b`, phase `http_response_headers_transform` |
 | Правило | id `2ffeeb55183f4f8aa40c73db45e49a08`, `enabled: true` |
 
-Это entrypoint фазы, то есть единственные правила этой фазы в зоне; в API — `GET /zones/<zone>/rulesets/phases/http_response_headers_transform/entrypoint`. Правку вносить `PUT` на этот же entrypoint (повторный `POST` на `/rulesets` отдаёт `20217 exceeded maximum number of zone rulesets for phase`). В выражении только стендовые хосты — `tamir.rs`, `www.tamir.rs`, `api.tamir.rs` и `tamir.ua` под это правило добавлять нельзя: оно снимало бы индексацию с настоящего магазина.
+Это entrypoint фазы, то есть единственные правила этой фазы в зоне; в API — `GET /zones/<zone>/rulesets/phases/http_response_headers_transform/entrypoint`. Правку вносить `PUT` на этот же entrypoint (повторный `POST` на `/rulesets` отдаёт `20217 exceeded maximum number of zone rulesets for phase`). В выражении только стендовые хосты — `tamir.rs`, `www.tamir.rs` и `api.tamir.rs` под это правило добавлять нельзя: оно снимало бы индексацию с настоящего магазина.
 
 ### Состояние индекса по отчёту «Страницы» (9 ноября 2026)
 
@@ -155,7 +155,9 @@ query {
 
 ### Дубли хостов
 
-`www.tamir.rs` и `tamir.ua` входят в `SEARCHABLE_HOSTS` намеренно: они закрыты не `noindex`, а canonical — витрина строит canonical из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Это отдельное изменение прод-роутинга: перед ним сверяют, что правило не ломает переключение языка и уже работающий canonical.
+`www.tamir.rs` входит в `SEARCHABLE_HOSTS` намеренно: он закрыт не `noindex`, а canonical — витрина строит canonical из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Это отдельное изменение прод-роутинга: перед ним сверяют, что правило не ломает переключение языка и уже работающий canonical.
+
+`tamir.ua` и `www.tamir.ua` в allow-list были по ошибке: это внешний магазин — источник фида Rozetka, к нашим адресам отношения не имеет. Их убрали из `SEARCHABLE_HOSTS`, и ответ витрины, к которому обратились по чужому `Host`, получает `noindex` как любой не-прод-хост. На импорт это не влияет: разрешение `tamir.ua` живёт в отдельной проверке источника фида (`backend/src/utils/rozetka-preview.ts`) и в `images.remotePatterns` вместе с CSP — там эти домены остаются.
 
 Отдельный долг — 177 URL группы 404: прежние слаги переименованных товаров и `rozetka-*`-заглушки, а также обходимость адресов с `?page=` и `?v_id=`. Товарные перенаправления отключены решением владельца, поэтому вопрос о 301 для этих адресов остаётся за владельцем.
 
