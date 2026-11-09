@@ -485,6 +485,14 @@
     "viewCart": "Pogledaj korpu"
   },
   "chat": {
+    "image": "Priložena slika",
+    "attachImage": "Dodaj sliku",
+    "removeImage": "Ukloni sliku",
+    "imageRules": "JPG, PNG ili WebP · do 5 MB · jedna slika po poruci",
+    "imageInvalid": "Izaberite ispravnu, statičnu JPG, PNG ili WebP sliku (do 20 megapiksela).",
+    "imageTooLarge": "Slika je prevelika. Najveća veličina datoteke: 5 MB.",
+    "imageLimit": "Dostignuto je ograničenje od 50 slika u ovom razgovoru.",
+
     "available": "Podrška je dostupna",
     "support": "Korisnička podrška",
     "privacy": "Poruke i kontakt podaci se prosleđuju podršci putem Telegrama i prevode pomoću Google servisa. Neaktivna istorija se čuva do {days} dana; sesija gosta ističe nakon 30 dana.",

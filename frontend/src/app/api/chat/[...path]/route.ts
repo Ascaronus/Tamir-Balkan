@@ -8,6 +8,8 @@ const paths = new Set([
   'session',
   'conversations',
   'messages',
+  'image',
+  'image-message',
   'context',
   'claim',
   'reopen',
@@ -50,13 +52,14 @@ async function proxy(request: Request) {
     const ip = forwardedClientIp(request.headers)
     if (ip) headers['x-forwarded-for'] = ip
     const target = new URL(proxyBackendUrl() + '/store/chat/' + path)
-    for (const key of ['id', 'before']) {
+    for (const key of ['id', 'before', 'image']) {
       const v = url.searchParams.get(key)
       if (v) target.searchParams.set(key, v)
     }
     let body: string | undefined
     if (request.method === 'POST') {
-      if (Number(request.headers.get('content-length')) > 8192)
+      const maxBytes = path === 'image-message' ? 7 * 1024 * 1024 : 8192
+      if (Number(request.headers.get('content-length')) > maxBytes)
         return NextResponse.json({ code: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
       const reader = request.body?.getReader(),
         chunks: Uint8Array[] = []
@@ -66,7 +69,7 @@ async function proxy(request: Request) {
           const { value, done } = await reader.read()
           if (done) break
           size += value.byteLength
-          if (size > 8192) {
+          if (size > maxBytes) {
             await reader.cancel()
             return NextResponse.json({ code: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
           }
@@ -91,6 +94,11 @@ async function proxy(request: Request) {
           'X-Accel-Buffering': 'no',
         },
       })
+    if (path === 'image' && upstream.ok)
+      return new Response(upstream.body, { headers: {
+        'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff', 'Content-Disposition': 'inline; filename="chat-image.jpg"',
+      } })
     const data = await upstream.json(),
       guestToken = data.guest_token
     delete data.guest_token

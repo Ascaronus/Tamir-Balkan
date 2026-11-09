@@ -34,7 +34,7 @@ let oldKey,
   thread = 200,
   calls = []
 const fake = async (url, init) => {
-  const body = JSON.parse(init.body)
+  const body = init.body instanceof FormData ? Object.fromEntries(init.body) : JSON.parse(init.body)
   calls.push({ url, body })
   if (url.includes('translation.googleapis.com'))
     return {
@@ -347,4 +347,69 @@ test('SQL SSE reconnect replays more than 100 missed messages and refreshes stat
   assert.equal(third.cursor,String(all[204].seq))
   await db('tamir_chat_message').where({id:all[204].id}).update({status:'delivered'})
   assert.equal((await streamOwn(db,c.id,who,third.cursor)).messages.find(m=>m.id===all[204].id).status,'delivered')
+})
+
+
+test('private image and message persist atomically, replay once, deliver to their topic and cascade on deletion', async () => {
+  const { prepareImage, readImage } = require('../src/utils/chat/images')
+  const sharp = require('sharp')
+  const content = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'white' } }).png().toBuffer()
+  const image = await prepareImage('data:image/png;base64,' + content.toString('base64'))
+  const c = await start(), other = await start('en', { customerId: 'cus_b', profile })
+  const body = { text: '', clientId: randomUUID() }
+  const m = await appendMessage(db, c.id, 'customer', body, profile, who, image)
+  assert.deepEqual(await appendMessage(db, c.id, 'customer', body, profile, who, image), m)
+  assert.equal((await messages(db, c.id)).length, 1)
+  assert.equal((await readImage(db, c.id, m.id, who)).mime, 'image/jpeg')
+  await assert.rejects(readImage(db, c.id, m.id, { customerId: 'cus_b' }), /CHAT_NOT_FOUND/)
+  await assert.rejects(readImage(db, other.id, m.id, { customerId: 'cus_b' }), /CHAT_NOT_FOUND/)
+  await assert.rejects(readImage(db, c.id, m.id, {}), /CHAT_NOT_FOUND/)
+  await deliverOne(db, fake)
+  const photo = calls.find(x => x.url.endsWith('/sendPhoto'))
+  assert.ok(photo)
+  assert.equal(photo.body.chat_id, '-100123')
+  assert.ok(photo.body.message_thread_id)
+  assert.equal(photo.body.photo.type, 'image/jpeg')
+  assert.equal(calls.filter(x => x.url.includes('translation.googleapis.com')).length, 0)
+  const view = (await readOwn(db, c.id, who)).messages[0]
+  assert.equal(view.status, 'delivered')
+  assert.equal(view.has_image, true)
+  assert.equal(view.content, undefined)
+  await deliverOne(db, fake)
+  assert.equal(calls.filter(x => x.url.endsWith('/sendPhoto')).length, 1)
+  await db('tamir_chat_conversation').where({ id: c.id }).delete()
+  assert.equal((await db('tamir_chat_image')).length, 0)
+})
+
+test('system messages retain template identity across locale changes and schema upgrades', async () => {
+  const c = await start()
+  await changeStatus(db, c.id, 'closed', 'admin')
+  const row = (await messages(db, c.id))[0]
+  assert.equal(customerView(row).template_key, 'closed')
+  await db('tamir_chat_message').where({ id: row.id }).update({ template_key: null })
+  await setupChat(db)
+  assert.equal((await messages(db, c.id))[0].template_key, 'closed')
+})
+
+test('photo failures retry saved bytes without repeating confirmed context and image limits reject atomically', async () => {
+  const c = await start()
+  const sharp = require('sharp')
+  const content = await sharp({ create: { width: 8, height: 8, channels: 3, background: 'white' } }).jpeg().toBuffer()
+  const image = { content, mime: 'image/jpeg', width: 8, height: 8 }
+  const m = await appendMessage(db, c.id, 'customer', { text: 'Zdravo', clientId: randomUUID() }, profile, who, image)
+  await deliverOne(db, async (url, init) => url.endsWith('/sendPhoto')
+    ? { ok: false, status: 503, json: async () => ({ ok: false }) } : fake(url, init))
+  assert.equal((await messages(db, c.id))[0].status, 'error')
+  const contexts = calls.filter(x => x.url.endsWith('/sendMessage') && x.body.text.includes('Original')).length
+  assert.equal(contexts, 1)
+  await db('tamir_chat_outbox').where({ message_id: m.id }).update({ next_at: new Date(0) })
+  await deliverOne(db, fake)
+  assert.equal((await messages(db, c.id))[0].status, 'delivered')
+  assert.equal(calls.filter(x => x.url.endsWith('/sendMessage') && x.body.text.includes('Original')).length, 1)
+  assert.equal(calls.filter(x => x.url.includes('translation.googleapis.com')).length, 1)
+  for (let i = 1; i < 50; i++)
+    await appendMessage(db, c.id, 'customer', { text: '', clientId: randomUUID() }, profile, who, image)
+  await assert.rejects(appendMessage(db, c.id, 'customer', { text: '', clientId: randomUUID() }, profile, who, image), /CHAT_IMAGE_LIMIT/)
+  assert.equal((await db('tamir_chat_image')).length, 50)
+  assert.equal((await messages(db, c.id)).length, 50)
 })

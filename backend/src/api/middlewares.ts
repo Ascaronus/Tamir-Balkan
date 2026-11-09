@@ -44,6 +44,7 @@ export default defineMiddlewares({ routes: [
   { matcher: "/store/customer-cart", methods: ["POST"], bodyParser: { sizeLimit: "2kb" }, middlewares: [authenticate("customer", ["bearer", "session"])] },
   { matcher: "/store/carts/*", middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true }), protectCustomerCart] },
   { matcher: "/admin/tamir-chat*", bodyParser: { sizeLimit: "32kb" }, middlewares: [authenticate("user", ["bearer", "session"])] },
+  { matcher: "/store/chat/image-message", methods: ["POST"], bodyParser: { sizeLimit: "7mb" }, middlewares: [] },
   { matcher: "/store/chat*", bodyParser: { sizeLimit: "8kb" }, middlewares: [authenticate("customer", ["bearer", "session"], { allowUnauthenticated: true })] },
   { matcher: "/hooks/tamir-chat", bodyParser: { sizeLimit: "32kb" }, middlewares: [] },
   { matcher: "/admin/homepage-banners*", bodyParser: { sizeLimit: `${Math.ceil(bannerUploadLimit()*4/3)+4096}b` }, middlewares: [authenticate("user", ["bearer", "session"])] },

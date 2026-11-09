@@ -7,6 +7,9 @@ import {
   chatRequest,
   mergeMessages,
   guestValid,
+  imageFileError,
+  imageData,
+  systemText,
   type Conversation,
   type ChatMessage,
   type WidgetConfig,
@@ -31,6 +34,8 @@ function Session({ customer }: { customer: boolean }) {
     [error, setError] = useState(''),
     [connected, setConnected] = useState(false),
     [text, setText] = useState(''),
+    [image, setImage] = useState<{ data: string; name: string } | null>(null),
+    [readingImage, setReadingImage] = useState(false),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
     [phone, setPhone] = useState(''),
@@ -40,7 +45,7 @@ function Session({ customer }: { customer: boolean }) {
   const locked = useRef(false),
     alive = useRef(true),
     opened = useRef(false),
-    pending = useRef<{ text: string; id: string } | null>(null),
+    pending = useRef<{ text: string; image: string | undefined; id: string } | null>(null),
     trigger = useRef<HTMLButtonElement>(null),
     panel = useRef<HTMLElement>(null),
     input = useRef<HTMLTextAreaElement>(null),
@@ -107,7 +112,7 @@ function Session({ customer }: { customer: boolean }) {
       setThreads(r.conversations)
       setClaim(r.claimAvailable)
       setGuestForm(false)
-      setNotice(automatic('welcome'))
+      setNotice('welcome')
     } catch (e) {
       if (alive.current) {
         setError((e as Error).message)
@@ -199,20 +204,22 @@ function Session({ customer }: { customer: boolean }) {
   }, [conversation?.id, locale, path, config?.productContext])
   useEffect(() => {
     if (open) end.current?.scrollIntoView({ block: 'nearest' })
-  }, [rows.length, open])
+  }, [rows.length, open, notice])
   const send = async () => {
-    if (!conversation || locked.current || !text.trim()) return
+    if (!conversation || locked.current || readingImage || (!text.trim() && !image)) return
     locked.current = true
     setBusy(true)
     setError('')
-    if (!pending.current || pending.current.text !== text) pending.current = { text, id: crypto.randomUUID() }
+    if (!pending.current || pending.current.text !== text || pending.current.image !== image?.data)
+      pending.current = { text, image: image?.data, id: crypto.randomUUID() }
     try {
       await context(conversation.id)
-      await chatRequest('messages', { id: conversation.id, text, clientId: pending.current.id })
+      await chatRequest(image ? 'image-message' : 'messages', { id: conversation.id, text: text.trim(), clientId: pending.current.id, ...(image ? { image: image.data } : {}) })
       if (alive.current) {
         setText('')
+        setImage(null)
         pending.current = null
-        setNotice(automatic('sent'))
+        setNotice('sent')
         input.current?.focus()
       }
     } catch (e) {
@@ -240,6 +247,10 @@ function Session({ customer }: { customer: boolean }) {
         setConversation(null)
         setOpen(false)
         setGuestForm(false)
+        setImage(null)
+        setText('')
+        pending.current = null
+        setNotice('')
       }
     } catch (e) {
       if (alive.current) setError((e as Error).message)
@@ -287,7 +298,6 @@ function Session({ customer }: { customer: boolean }) {
               {t('chat.privacy', { days: config.retentionDays })}{' '}
               <a href={locale === 'en' ? '/en/privacy' : '/privacy'}>{t('chat.privacyLink')}</a>
             </p>
-            {!config.available && automatic('offline') && <p role="status">{automatic('offline')}</p>}
             {busy && !conversation && <p role="status">{t('chat.loading')}</p>}
             {guestForm &&
               !customer &&
@@ -338,7 +348,7 @@ function Session({ customer }: { customer: boolean }) {
                 <p>{t('chat.loginRequired')}</p>
               ))}
             {claim && (
-              <button className="button-secondary" disabled={busy} onClick={() => void act('claim')}>
+              <button className="button-secondary" disabled={busy || readingImage} onClick={() => void act('claim')}>
                 {t('chat.claim')}
               </button>
             )}
@@ -346,7 +356,7 @@ function Session({ customer }: { customer: boolean }) {
               <label>
                 {t('chat.history')}
                 <select
-                  disabled={busy}
+                  disabled={busy || readingImage}
                   value={conversation?.id || ''}
                   onChange={(e) => {
                     const c = threads.find((x) => x.id === e.target.value)
@@ -355,6 +365,8 @@ function Session({ customer }: { customer: boolean }) {
                       setConversation(c)
                       pending.current = null
                       setText('')
+                      setImage(null)
+                      setNotice('')
                     }
                   }}
                 >
@@ -388,9 +400,17 @@ function Session({ customer }: { customer: boolean }) {
               </button>
             )}
             <div className="tamir-chat-messages" role="log" aria-live="polite" aria-relevant="additions text">
+              {!config.available && automatic('offline') && (
+                <article className="tamir-chat-message tamir-chat-message-system"><p>{automatic('offline')}</p></article>
+              )}
               {rows.map((m) => (
                 <article key={m.id} className={`tamir-chat-message tamir-chat-message-${m.sender}`}>
-                  <p>{m.text ?? t('chat.awaitingTranslation')}</p>
+                  {m.has_image && conversation && (
+                    <a href={`/api/chat/image?id=${conversation.id}&image=${m.id}`} target="_blank" rel="noreferrer">
+                      <img className="tamir-chat-image" src={`/api/chat/image?id=${conversation.id}&image=${m.id}`} alt={t('chat.image')} loading="lazy" />
+                    </a>
+                  )}
+                  {(m.text !== '' || !m.has_image) && <p>{systemText(m, config, locale) ?? t('chat.awaitingTranslation')}</p>}
                   <small>
                     {new Date(m.created_at).toLocaleTimeString(locale === 'sr' ? 'sr-Latn-RS' : 'en-GB', {
                       hour: '2-digit',
@@ -408,16 +428,16 @@ function Session({ customer }: { customer: boolean }) {
                   {m.status === 'error' && automatic('error') && <p>{automatic('error')}</p>}
                 </article>
               ))}
+              {notice && automatic(notice) && (
+                <article className="tamir-chat-message tamir-chat-message-system" role="status">
+                  <p>{automatic(notice)}</p>
+                </article>
+              )}
             </div>
-            {notice && (
-              <p className="tamir-chat-notice" role="status">
-                {notice}
-              </p>
-            )}
             {error && (
               <div role="alert">
                 <p>{t('chat.error')}</p>
-                <small>{error}</small>
+                <small>{error === 'CHAT_IMAGE_INVALID' ? t('chat.imageInvalid') : error === 'CHAT_IMAGE_TOO_LARGE' ? t('chat.imageTooLarge') : error === 'CHAT_IMAGE_LIMIT' ? t('chat.imageLimit') : error}</small>
                 {!conversation && !guestForm && <button onClick={() => void initialize()}>{t('common.retry')}</button>}
               </div>
             )}
@@ -427,7 +447,7 @@ function Session({ customer }: { customer: boolean }) {
             <footer className="tamir-chat-compose">
               <p role="status">{t(connected ? 'chat.connected' : 'chat.reconnecting')}</p>
               {conversation.status === 'closed' ? (
-                <button className="button-secondary" disabled={busy} onClick={() => void act('reopen')}>
+                <button className="button-secondary" disabled={busy || readingImage} onClick={() => void act('reopen')}>
                   {t('chat.reopen')}
                 </button>
               ) : (
@@ -437,22 +457,57 @@ function Session({ customer }: { customer: boolean }) {
                     void send()
                   }}
                 >
+                  <div className="tamir-chat-attachments">
+                    <label className="tamir-chat-attach">
+                      <span>{t(readingImage ? 'chat.loading' : 'chat.attachImage')}</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || readingImage}
+                        aria-label={t('chat.attachImage')}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          e.target.value = ''
+                          if (!file || locked.current) return
+                          const invalid = imageFileError(file)
+                          if (invalid) { setError(invalid); return }
+                          locked.current = true
+                          setReadingImage(true)
+                          setError('')
+                          try {
+                            const data = await imageData(file)
+                            if (alive.current) setImage({ data, name: file.name })
+                          } catch { if (alive.current) setError('CHAT_IMAGE_INVALID') }
+                          finally { locked.current = false; if (alive.current) setReadingImage(false) }
+                        }} />
+                    </label>
+                    <small>{t('chat.imageRules')}</small>
+                    {image && <div className="tamir-chat-attachment">
+                      <img src={image.data} alt={t('chat.image')} />
+                      <span>{image.name}</span>
+                      <button type="button" disabled={busy || readingImage} aria-label={t('chat.removeImage')} onClick={() => setImage(null)}>×</button>
+                    </div>}
+                  </div>
                   <textarea
                     ref={input}
                     aria-label={t('chat.message')}
                     rows={2}
                     maxLength={1500}
                     value={text}
+                    disabled={busy || readingImage}
+                    enterKeyHint="send"
                     onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
+                      e.preventDefault()
+                      if (!e.repeat && !busy && !readingImage && (text.trim() || image)) e.currentTarget.form?.requestSubmit()
+                    }}
                   />
-                  <button className="button-primary" disabled={busy || !text.trim()}>
+                  <button type="submit" className="button-primary" disabled={busy || readingImage || (!text.trim() && !image)}>
                     {t(busy ? 'chat.sending' : 'chat.send')}
                   </button>
                 </form>
               )}
               <button
                 className="tamir-chat-delete"
-                disabled={busy}
+                disabled={busy || readingImage}
                 onClick={() => {
                   if (window.confirm(t('chat.deleteConfirm'))) void act('delete')
                 }}
@@ -469,7 +524,7 @@ function Session({ customer }: { customer: boolean }) {
         aria-label={config.button[locale]}
         aria-expanded={open}
         onClick={() => {
-          if (!open && conversation) setNotice(automatic('returning'))
+          if (!open && conversation) setNotice('returning')
           setOpen((v) => !v)
         }}
       >

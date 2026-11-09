@@ -7,6 +7,8 @@ export type ChatMessage = {
   status: string
   created_at: string
   locale: string
+  has_image?: boolean
+  template_key?: string | null
 }
 export type WidgetConfig = {
   enabled: boolean
@@ -52,4 +54,24 @@ export function guestValid(name: string, email: string, phone: string) {
     email.length <= 254 &&
     /^$|^\+?[0-9 ()-]{6,30}$/.test(phone.trim())
   )
+}
+
+export function imageFileError(file: { type: string; size: number }) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'CHAT_IMAGE_INVALID'
+  return file.size > 5 * 1024 * 1024 ? 'CHAT_IMAGE_TOO_LARGE' : ''
+}
+export function imageData(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(Error('CHAT_IMAGE_INVALID'))
+    reader.readAsDataURL(file)
+  })
+}
+// Template identity survives locale changes. Legacy status messages can still match their old text.
+export function systemText(message: ChatMessage, config: WidgetConfig, locale: 'sr' | 'en') {
+  if (message.sender !== 'system') return message.text
+  const key = message.template_key || ['closed', 'reopened'].find((key) =>
+    Object.values(config.templates[key]?.text || {}).includes(message.text || ''))
+  return key && config.templates[key] ? config.templates[key].text[locale] : message.text
 }

@@ -1,4 +1,5 @@
 import type { Knex } from 'knex'
+import type { ChatImage } from './images'
 import { randomUUID } from 'node:crypto'
 import { guestSchema, messageSchema } from '../../shared/chat-config'
 import { ChatError, hashGuest, validGuest, newGuestToken } from './security'
@@ -136,8 +137,9 @@ export async function appendMessage(
   body: any,
   profile?: ChatIdentity['profile'],
   who?: ChatIdentity,
+  image?: ChatImage,
 ) {
-  const p = messageSchema.safeParse(body)
+  const p = messageSchema.safeParse(image && body?.text === '' ? { ...body, text: '[image]' } : body)
   if (!p.success) throw new ChatError(400, 'INVALID_MESSAGE')
   return db.transaction(async (trx) => {
     const c = who
@@ -148,15 +150,21 @@ export async function appendMessage(
       existing = await trx('tamir_chat_message').where({ conversation_id: id, client_id: clientId }).first()
     if (existing) return { id: existing.id }
     if (c.status === 'closed') throw new ChatError(409, 'CHAT_CLOSED')
+    if (image) {
+      const [{ count }] = await trx('tamir_chat_message').where({ conversation_id: id, has_image: true }).count('* as count')
+      if (Number(count) >= 50) throw new ChatError(409, 'CHAT_IMAGE_LIMIT')
+    }
     const messageId = randomUUID()
     await trx('tamir_chat_message').insert({
       id: messageId,
       conversation_id: id,
       sender,
-      original: p.data.text,
+      original: image && body.text === '' ? '' : p.data.text,
+      has_image: Boolean(image),
       client_id: clientId,
       locale: c.locale,
     })
+    if (image) await trx('tamir_chat_image').insert({ message_id: messageId, ...image })
     await trx('tamir_chat_outbox').insert({ message_id: messageId })
     await trx('tamir_chat_conversation')
       .where({ id })
@@ -183,6 +191,8 @@ export function customerView(m: any) {
     status: m.status,
     created_at: m.created_at,
     locale: m.locale,
+    has_image: Boolean(m.has_image),
+    template_key: m.template_key || null,
   }
 }
 export async function changeStatus(db: Knex, id: string, status: 'open' | 'closed', actor: string, who?: ChatIdentity) {
@@ -200,6 +210,7 @@ export async function changeStatus(db: Knex, id: string, status: 'open' | 'close
         id: randomUUID(),
         conversation_id: id,
         sender: 'system',
+        template_key: status === 'open' ? 'reopened' : 'closed',
         original: template.text[c.locale as 'sr' | 'en'],
         locale: c.locale,
         translation_state: 'skipped',
