@@ -41,7 +41,7 @@ curl -I https://tamir.rs/en
 
 ## Стенд закрыт от поисковиков
 
-Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Исключения описаны в «Два зазора на backend-хосте стенда». Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
+Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Два ответа на backend-хосте, которыми приложение не управляет, добирает правило Cloudflare («Два зазора на backend-хосте стенда»). Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
 
 На закрытом хосте `robots.txt` намеренно остаётся разрешающим (`Allow: /`, без строки `Sitemap:`), а `sitemap.xml` отдаёт пустой `<urlset>` без обращений к API. Причина: Google снимает URL с индекса, только когда может прочитать `noindex` в ответе, — `Disallow: /` в robots.txt как раз помешал бы роботу этот ответ увидеть. Ужесточать robots.txt имеет смысл лишь после того, как стендовые URL исчезнут из индекса; до этого это закрепило бы их в выдаче.
 
@@ -53,8 +53,10 @@ curl -I https://tamir.rs/en
 
 ```bash
 bash scripts/seo-headers-check.sh          # стенд, прод, robots, sitemap, canonical
-SEO_STRICT=1 bash scripts/seo-headers-check.sh   # известные зазоры считаются провалом
+SEO_STRICT=1 bash scripts/seo-headers-check.sh   # зазоры (строки `gap`) считаются провалом
 ```
+
+Норма для исправного стенда и незадетого прода — `PASS=20 FAIL=0 GAP=0` (8 ответов стенда, 6 ответов прода, canonical `www`, robots и sitemap). Измерено 9 ноября 2026 после включения правила Cloudflare.
 
 Скрипт обращается к тем же публичным адресам, что и поисковый робот, секретов не требует, только GET. Отдельные `curl`-проверки:
 
@@ -68,9 +70,9 @@ curl -fsS https://test.tamir.rs/sitemap.xml
 
 На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно.
 
-### Два зазора на backend-хосте стенда
+### Два зазора на backend-хосте стенда (закрыты 9 ноября 2026)
 
-На `test-api.tamir.rs` приложение не управляет двумя ответами, поэтому `X-Robots-Tag` в них нет:
+На `test-api.tamir.rs` приложение не управляет двумя ответами, поэтому `X-Robots-Tag` в них не было:
 
 | URL | Ответ | Причина |
 | --- | --- | --- |
@@ -84,7 +86,17 @@ If: (http.host eq "test.tamir.rs" or http.host eq "test-api.tamir.rs")
 Then: Set header "X-Robots-Tag" = "noindex, nofollow, noarchive, nosnippet" (overwrite)
 ```
 
-Правило действует после приложения и не меняет ни тело, ни статус ответа. Проверка после включения: `curl -sSI https://test-api.tamir.rs/app`, затем `SEO_STRICT=1 bash scripts/seo-headers-check.sh`.
+Правило действует после приложения и не меняет ни тело, ни статус ответа. Применено 9 ноября 2026 и проверено: `https://test-api.tamir.rs/app` отвечает 200 с заголовком, `https://test-api.tamir.rs/store/products` — 400 с заголовком.
+
+Координаты в Cloudflare (зона `tamir.rs`), чтобы не искать вслепую:
+
+| | |
+| --- | --- |
+| Дашборд | Rules → Overview → тип `Modify Response Header` (`.../tamir.rs/rules/overview?type=http_response_headers_transform`) |
+| Ruleset | `seo-noindex-staging`, id `7acf450c8daf42f4a34d012f5e96a77b`, phase `http_response_headers_transform` |
+| Правило | id `2ffeeb55183f4f8aa40c73db45e49a08`, `enabled: true` |
+
+Это entrypoint фазы, то есть единственные правила этой фазы в зоне; в API — `GET /zones/<zone>/rulesets/phases/http_response_headers_transform/entrypoint`. Правку вносить `PUT` на этот же entrypoint (повторный `POST` на `/rulesets` отдаёт `20217 exceeded maximum number of zone rulesets for phase`). В выражении только стендовые хосты — `tamir.rs`, `www.tamir.rs`, `api.tamir.rs` и `tamir.ua` под это правило добавлять нельзя: оно снимало бы индексацию с настоящего магазина.
 
 ### Состояние индекса по отчёту «Страницы» (9 ноября 2026)
 
@@ -104,7 +116,9 @@ https://test.tamir.rs/en/products/men-s-winter-hat-in-gray-color
 https://test.tamir.rs/en/products/black-winter-hat-for-men
 ```
 
-Порядок снятия: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить отдельное свойство `test.tamir.rs` из Search Console и лишь тогда ужесточать его `robots.txt`. Отчёт обновляется с задержкой; массовые запросы индексирования не ускоряют снятие.
+9 ноября 2026 для `https://test.tamir.rs/` выполнена инспекция и отправлен запрос индексирования, чтобы Google быстрее принёс свежий ответ с `noindex`. Остальные стендовые URL дожимать не нужно — robot-crawl открыт, и при следующем обходе `noindex` сработает сам.
+
+Порядок снятия: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить отдельное свойство `test.tamir.rs` из Search Console и лишь тогда ужесточать его `robots.txt`. Подтверждение, что пошёл нужный обход: инспекция `https://test.tamir.rs/` показывает `307` и «Индексирование страницы запрещено тегом `noindex`» вместо старой версии страницы. Отчёт обновляется с задержкой; массовые запросы индексирования не ускоряют снятие.
 
 ### Дубли хостов
 
