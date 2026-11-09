@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer"
+import { emailLayout, escapeHtml } from "./email-layout"
 import { BigNumber } from "@medusajs/framework/utils"
 import { mailConfig } from "./registration-email"
 
@@ -10,10 +11,6 @@ export type ReceiptOrder = {
   total: number
   shipping_total: number
   items: { title: string; variant_title?: string | null; quantity: number | BigNumber; unit_price: number; total: number }[]
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!))
 }
 
 // Read Medusa's calculated totals, including discounts/taxes; never rebuild them
@@ -65,18 +62,11 @@ export function orderMessage(order: ReceiptOrder) {
       "Ovo je potvrda prijema porudžbine, a ne potvrda uplate.\nThis confirms receipt of your order, not receipt of payment.",
       "TAMIR\nhttps://tamir.rs",
     ].join("\n\n"),
-    html: `<!doctype html>
-<html lang="sr-Latn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TAMIR — Order #${order.display_id}</title></head>
-<body style="margin:0;padding:0;background:#f7f5f1;color:#29251f;font-family:Arial,Helvetica,sans-serif">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">Porudžbina / Order #${order.display_id} · ${units} kom. / units · ${escapeHtml(total)}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f7f5f1"><tr><td align="center" style="padding:24px 12px">
-    <!--[if mso]><table role="presentation" width="640" align="center"><tr><td><![endif]-->
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;text-align:left;background:#ffffff;border:1px solid #e7e2da;border-radius:12px">
-      <tr><td style="padding:28px 24px;background:#29251f;color:#ffffff;border-radius:12px 12px 0 0">
-        <a href="https://tamir.rs" style="color:#ffffff;text-decoration:none;font-family:Georgia,serif;font-size:30px;letter-spacing:5px">TAMIR</a>
-        <div style="margin-top:12px;font-size:11px;letter-spacing:1px;line-height:18px">POTVRDA PORUDŽBINE / ORDER CONFIRMATION</div>
-      </td></tr>
-      <tr><td style="padding:28px 24px 12px">
+    html: emailLayout({
+      title: `TAMIR — Order #${order.display_id}`,
+      preview: `Porudžbina / Order #${order.display_id} · ${units} kom. / units · ${total}`,
+      label: "POTVRDA PORUDŽBINE / ORDER CONFIRMATION",
+      content: `      <tr><td style="padding:28px 24px 12px">
         <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:26px;font-weight:400;line-height:34px">Hvala na kupovini!</h1>
         <p style="margin:0;font-size:15px;line-height:24px">Primili smo vašu porudžbinu <strong>#${order.display_id}</strong>.</p>
         <p lang="en" style="margin:6px 0 22px;color:#6e665e;font-size:13px;line-height:21px">Thank you for shopping with us! We received your order <strong>#${order.display_id}</strong>.</p>
@@ -93,12 +83,9 @@ export function orderMessage(order: ReceiptOrder) {
           <tr><td style="padding:16px 0;border-top:1px solid #e7e2da;font-size:18px;font-weight:700">Ukupno / Total</td><td align="right" style="padding:16px 0;border-top:1px solid #e7e2da;font-size:20px;font-weight:700">${escapeHtml(total)}</td></tr>
         </table>
       </td></tr>
-      <tr><td style="padding:20px 24px;background:#f0ede7;border-radius:0 0 12px 12px;font-size:12px;line-height:20px;color:#6e665e">Ovo je potvrda prijema porudžbine, a ne potvrda uplate.<br><span lang="en">This confirms receipt of your order, not receipt of payment.</span></td></tr>
-    </table>
-    <!--[if mso]></td></tr></table><![endif]-->
-    <p style="margin:20px 0 0;font-size:12px;color:#6e665e"><a href="https://tamir.rs" style="color:#6e665e;text-decoration:underline">tamir.rs</a></p>
-  </td></tr></table>
-</body></html>`,
+`,
+      footer: { sr: "Ovo je potvrda prijema porudžbine, a ne potvrda uplate.", en: "This confirms receipt of your order, not receipt of payment." },
+    }),
   }
 }
 
