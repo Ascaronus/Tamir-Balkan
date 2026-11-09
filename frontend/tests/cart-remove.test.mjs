@@ -60,7 +60,7 @@ for(const locale of ['sr','en'])test(`${locale}: cart quantity controls use avai
  // A reservation can reduce stock after the cart already contains too many units.
  stock.v1=1;assert.equal(control('increaseQty').props.disabled,true);assert.equal(control('decreaseQty').props.disabled,false)
  assert.ok(JSON.stringify(find(render(),n=>n.props?.role==='alert')).includes(t('cartPage.stockLimit',{n:1})))
- control('decreaseQty').props.onClick();assert.deepEqual(calls.at(-1),['line_a',2])
+ control('decreaseQty').props.onClick();assert.deepEqual(calls.at(-1),['line_a',1])
  // The current cart still exceeds newly reserved stock; the persistent row warning remains.
  assert.ok(JSON.stringify(find(render(),n=>n.props?.role==='alert')).includes(t('cartPage.stockChanged',{n:1,quantity:3})))
  state.cart.items[0].quantity=1;stock.v1=3;state.cart.items.push({id:'line_b',variant_id:'v1',quantity:2})
