@@ -13,9 +13,10 @@ export default async function orderConfirmation({ event: { data }, container }: 
       entity: "order",
       // Match the native order detail projection: quantity lives on the
       // order-item detail, and totals need tax, adjustment and shipping data.
+      // Direct graph queries require relation.* (HTTP field config uses *relation).
       fields: ["id", "display_id", "email", "currency_code", "total", "shipping_total",
-        "*items", "*items.detail", "*items.tax_lines", "*items.adjustments",
-        "*shipping_methods", "*shipping_methods.tax_lines", "*shipping_methods.adjustments", "*credit_lines"],
+        "items.*", "items.detail.*", "items.tax_lines.*", "items.adjustments.*",
+        "shipping_methods.*", "shipping_methods.tax_lines.*", "shipping_methods.adjustments.*", "credit_lines.*"],
       filters: { id: data.id },
     }, { cache: { enable: false } })
     if (!orders[0]) throw new Error("Order email: order unavailable")

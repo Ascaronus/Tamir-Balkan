@@ -4,7 +4,7 @@ require('ts-node/register/transpile-only')
 const nodemailer=require('nodemailer').default
 const {orderMessage}=require('../src/utils/order-email')
 const {default:subscriber,config}=require('../src/subscribers/order-confirmation')
-const {ContainerRegistrationKeys:Keys}=require('@medusajs/framework/utils')
+const {ContainerRegistrationKeys:Keys,remoteQueryObjectFromString}=require('@medusajs/framework/utils')
 const order={id:'order_test',display_id:42,email:'customer@example.test',currency_code:'rsd',total:3000,shipping_total:300,items:[{title:'Crni šešir',variant_title:'M / Black',quantity:2,unit_price:1500,total:2700}]}
 test('receipt includes order number, variants, quantities and calculated discounted totals in major units',()=>{
  const mail=orderMessage(order)
@@ -22,7 +22,13 @@ test('order placed handler sends guests once and leaves SMTP failures retryable 
  nodemailer.createTransport=()=>({sendMail:async mail=>{if(fail)throw Error('secret-password customer@example.test');if(reject)return {accepted:[]};sent.push(mail);return {accepted:['customer@example.test']}},close:()=>closed++})
  let row={...order,metadata:{keep:true},is_draft_order:false,status:'pending'},queries=0,payload=order
  const trx=table=>{assert.equal(table,'order');return {where(where){assert.equal(where.id,order.id);return this},whereNull(){return this},forUpdate(){return this},first:async()=>row,update:async data=>Object.assign(row,data)}}
- const container={resolve:key=>key===Keys.PG_CONNECTION?{transaction:fn=>fn(trx)}:{graph:async (args,options)=>{queries++;assert.equal(options.cache.enable,false);assert.equal(args.entity,'order');assert.deepEqual(args.filters,{id:order.id});for(const field of ['*items.detail','*items.tax_lines','*items.adjustments','*shipping_methods','*shipping_methods.tax_lines','*shipping_methods.adjustments','*credit_lines'])assert.ok(args.fields.includes(field),field);return {data:[payload]}}}}
+ const container={resolve:key=>key===Keys.PG_CONNECTION?{transaction:fn=>fn(trx)}:{graph:async (args,options)=>{queries++;assert.equal(options.cache.enable,false);assert.equal(args.entity,'order');assert.deepEqual(args.filters,{id:order.id});for(const field of ['items.detail.*','items.tax_lines.*','items.adjustments.*','shipping_methods.*','shipping_methods.tax_lines.*','shipping_methods.adjustments.*','credit_lines.*'])assert.ok(args.fields.includes(field),field);const parsed=remoteQueryObjectFromString({entryPoint:args.entity,fields:args.fields}).__value.order;
+ // Exercise Medusa's actual graph field parser: HTTP-style *items is not normalized here.
+ for(const path of ['items','items.detail','items.tax_lines','items.adjustments','shipping_methods','shipping_methods.tax_lines','shipping_methods.adjustments','credit_lines']){
+  const relation=path.split('.').reduce((node,key)=>node?.[key],parsed)
+  assert.ok(relation?.fields.includes('*'),`graph relation ${path} must select its fields`)
+ }
+ return {data:[payload]}}}}
  const run=()=>subscriber({event:{data:{id:order.id}},container})
  try{
   assert.equal(config.event,'order.placed')
