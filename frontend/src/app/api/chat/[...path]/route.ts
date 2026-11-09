@@ -22,16 +22,65 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   return proxy(request)
 }
+// Hosts we answer the storefront on. Their https origins are valid chat origins by
+// themselves: the widget posts to the same origin it was loaded from, the DNS is ours,
+// and naming them keeps one bad NEXT_PUBLIC_SITE_URL from rejecting every chat message.
+const publicHosts = new Set(['tamir.rs', 'www.tamir.rs'])
+let warnedSiteUrl = false
+
+function parseOrigin(value?: string | null) {
+  try {
+    const parsed = new URL(String(value ?? '').trim())
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function isLocalHost(hostname: string) {
+  return (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname === '::1'
+  )
+}
+
+function warnSiteUrl(value: string) {
+  if (warnedSiteUrl) return
+  warnedSiteUrl = true
+  console.warn(
+    `tamir-chat: NEXT_PUBLIC_SITE_URL=${value} is not a public storefront URL, so chat POSTs are ` +
+      'accepted only from our public hosts and this exact origin. Set it to the public URL and ' +
+      'rebuild the frontend: Next.js inlines NEXT_PUBLIC_* at build time.',
+  )
+}
+
+function allowedOrigins(url: URL) {
+  const allowed = new Set<string>()
+  for (const host of publicHosts) allowed.add(`https://${host}`)
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim() ?? ''
+  const configured = parseOrigin(raw)
+  if (configured) {
+    allowed.add(configured.origin)
+    if (isLocalHost(configured.hostname)) warnSiteUrl(raw)
+  } else {
+    // No usable configuration: local development, or a build made with a broken value.
+    // The origin Next.js was addressed by stays open, exactly like before.
+    if (raw) warnSiteUrl(raw)
+    if (['http:', 'https:'].includes(url.protocol)) allowed.add(url.origin)
+  }
+  return allowed
+}
+
 function hasValidOrigin(request: Request, url: URL) {
   // Behind nginx/Cloudflare, request.url can contain the internal HTTP origin.
-  // Use the configured storefront URL, never client-supplied forwarding headers.
-  try {
-    const site = new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || url.origin)
-    if (!['http:', 'https:'].includes(site.protocol) || site.username || site.password) return false
-    return request.headers.get('origin') === site.origin
-  } catch {
-    return false
-  }
+  // Only the configured storefront URL and our public hosts widen the list, never
+  // client-supplied Host or X-Forwarded-* headers.
+  const origin = parseOrigin(request.headers.get('origin'))
+  return !!origin && allowedOrigins(url).has(origin.origin)
 }
 async function proxy(request: Request) {
   const url = new URL(request.url),
