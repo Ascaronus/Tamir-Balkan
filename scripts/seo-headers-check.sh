@@ -2,7 +2,7 @@
 # Живая проверка: стенд закрыт от поисковиков, прод открыт.
 #
 # Проверяются ответы публичных адресов, а не только их тело:
-#   * X-Robots-Tag: noindex на стенде (витрина, её входной redirect, backend);
+#   * X-Robots-Tag: noindex на стенде (витрина, её входной redirect, backend, YouTrack);
 #   * отсутствие заголовка на публичных прод-хостах (allow-list в коде);
 #   * robots.txt: на закрытом хосте без строки Sitemap:, на проде — с прод-картой;
 #   * sitemap.xml: на закрытом хосте пустой <urlset>, на проде — непустой;
@@ -16,6 +16,7 @@ set -uo pipefail
 
 STAGING_SITE="${SEO_STAGING_SITE:-https://test.tamir.rs}"
 STAGING_API="${SEO_STAGING_API:-https://test-api.tamir.rs}"
+STAGING_YOUTRACK="${SEO_STAGING_YOUTRACK:-https://youtrack.tamir.rs}"
 PROD_SITE="${SEO_PROD_SITE:-https://tamir.rs}"
 PROD_WWW="${SEO_PROD_WWW:-https://www.tamir.rs}"
 PROD_API="${SEO_PROD_API:-https://api.tamir.rs}"
@@ -115,6 +116,8 @@ hdrcheck "$STAGING_API/health" yes
 # ошибка publishable key), поэтому эти два ответа закрывает только правило в Cloudflare.
 hdrcheck "$STAGING_API/app" gap
 hdrcheck "$STAGING_API/store/products" gap
+# YouTrack — чужое приложение в той же зоне Cloudflare: заголовок ставит только правило.
+hdrcheck "$STAGING_YOUTRACK/login" gap
 
 echo "=== Прод: заголовка быть не должно ==="
 hdrcheck "$PROD_SITE/rs" no

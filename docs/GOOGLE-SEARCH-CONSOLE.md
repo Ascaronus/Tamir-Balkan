@@ -41,7 +41,7 @@ curl -I https://tamir.rs/en
 
 ## Стенд закрыт от поисковиков
 
-Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Два ответа на backend-хосте, которыми приложение не управляет, добирает правило Cloudflare («Два зазора на backend-хосте стенда»). Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
+Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины, 404 витрины и служебные маршруты backend вроде `/health`. Три ответа на стенде, которыми приложение не управляет, добирает правило Cloudflare («Зазоры, которые закрывает правило Cloudflare»). Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
 
 На закрытом хосте `robots.txt` намеренно остаётся разрешающим (`Allow: /`, без строки `Sitemap:`), а `sitemap.xml` отдаёт пустой `<urlset>` без обращений к API. Причина: Google снимает URL с индекса, только когда может прочитать `noindex` в ответе, — `Disallow: /` в robots.txt как раз помешал бы роботу этот ответ увидеть. Ужесточать robots.txt имеет смысл лишь после того, как стендовые URL исчезнут из индекса; до этого это закрепило бы их в выдаче.
 
@@ -56,7 +56,7 @@ bash scripts/seo-headers-check.sh          # стенд, прод, robots, sitem
 SEO_STRICT=1 bash scripts/seo-headers-check.sh   # зазоры (строки `gap`) считаются провалом
 ```
 
-Норма для исправного стенда и незадетого прода — `PASS=20 FAIL=0 GAP=0` (8 ответов стенда, 6 ответов прода, canonical `www`, robots и sitemap). Измерено 9 ноября 2026 после включения правила Cloudflare.
+Норма для исправного стенда и незадетого прода — `PASS=21 FAIL=0 GAP=0` (9 ответов стенда, 6 ответов прода, canonical `www`, robots и sitemap). Измерено 9 ноября 2026 после включения правила Cloudflare.
 
 Скрипт обращается к тем же публичным адресам, что и поисковый робот, секретов не требует, только GET. Отдельные `curl`-проверки:
 
@@ -70,23 +70,24 @@ curl -fsS https://test.tamir.rs/sitemap.xml
 
 На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно.
 
-### Два зазора на backend-хосте стенда (закрыты 9 ноября 2026)
+### Зазоры, которые закрывает правило Cloudflare (закрыты 9 ноября 2026)
 
-На `test-api.tamir.rs` приложение не управляет двумя ответами, поэтому `X-Robots-Tag` в них не было:
+Три ответа на стенде приложение не формирует, поэтому `X-Robots-Tag` в них не было:
 
 | URL | Ответ | Причина |
 | --- | --- | --- |
 | `https://test-api.tamir.rs/app` | 200, HTML кабинета | Medusa раздаёт admin-статику раньше глобального middleware |
 | `https://test-api.tamir.rs/store/products` | 400, JSON | `ensurePublishableApiKeyMiddleware` бросает ошибку до него |
+| `https://youtrack.tamir.rs/*` | 200, HTML YouTrack | внешний трекер, кода которого в репозитории нет; хост в той же зоне Cloudflare |
 
-Замена дефолтного `errorHandler` Medusa ради этих двух ответов трогает и прод, поэтому их закрывает правило Cloudflare — Transform Rules → Transform Rule → Modify Response Header:
+Замена дефолтного `errorHandler` Medusa ради первых двух ответов трогает и прод, а YouTrack вообще не наш код, поэтому все три закрывает правило Cloudflare — Transform Rules → Transform Rule → Modify Response Header:
 
 ```
-If: (http.host eq "test.tamir.rs" or http.host eq "test-api.tamir.rs")
+If: (http.host eq "test.tamir.rs" or http.host eq "test-api.tamir.rs" or http.host eq "youtrack.tamir.rs")
 Then: Set header "X-Robots-Tag" = "noindex, nofollow, noarchive, nosnippet" (overwrite)
 ```
 
-Правило действует после приложения и не меняет ни тело, ни статус ответа. Применено 9 ноября 2026 и проверено: `https://test-api.tamir.rs/app` отвечает 200 с заголовком, `https://test-api.tamir.rs/store/products` — 400 с заголовком.
+Правило действует после приложения и не меняет ни тело, ни статус ответа. Применено 9 ноября 2026 и проверено: `https://test-api.tamir.rs/app` отвечает 200 с заголовком, `https://test-api.tamir.rs/store/products` — 400 с заголовком, `https://youtrack.tamir.rs/login` — 200 с заголовком.
 
 Координаты в Cloudflare (зона `tamir.rs`), чтобы не искать вслепую:
 
