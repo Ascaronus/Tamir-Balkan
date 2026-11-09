@@ -47,6 +47,9 @@ curl -fsS --retry 5 --retry-delay 2 --max-time 60 -o /dev/null http://127.0.0.1:
 curl -fsS --retry 5 --retry-delay 2 --max-time 30 -o /dev/null https://tamir.rs/robots.txt
 curl -fsS --retry 5 --retry-delay 2 --max-time 60 -o /dev/null https://tamir.rs/sitemap.xml
 curl -fsS --retry 5 --retry-delay 2 --max-time 15 https://api.tamir.rs/health
+# GET health checks cannot detect a chat POST rejected by the frontend BFF.
+# Keep this inside the rollback trap and before persisting the new PM2 state.
+node "$release_dir/scripts/check-chat-origin.mjs"
 pm2 save
 trap - ERR
 echo "Activation complete: $release_dir"
