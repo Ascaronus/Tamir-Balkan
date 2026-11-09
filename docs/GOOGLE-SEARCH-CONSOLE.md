@@ -1,6 +1,6 @@
 # Sitemap, robots и Google Search Console
 
-Актуально на 12 октября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts` и общий SEO-код витрины.
+Актуально на 9 ноября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts`, общий SEO-код витрины `frontend/src/lib/seo.ts` и `backend/src/api/middlewares.ts`.
 
 ## Что включено в sitemap
 
@@ -26,7 +26,7 @@
 
 ## Проверка и отправка
 
-Один существующий ресурс Search Console для `tamir.rs`, охватывающий оба пути, обслуживает SR и EN; отдельный домен/ресурс только ради EN не нужен. Отправьте `https://tamir.rs/sitemap.xml` в разделе «Файлы Sitemap». Robots отдельно отправлять не требуется.
+Один существующий ресурс Search Console для `tamir.rs`, охватывающий оба пути, обслуживает SR и EN; отдельный домен/ресурс только ради EN не нужен. Отправьте `https://tamir.rs/sitemap.xml` в разделе «Файлы Sitemap». Robots отдельно отправлять не требуется. Стендовые адреса в Search Console не отправляются и не добавляются: см. раздел «Стенд закрыт от поисковиков».
 
 ```bash
 curl -fsS https://tamir.rs/robots.txt
@@ -37,7 +37,25 @@ curl -I https://tamir.rs/en
 
 Для проблемного товара проверяйте **точный URL**, конечный HTTP-статус, HTML canonical/hreflang/robots, HTTP `X-Robots-Tag` и дату последнего обхода. Используйте проверку опубликованной страницы в Search Console. Старый отчёт не обновляется в момент деплоя; отправка не гарантирует индексацию.
 
-Если sitemap недоступен или неполон, проверьте `/health` backend, публикацию, связь с каналом publishable key, переводы и логи frontend. Не подменяйте ошибку API пустым успешным sitemap. Общий `X-Robots-Tag: noindex` в nginx/CDN не задаётся приложением — проверяйте внешнюю конфигурацию отдельно.
+Если sitemap недоступен или неполон, проверьте `/health` backend, публикацию, связь с каналом publishable key, переводы и логи frontend. Не подменяйте ошибку API пустым успешным sitemap.
+
+## Стенд закрыт от поисковиков
+
+Стенд (`test.tamir.rs`, `test-api.tamir.rs`) работает тем же кодом, что и прод, поэтому закрытие держится не на отдельном конфиге, а на имени хоста: всё, что не входит в allow-list публичных прод-адресов (`SEARCHABLE_HOSTS` в `frontend/src/lib/seo.ts`, `SEARCHABLE_API_HOSTS` в `backend/src/api/middlewares.ts`), получает `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая redirects витрины и служебные маршруты backend вроде `/app` и `/health`. Локальные адреса разработки (`localhost`, `*.localhost`, IPv4-литералы по HTTP) закрытием не затрагиваются.
+
+На закрытом хосте `robots.txt` намеренно остаётся разрешающим (`Allow: /`, без строки `Sitemap:`), а `sitemap.xml` отдаёт пустой `<urlset>` без обращений к API. Причина: Google снимает URL с индекса, только когда может прочитать `noindex` в ответе, — `Disallow: /` в robots.txt как раз помешал бы роботу этот ответ увидеть. Ужесточать robots.txt имеет смысл лишь после того, как стендовые URL исчезнут из индекса; до этого это закрепило бы их в выдаче.
+
+Проверка закрытия (заголовки, а не только тело ответа):
+
+```bash
+curl -sSI https://test.tamir.rs/rs | grep -i x-robots-tag
+curl -sSI https://test.tamir.rs/ | grep -i x-robots-tag
+curl -sSI https://test-api.tamir.rs/health | grep -i x-robots-tag
+curl -fsS https://test.tamir.rs/robots.txt
+curl -fsS https://test.tamir.rs/sitemap.xml
+```
+
+На проде (`tamir.rs`, `api.tamir.rs`) заголовка `X-Robots-Tag` быть не должно. Если стендовый адрес всё ещё виден в Search Console, порядок действий: дождаться обхода, который увидит `noindex` (crawl-то открыт), затем «Удаления → Устаревший контент» для конкретных URL, после чего удалить свойство `test.tamir.rs` из Search Console. Тот же заголовок можно выдать и на уровне Cloudflare (Transform Rule / Modify Response Header), если приложение его не отдаёт.
 
 Обновление сервера: [DEPLOY.md](../DEPLOY.md). Структурированные данные и подтверждённые ограничения контента: [PRODUCT-SEO.md](PRODUCT-SEO.md).
 

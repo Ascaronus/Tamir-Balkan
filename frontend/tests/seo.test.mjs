@@ -1,10 +1,13 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { createRequire } from "node:module"
-import { siteUrl, serializeJsonLd, languageAlternates } from "../src/lib/seo.ts"
+import { siteUrl, serializeJsonLd, languageAlternates, hostBlocksSearchEngines, ROBOTS_NOINDEX_TAG } from "../src/lib/seo.ts"
 import { categoryHandle, categoryPath, categoryRedirectPath } from "../src/lib/store/category-url.ts"
 import { queryText, normalizeCatalogQuery } from "../src/lib/store/search-params.ts"
 const { resolveRouteData } = createRequire(import.meta.url)("next/dist/build/webpack/loaders/metadata/resolve-route-data.js")
+const noindexOff = async () => false
+const noindexOn = async () => true
+
 
 test("structured data cannot close the script element", () => {
   const input = { name: "</script><script>alert(1)</script>" }
@@ -48,7 +51,7 @@ test('private shopping and account pages retain noindex',()=>{
 })
 test('sitemap includes public legal pages and products but no private routes',async()=>{
  const sitemap=load('frontend/src/app/sitemap.ts',{
-  '@/lib/seo':{siteUrl,languageAlternates},'@/lib/store/products':{listProductsByCountry:async()=>({products:[{handle:'test-tie'}],count:1})},
+  '@/lib/seo':{siteUrl,languageAlternates,blocksSearchEngines:noindexOff},'@/lib/store/products':{listProductsByCountry:async()=>({products:[{handle:'test-tie'}],count:1})},
   '@/lib/store/categories':{listStoreProductCategories:async()=>[]},
   '@/lib/store/category-url':{categoryPath},
  }).default
@@ -57,14 +60,48 @@ test('sitemap includes public legal pages and products but no private routes',as
 })
 
 
-test('robots allows reading noindex HTML while retaining the API crawl restriction',()=>{
- const rules=load('frontend/src/app/robots.ts',{'@/lib/seo':{siteUrl,languageAlternates}}).default()
+test('robots allows reading noindex HTML while retaining the API crawl restriction',async()=>{
+ const rules=await load('frontend/src/app/robots.ts',{'@/lib/seo':{siteUrl,languageAlternates,blocksSearchEngines:noindexOff}}).default()
  assert.deepEqual(Array.from(rules.rules.disallow),['/api/'])
  assert.equal(rules.sitemap,siteUrl('/sitemap.xml'))
 })
+test('staging robots keeps crawling open but publishes no sitemap',async()=>{
+ const rules=await load('frontend/src/app/robots.ts',{'@/lib/seo':{siteUrl,languageAlternates,blocksSearchEngines:noindexOn}}).default()
+ assert.equal(rules.rules.allow,'/')
+ assert.equal(rules.rules.disallow,undefined)
+ assert.equal('sitemap' in rules,false)
+})
+test('staging sitemap is empty',async()=>{
+ const sitemap=load('frontend/src/app/sitemap.ts',{
+  '@/lib/seo':{siteUrl,languageAlternates,blocksSearchEngines:noindexOn},
+  '@/lib/store/categories':{listStoreProductCategories:async()=>[]},
+  '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count:0})},
+  '@/lib/store/category-url':{categoryPath},
+ }).default
+ const entries=await sitemap()
+ assert.equal(entries.length,0)
+})
+test('only public production hosts may be indexed',()=>{
+ for(const host of ['tamir.rs','www.tamir.rs','tamir.ua','www.tamir.ua','api.tamir.rs'])
+  assert.equal(hostBlocksSearchEngines(host,'https:'),false,host)
+ for(const host of ['test.tamir.rs','test-api.tamir.rs','tamir-staging.local','','..','192.168.1.143'])
+  assert.equal(hostBlocksSearchEngines(host,'https:'),true,JSON.stringify(host))
+ assert.equal(hostBlocksSearchEngines('localhost','http:'),false)
+ assert.equal(hostBlocksSearchEngines('localhost',null),false)
+ assert.equal(hostBlocksSearchEngines('tamir.localhost',undefined),false)
+ assert.equal(hostBlocksSearchEngines('127.0.0.1','http:'),false)
+ assert.equal(hostBlocksSearchEngines('localhost','https:'),true)
+ // Смоук стенда стучится на loopback без x-forwarded-proto: ответы должны совпадать
+ // с ответами публичного test-хоста, иначе проверка перестает что-то значить.
+ assert.equal(hostBlocksSearchEngines('127.0.0.1',null),true)
+ assert.equal(hostBlocksSearchEngines('127.0.0.1',undefined),true)
+ assert.equal(hostBlocksSearchEngines('192.168.1.143',undefined),true)
+ assert.equal(ROBOTS_NOINDEX_TAG.includes('noindex'),true)
+})
+
 test('sitemap includes populated categories and pagination with canonical URLs, excluding empty categories and resources',async()=>{
  const sitemap=load('frontend/src/app/sitemap.ts',{
-  '@/lib/seo':{siteUrl,languageAlternates},
+  '@/lib/seo':{siteUrl,languageAlternates,blocksSearchEngines:noindexOff},
   '@/lib/store/categories':{listStoreProductCategories:async()=>[{id:'hats',handle:'hats',category_children:[{id:'scarves',handle:'Scarves'}]},{id:'scarves',handle:'Scarves'},{id:'empty',handle:'empty'}]},
   '@/lib/store/category-url':{categoryPath},
   '@/lib/store/products':{listProductsByCountry:async args=>args.categoryId?{products:[],count:{hats:27,scarves:6,empty:0}[args.categoryId]}:{products:Array.from({length:33},(_,i)=>({handle:'item-'+i})),count:33}},
