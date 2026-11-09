@@ -17,7 +17,8 @@ export const chatConfigSchema = z
     telegram: z
       .object({
         enabled: z.boolean(),
-        chatId: z.string().regex(/^$|^-?\d{1,20}$/),
+        // Admin UI and old jsonb rows may carry the id as a number; keep one canonical string form.
+        chatId: z.preprocess((v) => (typeof v === 'number' ? String(v) : v), z.string().trim().regex(/^$|^-?\d{1,20}$/)),
         topics: z.boolean(),
         notifyNew: z.boolean(),
         notifyMessages: z.boolean(),

@@ -37,6 +37,14 @@ test('safe defaults and bounded localized settings', () => {
   ])
     assert.equal(chatConfigSchema.safeParse({ ...defaultChatConfig, ...patch }).success, false)
 })
+test('chat id stays one canonical string for the admin UI and legacy jsonb rows', () => {
+  const telegram = (chatId) => ({ ...defaultChatConfig.telegram, enabled: true, chatId })
+  for (const chatId of [-1001234567890, '-1001234567890', ' -1001234567890 '])
+    assert.equal(chatConfigSchema.parse({ ...defaultChatConfig, telegram: { ...telegram(0), chatId } }).telegram.chatId, '-1001234567890')
+  assert.equal(chatConfigSchema.parse({ ...defaultChatConfig, telegram: telegram('') }).telegram.chatId, '')
+  for (const chatId of ['-100abc', '1.5', '1'.repeat(21), { id: 1 }])
+    assert.equal(chatConfigSchema.safeParse({ ...defaultChatConfig, telegram: { ...telegram(0), chatId } }).success, false)
+})
 test('secrets use authenticated encryption, distinct IVs and safe errors', () => {
   const old = process.env.CHAT_ENCRYPTION_KEY
   try {
