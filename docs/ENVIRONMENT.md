@@ -47,6 +47,11 @@ NEXT_PUBLIC_TURNSTILE_SITE_KEY=REPLACE_WITH_SITE_KEY
 
 Для production: API `https://api.tamir.rs`, origin витрины `https://tamir.rs`, реальные publishable/Turnstile site keys. Publishable key привязывается к каналу продаж. Admin secret key вместо него использовать нельзя.
 
+`NEXT_PUBLIC_SITE_URL` вшивается в бандл при сборке и участвует в проверке Origin у POST-запросов
+чата ([TAMIR Chat](TAMIR-CHAT.md)), поэтому в релизе прода в ней должно быть `https://tamir.rs`,
+а не локальный адрес из `frontend/.env.example`. Переменные PM2-процесса перекрывают `.env`-файлы
+Next, поэтому после правки файла проверяйте `pm2 describe tamir-frontend` и пересобирайте витрину.
+
 `TAMIR_PRIVACY_EMAIL` — серверная почта для публичной политики конфиденциальности. Старые `TAMIR_SELLER_*` / `TAMIR_TERMS_PUBLISHED` не включают реквизиты в текущие terms; см. [правовой статус документов](LEGAL-AND-COOKIES.md).
 
 Адрес прод-прослушивания витрины задаёт скрипт `start` в `frontend/package.json` (`next start -H 127.0.0.1`), а не `.env.local`: CLI-флаг `-H` перекрывает `HOSTNAME` из PM2-экосистемы, поэтому в `ecosystem.config.cjs` и в `.env.local` переменных `HOSTNAME`/`PORT` для биндинга держать не нужно. Публичный вход — за nginx (`tamir.rs`); то же правило для API — `backend/scripts/start-server.mjs` передаёт `-H` в `medusa start`.

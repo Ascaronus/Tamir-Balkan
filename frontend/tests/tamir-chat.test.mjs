@@ -41,7 +41,8 @@ for (const l of ['sr', 'en'])
   })
 function route({ customer = null, guest = null, response = { saved: true }, status = 200, siteUrl = '' } = {}) {
   const calls = [],
-    set = []
+    set = [],
+    warnings = []
   const { GET, POST } = load(
     'frontend/src/app/api/chat/[...path]/route.ts',
     {
@@ -59,6 +60,7 @@ function route({ customer = null, guest = null, response = { saved: true }, stat
     },
     {
       process: { env: { ...process.env, NEXT_PUBLIC_SITE_URL: siteUrl } },
+      console: { warn: (...args) => warnings.push(args.join(' ')), log: () => {}, error: () => {} },
       Buffer,
       Response,
       fetch: async (url, options) => {
@@ -67,7 +69,7 @@ function route({ customer = null, guest = null, response = { saved: true }, stat
       },
     },
   )
-  return { GET, POST, calls, set }
+  return { GET, POST, calls, set, warnings }
 }
 const post = (path, body = {}, origin = 'https://tamir.rs') =>
   new Request('https://tamir.rs/api/chat/' + path, {
@@ -142,14 +144,38 @@ test('chat BFF rejects foreign, missing, null and internal origins despite spoof
 test('chat BFF fails closed for invalid configured origins and supports local development without configuration', async () => {
   for (const siteUrl of ['invalid-url', 'file:///tmp/site', 'https://user:password@tamir.rs']) {
     const r = route({ siteUrl })
-    assert.equal((await r.POST(post('session'))).status, 403)
-    assert.equal(r.calls.length, 0)
+    // A broken build-time value must not lock out the public storefront, but the
+    // internal Next.js origin is not opened for it.
+    assert.equal((await r.POST(post('session'))).status, 200)
+    assert.equal((await r.POST(post('session', {}, 'https://evil.test'))).status, 403)
+    assert.equal(
+      (await r.POST(new Request('http://localhost:3000/api/chat/session', { method: 'POST' }))).status,
+      403,
+    )
+    assert.ok(/NEXT_PUBLIC_SITE_URL/.test(r.warnings.join('\n')), siteUrl)
   }
   const r = route()
   const result = await r.POST(new Request('http://localhost:3000/api/chat/session', {
     method: 'POST', headers: { origin: 'http://localhost:3000' },
   }))
   assert.equal(result.status, 200)
+})
+
+test('chat BFF accepts our public https origins even with a local NEXT_PUBLIC_SITE_URL', async () => {
+  for (const siteUrl of ['', 'https://localhost:3000', 'https://test.tamir.rs']) {
+    const r = route({ siteUrl })
+    for (const origin of ['https://tamir.rs', 'https://www.tamir.rs'])
+      assert.equal((await r.POST(post('session', {}, origin))).status, 200, `${siteUrl} ${origin}`)
+    for (const origin of ['http://tamir.rs', 'https://tamir.rs:444', 'https://tamir.rs.evil.test',
+      'https://evil.tamir.rs', 'http://www.tamir.rs', 'null'])
+      assert.equal((await r.POST(post('session', {}, origin))).status, 403, `${siteUrl} ${origin}`)
+    assert.equal(
+      (await r.POST(new Request('https://tamir.rs/api/chat/session', { method: 'POST' }))).status, 403,
+    )
+    if (siteUrl === 'https://localhost:3000')
+      assert.ok(/NEXT_PUBLIC_SITE_URL/.test(r.warnings.join('\n')))
+    else assert.equal(r.warnings.length, 0)
+  }
 })
 
 
