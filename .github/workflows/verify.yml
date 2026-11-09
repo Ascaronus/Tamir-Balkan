@@ -135,5 +135,6 @@ jobs:
       - run: |
           for sh in scripts/*.sh scripts/lib/*.sh; do bash -n "$sh"; done
       - run: node test-support/verify-deploy-pin.mjs
+      - run: node --test test-support/production-chat.test.mjs
       - run: node test-support/verify-deploy-staging.mjs
       - run: node test-support/verify-perimeter-bind.mjs
