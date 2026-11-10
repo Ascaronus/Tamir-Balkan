@@ -46,7 +46,7 @@
 
 ### Requirement: Публичные страницы публикуют canonical и пару hreflang sr/en
 
-Каждая публичная страница (включая юридические `/privacy`, `/terms`, `/cookies` вне `[countryCode]`) обязана (MUST) строить мета-данные через `languageAlternates`: `canonical` обязан (MUST) соответствовать локали страницы, а `languages` обязан (MUST) содержать обе абсолютные ссылки `sr` и `en`. Абсолютные URL обязана (MUST) строить функция `siteUrl` от `NEXT_PUBLIC_SITE_URL` (дефолт `https://tamir.rs`); canonical обязан (MUST) описывать публичные URL, а не цели внутренних rewrite.
+Каждая публичная страница (включая юридические `/privacy`, `/terms`, `/cookies` вне `[countryCode]`) обязана (MUST) строить мета-данные через `languageAlternates`: `canonical` обязан (MUST) соответствовать локали страницы, а `languages` обязан (MUST) содержать обе абсолютные ссылки `sr` и `en`. Абсолютные SEO URL обязана (MUST) строить функция `siteUrl` от постоянного origin `https://tamir.rs` независимо от `NEXT_PUBLIC_SITE_URL`; canonical обязан (MUST) описывать публичные URL, а не цели внутренних rewrite. Переданный в `siteUrl` абсолютный URL другого origin обязан (MUST) отклоняться.
 
 #### Scenario: Сербская страница категории
 
@@ -56,9 +56,20 @@
 
 #### Scenario: Английская юридическая страница
 
-- **WHEN** рендерится `/en/privacy`
+- **WHEN** на production-хосте рендерится `/en/privacy`
 - **THEN** canonical равен `siteUrl("/en/privacy")`
 - **AND** мета-данные содержат `robots.index: true`
+
+### Requirement: Стенд запрещает индексацию на уровне HTTP и HTML
+
+Индексируемые production-хосты витрины — `tamir.rs` и `www.tamir.rs`. Стенд и другие непубличные хосты обязаны (MUST) возвращать `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`; HTML metadata публичных страниц обязаны (MUST) сохранять запрет `noindex`, включая дочерние metadata каталога, товаров и юридических страниц. `robots.txt` обязан (MUST) разрешать обход для чтения noindex без объявления sitemap; sitemap стенда обязан (MUST) быть пустым. Локальная HTTP-разработка сохраняет исключение из ограничения хостов.
+
+#### Scenario: Товар или юридическая страница на стенде
+
+- **WHEN** запрос приходит на `test.tamir.rs`, в том числе при `NEXT_PUBLIC_SITE_URL=https://test.tamir.rs`
+- **THEN** HTTP-заголовок и HTML robots запрещают индексацию
+- **AND** canonical и hreflang используют `https://tamir.rs`
+- **AND** изменение окружения не превращает стенд в индексируемый сайт
 
 ### Requirement: Индексируемость английской страницы товара зависит от englishReady
 
