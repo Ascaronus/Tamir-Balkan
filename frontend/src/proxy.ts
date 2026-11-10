@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { detectBrowserLocale, isLocale, LOCALE_COOKIE, locales } from "./lib/i18n/config"
 import { localizedPath } from "./lib/i18n/paths"
 import { hostBlocksSearchEngines, ROBOTS_NOINDEX_TAG } from "./lib/seo"
 
@@ -17,12 +16,11 @@ export function proxy(request: NextRequest) {
   // Only production hosts may be indexed; every other host is closed at the response level.
   const noindex = hostBlocksSearchEngines(publicHost, request.nextUrl.protocol)
   if (path === "/") {
-    const saved = request.cookies.get(LOCALE_COOKIE)?.value
-    const locale = isLocale(saved) ? saved : detectBrowserLocale(request.headers.get("accept-language"), locales, "sr")
-    const url = new URL(publicUrl); url.pathname = locale === "en" ? "/en" : "/rs"
-    const response = NextResponse.redirect(url, 307)
+    // A single permanent destination reinforces /rs as the Serbian canonical.
+    // English remains available through /en and the language switcher.
+    const url = new URL(publicUrl); url.pathname = "/rs"
+    const response = NextResponse.redirect(url, 308)
     response.headers.set("Cache-Control", "private, no-store")
-    response.headers.set("Vary", "Accept-Language, Cookie")
     if (noindex) response.headers.set("X-Robots-Tag", ROBOTS_NOINDEX_TAG)
     return response
   }

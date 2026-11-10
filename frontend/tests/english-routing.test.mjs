@@ -30,13 +30,16 @@ test('every host that is not a public production origin is closed to search engi
   assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test(path),false,path)
  assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test('/rs/catalog'),true)
 })
-test('only an unqualified entry selects browser/saved language, using temporary uncacheable redirects',()=>{
- for(const browser of ['en','en-GB,en;q=0.8','en-US']) {
-  const result=proxy(request('/?q=hat',browser));assert.equal(result.status,307);assert.equal(result.url,'https://tamir.rs/en?q=hat');assert.match(result.headers.get('cache-control'),/no-store/)
+test('root permanently redirects to the Serbian canonical regardless of browser or saved language',()=>{
+ for(const browser of ['en','en-GB,en;q=0.8','en-US','ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS','']) {
+  for(const cookie of [undefined,'sr','en','invalid']) {
+   const result=proxy(request('/?q=hat&size=42%2C5',browser,cookie))
+   assert.equal(result.status,308)
+   assert.equal(result.url,'https://tamir.rs/rs?q=hat&size=42%2C5')
+   assert.match(result.headers.get('cache-control'),/no-store/)
+   assert.equal(result.headers.get('vary'),null)
+  }
  }
- for(const browser of ['ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS',''])assert.equal(proxy(request('/',browser)).url,'https://tamir.rs/rs')
- assert.equal(proxy(request('/','en','sr')).url,'https://tamir.rs/rs')
- assert.equal(proxy(request('/','ru','en')).status,307)
 })
 test('explicit links override cookies and browser without rewriting away the language',()=>{
  const sr=proxy(request('/rs/catalog/hats','en','en'));assert.equal(sr.next,true);assert.equal(sr.request.headers.get('x-tamir-locale'),'sr')
@@ -51,7 +54,7 @@ test('entry redirect removes the reverse proxy internal port but preserves an ex
   const req=request('/?q=hat','en')
   req.nextUrl=new URL('https://localhost:3000/?q=hat')
   req.headers.set('host',host)
-  assert.equal(proxy(req).url,`https://${host}/en?q=hat`)
+  assert.equal(proxy(req).url,`https://${host}/rs?q=hat`)
  }
 })
 test('localized navigation preserves filters, variants and fragments, leaving APIs and external links untouched',()=>{
