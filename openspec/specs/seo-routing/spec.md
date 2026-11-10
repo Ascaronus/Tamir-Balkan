@@ -1,19 +1,19 @@
 # seo-routing Specification
 
 ## Purpose
-Фиксирует текущее SEO-поведение витрины `tamir.rs`: временный входной редирект 307, канонизацию сербских путей через 308, canonical/hreflang, индексируемость английских версий товаров, алиасы старых адресов, правила `sitemap.xml`, `robots.txt` и `noindex` для приватных разделов.
+Фиксирует текущее SEO-поведение витрины `tamir.rs`: постоянный входной редирект 308 на `/rs`, канонизацию сербских путей через 308, canonical/hreflang, индексируемость английских версий товаров, алиасы старых адресов, правила `sitemap.xml`, `robots.txt` и `noindex` для приватных разделов.
 
 ## Requirements
 
-### Requirement: Входной редирект на / выполняет выбор языка и отвечает 307 без кеширования
+### Requirement: Входной редирект на / постоянно ведёт на /rs
 
-Прокси обязан (MUST) для пути `/` выбрать язык сначала из cookie `store_locale`, иначе из заголовка `Accept-Language` (с дефолтом `sr`) и ответить `307` на `/rs` или `/en` с сохранением query-строки. Ответ обязан (MUST) содержать `Cache-Control: private, no-store` и `Vary: Accept-Language, Cookie`, чтобы персональный выбор языка не кешировался.
+Прокси обязан (MUST) для пути `/` ответить `308` на `/rs` с сохранением query-строки, независимо от cookie `store_locale` и заголовка `Accept-Language`. Ответ сохраняет `Cache-Control: private, no-store`, но не публикует `Vary: Accept-Language, Cookie`: назначения больше не зависят от пользователя. Постоянный статус усиливает canonical `/rs`; английская версия доступна по `/en` и через переключатель языка.
 
-#### Scenario: Первый визит без cookie
+#### Scenario: Английский браузер и сохранённый английский язык
 
-- **WHEN** запрос `/` не имеет `store_locale` и содержит `Accept-Language: en-US`
-- **THEN** ответ возвращает `307` на `/en` с исходной query-строкой
-- **AND** в ответе есть `Cache-Control: private, no-store` и `Vary: Accept-Language, Cookie`
+- **WHEN** запрос `/?q=hat` содержит `store_locale=en` и `Accept-Language: en-US`
+- **THEN** ответ возвращает `308` на `/rs?q=hat`
+- **AND** прямой запрос `/en` остаётся доступным с HTTP 200 и canonical `/en`
 
 ### Requirement: Неканонические сербские пути получают постоянный редирект 308
 
@@ -46,7 +46,7 @@
 
 ### Requirement: Публичные страницы публикуют canonical и пару hreflang sr/en
 
-Каждая публичная страница (включая юридические `/privacy`, `/terms`, `/cookies` вне `[countryCode]`) обязана (MUST) строить мета-данные через `languageAlternates`: `canonical` обязан (MUST) соответствовать локали страницы, а `languages` обязан (MUST) содержать обе абсолютные ссылки `sr` и `en`. Абсолютные URL обязана (MUST) строить функция `siteUrl` от `NEXT_PUBLIC_SITE_URL` (дефолт `https://tamir.rs`); canonical обязан (MUST) описывать публичные URL, а не цели внутренних rewrite.
+Каждая публичная страница (включая юридические `/privacy`, `/terms`, `/cookies` вне `[countryCode]`) обязана (MUST) строить мета-данные через `languageAlternates`: `canonical` обязан (MUST) соответствовать локали страницы, а `languages` обязан (MUST) содержать обе абсолютные ссылки `sr` и `en`. Абсолютные SEO URL обязана (MUST) строить функция `siteUrl` от постоянного origin `https://tamir.rs` независимо от `NEXT_PUBLIC_SITE_URL`; canonical обязан (MUST) описывать публичные URL, а не цели внутренних rewrite. Переданный в `siteUrl` абсолютный URL другого origin обязан (MUST) отклоняться.
 
 #### Scenario: Сербская страница категории
 
@@ -56,9 +56,20 @@
 
 #### Scenario: Английская юридическая страница
 
-- **WHEN** рендерится `/en/privacy`
+- **WHEN** на production-хосте рендерится `/en/privacy`
 - **THEN** canonical равен `siteUrl("/en/privacy")`
 - **AND** мета-данные содержат `robots.index: true`
+
+### Requirement: Стенд запрещает индексацию на уровне HTTP и HTML
+
+Индексируемые production-хосты витрины — `tamir.rs` и `www.tamir.rs`. Стенд и другие непубличные хосты обязаны (MUST) возвращать `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`; HTML metadata публичных страниц обязаны (MUST) сохранять запрет `noindex`, включая дочерние metadata каталога, товаров и юридических страниц. `robots.txt` обязан (MUST) разрешать обход для чтения noindex без объявления sitemap; sitemap стенда обязан (MUST) быть пустым. Локальная HTTP-разработка сохраняет исключение из ограничения хостов.
+
+#### Scenario: Товар или юридическая страница на стенде
+
+- **WHEN** запрос приходит на `test.tamir.rs`, в том числе при `NEXT_PUBLIC_SITE_URL=https://test.tamir.rs`
+- **THEN** HTTP-заголовок и HTML robots запрещают индексацию
+- **AND** canonical и hreflang используют `https://tamir.rs`
+- **AND** изменение окружения не превращает стенд в индексируемый сайт
 
 ### Requirement: Индексируемость английской страницы товара зависит от englishReady
 
