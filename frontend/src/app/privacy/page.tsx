@@ -4,11 +4,11 @@ import { StoreShell } from "@/components/store/StoreShell"
 import { CookieSettingsButton } from "@/components/privacy/CookieConsent"
 import { getTranslations } from "@/lib/i18n/server"
 import { privacyPolicy } from "@/lib/legal/content"
-import { languageAlternates } from "@/lib/seo"
+import { languageAlternates, pageRobots } from "@/lib/seo"
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await getTranslations()
-  return { title: privacyPolicy[locale].title, alternates: languageAlternates("/privacy", locale), robots: { index: true, follow: true } }
+  return { title: privacyPolicy[locale].title, alternates: languageAlternates("/privacy", locale), robots: await pageRobots() }
 }
 
 export default async function PrivacyPage() {
