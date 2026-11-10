@@ -319,7 +319,10 @@ for (const locale of ['sr', 'en']) test(`chat presentation ${locale}: greetings,
     AbortController, setInterval: fn => { polling = fn; return 1 }, clearInterval: noop,
     document: { addEventListener: noop, removeEventListener: noop, querySelector: () => null },
     window: { addEventListener: noop, removeEventListener: noop },
-    EventSource: class { constructor() { stream = this } addEventListener() {} close() {} },
+    EventSource: function () {
+      stream = { addEventListener: noop, close: noop }
+      return stream
+    },
   })
   const session = Widget(), render = () => h.render(() => session.type(session.props))
   render(); await h.flush()
