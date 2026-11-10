@@ -1,6 +1,25 @@
 # Sitemap, robots и Google Search Console
 
-Актуально на 9 ноября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts`, общий SEO-код витрины `frontend/src/lib/seo.ts` и `backend/src/api/middlewares.ts`.
+Актуально на 10 ноября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts`, общий SEO-код витрины `frontend/src/lib/seo.ts` и `backend/src/api/middlewares.ts`.
+
+## Проверка через API 10 ноября 2026
+
+В ресурсе `sc-domain:tamir.rs` была ошибочно отправлена HTML-страница
+`https://tamir.rs/rs/catalog/hats` как sitemap: API показывал одну ошибку.
+Запись удалена через Sitemaps API; правильный `https://tamir.rs/sitemap.xml`
+отправлен повторно. После чтения Google: 42 URL, errors=0, warnings=0.
+Поле `contents.indexed` в Sitemaps API не используется для вывода об индексации:
+фактические решения проверяются отдельно через URL Inspection.
+
+Доменный ресурс включает все поддомены. Наличие `test.tamir.rs` в отчёте само по
+себе не означает индексацию. Для отчёта только по прод-витрине можно использовать
+URL-prefix ресурс `https://tamir.rs/`; стенд всё равно должен оставаться noindex.
+
+HTML-метаданные публичных страниц теперь проверяют Host через `pageRobots`:
+дочерние metadata не должны заменять noindex корневого layout на index.
+Canonical/hreflang/sitemap/JSON-LD используют фиксированный `https://tamir.rs`,
+независимо от значения NEXT_PUBLIC_SITE_URL. Только tamir.rs/www.tamir.rs
+разрешены как хосты индексируемой витрины; backend имеет отдельную политику.
 
 ## Что включено в sitemap
 

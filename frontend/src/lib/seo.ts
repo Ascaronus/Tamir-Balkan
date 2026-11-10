@@ -6,9 +6,10 @@ import { localizedPath } from "./i18n/paths"
  * Public production origins. Any other host is treated as a non-searchable instance.
  * `tamir.ua` is the external Rozetka feed source, not one of our sites, so it is not listed here.
  */
-export const SEARCHABLE_HOSTS = new Set(["tamir.rs", "www.tamir.rs", "api.tamir.rs"])
-/** nofollow keeps links crawlable so Google re-crawls the page and reads the directive again. */
+export const SEARCHABLE_HOSTS = new Set(["tamir.rs", "www.tamir.rs"])
+/** Crawling is allowed in robots.txt so Google can read this exclusion directive. */
 export const ROBOTS_NOINDEX_TAG = "noindex, nofollow, noarchive, nosnippet"
+export const PUBLIC_SITE_ORIGIN = "https://tamir.rs"
 
 function normalizeHost(value: string | null | undefined): string {
   try {
@@ -43,10 +44,17 @@ export async function blocksSearchEngines(): Promise<boolean> {
   return hostBlocksSearchEngines(requestHeaders.get("host"), forwardedProto ? `${forwardedProto}:` : undefined)
 }
 
+/** Each page must apply the host restriction: child metadata replaces layout robots. */
+export async function pageRobots(index = true) {
+  if (await blocksSearchEngines()) return { index: false, follow: false, noarchive: true, nosnippet: true }
+  return { index, follow: true }
+}
+
 export function siteUrl(path = "/"): string {
-  const base = new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://tamir.rs")
-  if (!["http:", "https:"].includes(base.protocol)) throw new Error("Invalid site URL")
-  return new URL(path, base.origin).href
+  // SEO URLs always describe the public shop, never the build host or staging env.
+  const url = new URL(path, PUBLIC_SITE_ORIGIN)
+  if (url.origin !== PUBLIC_SITE_ORIGIN) throw new Error("SEO URL must use the public storefront origin")
+  return url.href
 }
 
 export function serializeJsonLd(value: unknown): string {

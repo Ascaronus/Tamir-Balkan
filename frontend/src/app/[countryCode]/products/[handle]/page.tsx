@@ -9,7 +9,7 @@ import { cache } from "react"
 import { localizedText } from "@/lib/i18n/content"
 import { getImagesForVariant } from "@/lib/product-image"
 import { productJsonLd } from "@/lib/seo/product"
-import { siteUrl, serializeJsonLd, languageAlternates } from "@/lib/seo"
+import { siteUrl, serializeJsonLd, languageAlternates, pageRobots } from "@/lib/seo"
 import type { Locale } from "@/lib/i18n/config"
 import Link from "@/components/i18n/LocalizedLink"
 import { notFound } from "next/navigation"
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: {
   const url = siteUrl(productPath(product, locale))
   const images = getImagesForVariant(product).map(image => image.url)
   return { title: title + " | Tamir", description, alternates: englishReady(product) ? languageAlternates(productPath(product, "sr"), locale, productPath(product, "en")) : { canonical: url },
-    robots: { index: locale === "sr" || englishReady(product), follow: true },
+    robots: await pageRobots(locale === "sr" || englishReady(product)),
     openGraph: { title, description, url, images, type: "website" },
     twitter: { card: "summary_large_image", title, description, images } }
 }

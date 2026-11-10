@@ -15,7 +15,7 @@ test("structured data cannot close the script element", () => {
   assert.equal(encoded.includes("<"), false)
   assert.deepEqual(JSON.parse(encoded), input)
 })
-test("canonical URLs use the configured public origin", () => {
+test("canonical URLs use the public storefront origin", () => {
   const old = process.env.NEXT_PUBLIC_SITE_URL
   try {
     process.env.NEXT_PUBLIC_SITE_URL = "https://tamir.rs/"
@@ -27,6 +27,59 @@ test("canonical URLs use the configured public origin", () => {
 })
 
 import { load, find } from '../test-support/component-harness.mjs'
+import { localizedPath } from '../src/lib/i18n/paths.ts'
+function seoForHost(host) {
+ return load('frontend/src/lib/seo.ts', {
+  'next/headers': { headers: async () => new Headers({ host, 'x-forwarded-proto': 'https' }) },
+  './i18n/paths': { localizedPath },
+ })
+}
+test('SEO URLs cannot leak staging or local build configuration',()=>{
+ const previous=process.env.NEXT_PUBLIC_SITE_URL
+ try {
+  for(const origin of ['https://test.tamir.rs','https://localhost:3000','https://www.tamir.rs','broken','']) {
+   process.env.NEXT_PUBLIC_SITE_URL=origin
+   assert.equal(siteUrl('/rs/catalog?page=2'),'https://tamir.rs/rs/catalog?page=2')
+   assert.equal(languageAlternates('/rs','en').canonical,'https://tamir.rs/en')
+  }
+  assert.throws(()=>siteUrl('//test.tamir.rs/rs'),/public storefront/)
+ } finally {
+  if(previous===undefined)delete process.env.NEXT_PUBLIC_SITE_URL
+  else process.env.NEXT_PUBLIC_SITE_URL=previous
+ }
+})
+test('host robots excludes staging without opening private production pages',async()=>{
+ for(const host of ['test.tamir.rs','test-api.tamir.rs','api.tamir.rs']) {
+  const seo=seoForHost(host)
+  for(const index of [true,false]) {
+   const robots=await seo.pageRobots(index)
+   assert.equal(robots.index,false);assert.equal(robots.follow,false);assert.equal(robots.nosnippet,true)
+  }
+ }
+ for(const host of ['tamir.rs','www.tamir.rs']) {
+  const seo=seoForHost(host)
+  assert.equal((await seo.pageRobots()).index,true)
+  assert.equal((await seo.pageRobots(false)).index,false)
+ }
+})
+test('root and public legal metadata do not advertise staging as indexable',async()=>{
+ const seo=seoForHost('test.tamir.rs')
+ const root=load('frontend/src/app/layout.tsx',{
+  '@/lib/seo':seo,'@/components/privacy/CookieConsent':{},'next/font/google':{Manrope:()=>({variable:'font'})},
+  '@/components/i18n/LocaleProvider':{},'@/components/store/StoreProviders':{},
+  '@/lib/i18n/server':{getLocale:async()=> 'sr'},'@/lib/i18n/messages':{getMessages:()=>({meta:{title:'TAMIR',description:'Shop'}})},'./globals.css':{},
+ })
+ assert.equal((await root.generateMetadata()).robots.index,false)
+ for(const [page,key] of [['privacy','privacyPolicy'],['terms','terms']]) {
+  const legalPage=load(`frontend/src/app/${page}/page.tsx`,{
+   '@/lib/seo':seo,'@/components/i18n/LocalizedLink':'Link','@/components/store/StoreShell':{},'@/components/privacy/CookieConsent':{},
+   '@/lib/i18n/server':{getTranslations:async()=>({locale:'en'})},'@/lib/legal/content':{[key]:{en:{title:page}}},
+  })
+  const metadata=await legalPage.generateMetadata()
+  assert.equal(metadata.robots.index,false)
+  assert.equal(metadata.alternates.canonical,'https://tamir.rs/en/'+page)
+ }
+})
 import * as fetchTimeout from '../src/lib/store/fetch-timeout.ts'
 const catalog = load('frontend/src/lib/store/catalog.ts', {
  '@/lib/medusa': {}, '@/lib/i18n/config': {}, './search-params': { queryText }, './fetch-timeout': fetchTimeout,
@@ -36,7 +89,7 @@ test('public legal pages explicitly allow indexing',async()=>{
   const moduleUnderTest=load(`frontend/src/app/${page}/page.tsx`,{
    '@/components/i18n/LocalizedLink':'Link','@/components/store/StoreShell':{},'@/components/privacy/CookieConsent':{},
    '@/lib/i18n/server':{getTranslations:async()=>({locale:'en'})},
-   '@/lib/legal/content':{[contentKey]:{en:{title:page}}},'@/lib/seo':{siteUrl,languageAlternates},
+   '@/lib/legal/content':{[contentKey]:{en:{title:page}}},'@/lib/seo':{siteUrl,languageAlternates,pageRobots:async(index=true)=>({index,follow:true})},
   })
   const metadata=await moduleUnderTest.generateMetadata()
   assert.equal(metadata.robots.index,true)
@@ -82,10 +135,10 @@ test('staging sitemap is empty',async()=>{
  assert.equal(entries.length,0)
 })
 test('only public production hosts may be indexed',()=>{
- for(const host of ['tamir.rs','www.tamir.rs','api.tamir.rs'])
+ for(const host of ['tamir.rs','www.tamir.rs'])
   assert.equal(hostBlocksSearchEngines(host,'https:'),false,host)
  // Чужой домен источника фида Rozetka не даёт права индексировать то, что отвечает на нашем стенде.
- for(const host of ['test.tamir.rs','test-api.tamir.rs','tamir.ua','www.tamir.ua','tamir-staging.local','','..','192.168.1.143'])
+ for(const host of ['api.tamir.rs','test.tamir.rs','test-api.tamir.rs','tamir.ua','www.tamir.ua','tamir-staging.local','','..','192.168.1.143'])
   assert.equal(hostBlocksSearchEngines(host,'https:'),true,JSON.stringify(host))
  assert.equal(hostBlocksSearchEngines('localhost','http:'),false)
  assert.equal(hostBlocksSearchEngines('localhost',null),false)
@@ -114,7 +167,7 @@ test('sitemap includes populated categories and pagination with canonical URLs, 
  for(const path of ['/rs/catalog?page=2','/rs/catalog/hats','/rs/catalog/hats?page=2','/rs/catalog/Scarves'])assert.ok(urls.includes(siteUrl(path)))
  assert.ok(!urls.some(url=>/empty|v_id|rozetka-|robots|sitemap|woff|account|sort=|category_id=/.test(url)))
 })
-function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27,initial=undefined,locale='sr'}={}) {
+function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=27,initial=undefined,locale='sr',host='tamir.rs'}={}) {
  return load('frontend/src/app/[countryCode]/catalog/page.tsx',{
   '@/components/banners/HomepageBanners': { HomepageBanners: 'HomepageBanners' },
   '@/lib/store/banners': { homepageBanners: async () => ({ banners: [], autoplay: true, interval: 6000 }) },
@@ -125,7 +178,7 @@ function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=
   '@/lib/store/category-url':{categoryHandle,categoryPath,categoryRedirectPath},
   '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count})},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/components/store/CatalogClient':{CatalogClient:'CatalogClient'},
-  '@/lib/i18n/server':{getTranslations:async()=>({locale,t:()=> 'Katalog'})},'@/lib/seo':{siteUrl,languageAlternates},
+  '@/lib/i18n/server':{getTranslations:async()=>({locale,t:()=> 'Katalog'})},'@/lib/seo':seoForHost(host),
  })
 }
 test('catalog metadata indexes populated categories and preserves the canonical without variant, sort and filter parameters',async()=>{
@@ -204,4 +257,10 @@ test('pagination beyond available results is not found, without treating API fai
   await catalogPage({locale,initial:{count:0,products:[]}}).default(props(locale,1))
   await catalogPage({locale,initial:null}).default(props(locale,2))
  }
+})
+
+test('populated catalog metadata cannot override staging noindex',async()=>{
+ const metadata=await catalogPage({host:'test.tamir.rs'}).generateMetadata({params:Promise.resolve({categoryHandle:'hats'}),searchParams:Promise.resolve({})})
+ assert.equal(metadata.robots.index,false)
+ assert.equal(metadata.alternates.canonical,'https://tamir.rs/rs/catalog/hats')
 })

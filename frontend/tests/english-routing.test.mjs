@@ -93,13 +93,13 @@ test('switcher remembers selection and requests the same translated product and 
  assert.equal(saved,'en');assert.equal(destination,'/en/products/hat?v_id=variant_1#reviews')
 })
 
-function productPage(locale, ready=true, {resolverStatus, available=true}={}) {
+function productPage(locale, ready=true, {resolverStatus, available=true,host='tamir.rs'}={}) {
  const product={id:'p1',handle:'bordo-kapa',title:locale==='en'?'Burgundy hat':'Bordo kapa',description:'Description',metadata:{en_handle:'burgundy-hat',en_content_ready:ready},variants:[{id:'variant_1'}]}
  return load('frontend/src/app/[countryCode]/products/[handle]/page.tsx',{
   '@/lib/store/category-url':load('frontend/src/lib/store/category-url.ts'),
   react:{cache:fn=>fn},'@/components/reviews/Stars':{},'@/lib/reviews/server':{productReviews:async()=>null},'@/components/reviews/ProductReviews':{},
   '@/lib/i18n/content':{localizedText:(_p,_key,fallback)=>fallback},'@/lib/product-image':{getImagesForVariant:()=>[]},'@/lib/seo/product':{productJsonLd:()=>null},
-  '@/lib/seo':{siteUrl,languageAlternates},'@/components/i18n/LocalizedLink':'Link',
+  '@/lib/seo':load('frontend/src/lib/seo.ts',{'next/headers':{headers:async()=>new Headers({host,'x-forwarded-proto':'https'})},'./i18n/paths':paths}),'@/components/i18n/LocalizedLink':'Link',
   'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
   '@/lib/medusa':{sdk:{client:{fetch:async()=>{if(resolverStatus)throw Object.assign(Error('RESOLVER_FAILURE'),{status:resolverStatus});return {handle:'bordo-kapa'}}}}},
   '@/lib/store/products':{listProductsByCountry:async({handle,countryCode,locale:requested})=>{assert.equal(countryCode,'rs');assert.equal(requested,locale);return {products:available&&handle==='bordo-kapa'?[product]:[],count:1}}},
@@ -152,5 +152,15 @@ test('resolver failures remain failures and an unavailable product is not expose
  for(const action of ['generateMetadata','default']) {
   await assert.rejects(productPage('en',true,{resolverStatus:503})[action](props),/RESOLVER_FAILURE/)
   await assert.rejects(productPage('en',true,{available:false})[action](props),/NOT_FOUND/)
+ }
+})
+
+test('translated product metadata stays noindex on staging',async()=>{
+ for(const locale of ['sr','en']) {
+  const page=productPage(locale,true,{host:'test.tamir.rs'})
+  const metadata=await page.generateMetadata({params:Promise.resolve({countryCode:locale==='sr'?'rs':'en',handle:locale==='sr'?'bordo-kapa':'burgundy-hat'})})
+  assert.equal(metadata.robots.index,false)
+  assert.equal(metadata.robots.follow,false)
+  assert.ok(metadata.alternates.canonical.startsWith('https://tamir.rs/'))
  }
 })
