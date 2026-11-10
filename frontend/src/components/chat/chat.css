@@ -126,11 +126,24 @@
   align-self: flex-end;
   background: var(--store-tint);
 }
-.tamir-chat-message-system {
-  align-self: flex-start;
-  border: 1px solid var(--store-border);
-  color: var(--store-text);
+.tamir-chat-event {
+  display: flex;
+  align-items: flex-start;
+  align-self: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--store-text-muted);
 }
+.tamir-chat-event > svg { flex-shrink: 0; margin-top: 2px; }
+.tamir-chat-event small { font-size: 10px; font-weight: 600; }
+.tamir-chat-event p { margin: 0; }
+.tamir-chat-message-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tamir-chat-message-customer .tamir-chat-message-meta { justify-content: flex-end; }
+.tamir-chat-delivered { display: inline-flex; flex-shrink: 0; color: #842154; }
+.tamir-chat .tamir-chat-delivery-error { color: #a12638; font-size: 11px; line-height: 1.5; }
 .tamir-chat-compose {
   border-top: 1px solid var(--store-border);
   padding: 12px;

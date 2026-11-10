@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { load, hooks, find } from '../test-support/component-harness.mjs'
-import { guestValid, mergeMessages, imageFileError, imageData, systemText } from '../src/components/chat/chat-client.ts'
+import { guestValid, mergeMessages, imageFileError, imageData, systemText, systemTemplateKey } from '../src/components/chat/chat-client.ts'
 test('chat guest requires name and independently validates optional contacts', () => {
   assert.equal(guestValid('Ana', '', ''), true)
   assert.equal(guestValid('Ana', 'ana@example.test', ''), true)
@@ -184,10 +184,11 @@ test('chat composer submits Enter through the Send form and preserves Shift+Ente
   let release, locale = 'en'
   const config = { enabled: true, locales: ['en', 'sr'], available: true, templates: { welcome: { enabled: true, text: { en: 'Hello!', sr: 'Zdravo!' } }, sent: { enabled: true, text: { en: 'Saved', sr: 'Sačuvano' } } }, title: { en: 'Support' }, button: { en: 'Chat' } }
   const client = {
-    guestValid, mergeMessages, imageFileError, imageData: async () => 'data:image/png;base64,dGVzdA==', systemText,
+    guestValid, mergeMessages, imageFileError, imageData: async () => 'data:image/png;base64,dGVzdA==', systemText, systemTemplateKey,
     chatRequest: async (action, body) => {
       calls.push({ action, body })
       if (action === 'config') return config
+      if (action === 'conversations') return { conversations: [] }
       if (action === 'session') return { conversation: { id: 'chat_1', status: 'open' }, conversations: [] }
       if (action === 'messages') await new Promise(resolve => { release = resolve })
       return {}
@@ -283,4 +284,80 @@ test('image BFF forwards image identity with private no-store responses and boun
   assert.equal((await r.POST(post('image-message', { image: 'x'.repeat(9000) }))).status, 200)
   assert.equal((await r.POST(post('image-message', { image: 'x'.repeat(7 * 1024 * 1024) }))).status, 413)
   assert.equal((await r.POST(post('image-message', {}, 'https://evil.test'))).status, 403)
+})
+
+test('system rows respect switches and never render sent confirmations as conversation text', () => {
+  const templates = Object.fromEntries(['welcome', 'returning', 'offline', 'closed', 'reopened', 'error', 'sent'].map(key =>
+    [key, { enabled: true, text: { en: key + ' EN', sr: key + ' SR' } }]))
+  const config = { templates }
+  for (const key of Object.keys(templates)) {
+    const row = { sender: 'system', template_key: key, text: 'historical text' }
+    assert.equal(systemText(row, config, 'en'), key === 'sent' ? null : key + ' EN')
+    assert.equal(systemTemplateKey({ sender: 'system', text: key + ' SR' }, config), key)
+    templates[key].enabled = false
+    assert.equal(systemText(row, config, 'sr'), null)
+    templates[key].enabled = true
+  }
+  assert.equal(systemText({ sender: 'customer', text: 'sent EN' }, config, 'en'), 'sent EN')
+})
+
+for (const locale of ['sr', 'en']) test(`chat presentation ${locale}: greetings, robot events and delivery receipts`, async () => {
+  const h = hooks(), noop = () => {}, refresh = async () => {}
+  let stream, polling
+  const templates = Object.fromEntries(['welcome', 'returning', 'offline', 'closed', 'reopened', 'error', 'sent'].map(key =>
+    [key, { enabled: true, text: { en: key + ' EN', sr: key + ' SR' } }]))
+  let config = { enabled: true, locales: ['en', 'sr'], available: false, templates, title: { en: 'Support', sr: 'Podrška' }, button: {} }
+  const conversation = { id: 'c1', status: 'open' }
+  const { default: Widget } = load('frontend/src/components/chat/ChatWidget.tsx', {
+    react: h.react, 'next/navigation': { usePathname: () => '/en' },
+    '@/components/auth/AuthProvider': { useAuth: () => ({ customer: { id: 'customer' }, isReady: true, refresh }) },
+    '@/components/i18n/LocaleProvider': { useLocaleContext: () => ({ locale, t: key => key }) },
+    './chat-client': { mergeMessages, guestValid, imageFileError, imageData, systemText, systemTemplateKey,
+      chatRequest: async action => action === 'config' ? config : action === 'conversations' ? { conversations: [conversation] }
+        : action === 'session' ? { conversation, conversations: [conversation] } : {} }, './chat.css': {},
+  }, {
+    AbortController, setInterval: fn => { polling = fn; return 1 }, clearInterval: noop,
+    document: { addEventListener: noop, removeEventListener: noop, querySelector: () => null },
+    window: { addEventListener: noop, removeEventListener: noop },
+    EventSource: function () {
+      stream = { addEventListener: noop, close: noop }
+      return stream
+    },
+  })
+  const session = Widget(), render = () => h.render(() => session.type(session.props))
+  render(); await h.flush()
+  find(render(), n => n.props.className === 'tamir-chat-launcher').props.onClick()
+  render(); await h.flush(); render(); await h.flush()
+  let tree = render()
+  const text = node => JSON.stringify(node)
+  assert.ok(text(find(tree, n => n.props.className?.includes('message-greeting'))).includes(templates.returning.text[locale]))
+  assert.ok(text(find(tree, n => n.props.className === 'tamir-chat-event')).includes(templates.offline.text[locale]))
+  const row = (id, sender, status, extra = {}) => ({ id, seq: id, sender, status, text: 'message', created_at: '2026-11-09T18:00:00Z', ...extra })
+  const rows = [row('1', 'customer', 'sent'), row('2', 'operator', 'delivered'),
+    row('3', 'system', 'delivered', { template_key: 'closed' }), row('4', 'system', 'delivered', { template_key: 'sent' }),
+    row('5', 'system', 'delivered', { template_key: 'reopened' })]
+  const emit = () => { stream.onmessage({ data: JSON.stringify({ conversation, available: false, messages: rows }) }); return render() }
+  tree = emit()
+  assert.equal(find(tree, n => n.props.className === 'tamir-chat-delivered'), null)
+  assert.ok(!text(tree).includes(templates.sent.text[locale]))
+  assert.equal(find(tree, n => n.key === '3').props.className, 'tamir-chat-event')
+  assert.equal(find(tree, n => n.key === '5').props.className, 'tamir-chat-event')
+  rows[0].status = 'delivered'
+  rows[0].has_image = true
+  tree = emit()
+  const delivered = find(tree, n => n.props.className === 'tamir-chat-delivered')
+  assert.equal(delivered.props['aria-label'], 'chat.delivered')
+  assert.ok(find(delivered, n => n.type === 'svg'))
+  rows[0].status = 'error'
+  tree = emit()
+  assert.equal(find(tree, n => n.props.className === 'tamir-chat-delivered'), null)
+  assert.ok(find(tree, n => n.props.className === 'tamir-chat-delivery-error'))
+  // Simulate the next 60-second config refresh after saving switches in admin.
+  config = { ...config, templates: Object.fromEntries(Object.entries(templates).map(([key, value]) => [key, { ...value, enabled: false }])) }
+  await polling(); await h.flush()
+  rows[0].status = 'delivered'
+  tree = emit()
+  assert.equal(find(tree, n => n.props.className === 'tamir-chat-delivered'), null)
+  assert.equal(find(tree, n => n.props.className === 'tamir-chat-event'), null)
+  assert.equal(find(tree, n => n.props.className?.includes('message-greeting')), null)
 })

@@ -485,6 +485,7 @@
     "viewCart": "Pogledaj korpu"
   },
   "chat": {
+    "automatic": "Automatsko obaveštenje",
     "image": "Priložena slika",
     "attachImage": "Dodaj sliku",
     "removeImage": "Ukloni sliku",
