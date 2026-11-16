@@ -1,6 +1,8 @@
 # TAMIR Chat
 
-Feature-ветка: `feat/tamir-telegram-chat`. Production не изменён. Чат и Telegram по умолчанию выключены.
+Реализация объединена в `main` (PR #96–#117). Чат и Telegram по умолчанию выключены в настройках
+админки. Актуальный статус развертывания, прогона проверок и найденных расхождений —
+в `TAMIR-CHAT-AUDIT-2026-11.md`.
 
 ## Архитектура
 
@@ -55,8 +57,12 @@ email и телефон независимо необязательны и ва�
 не имеют доступа. Вторая вкладка обновляет auth при возвращении фокуса/ошибке SSE. Открытый поток
 ограничен 20 секундами; собственный механизм отзыва stateless JWT Medusa не добавляется.
 
-Текст ограничен 1500 символами, не вставляется как HTML. PostgreSQL rate limit использует существующий
-доверенный proxy-IP helper; не выставляйте внутренний backend-порт наружу в обход reverse proxy.
+Текст ограничен 1500 символами, не вставляется как HTML (ошибка `INVALID_MESSAGE`). PostgreSQL rate limit
+использует существующий доверенный proxy-IP helper: 40 сообщений в минуту на покупателя, 10 загрузок
+изображений, 15 сессий, 120 чтений и 20 SSE-потоков в минуту; превышение — `429 CHAT_RATE_LIMIT`.
+Не выставляйте внутренний backend-порт наружу в обход reverse proxy. Просроченный guest proof даёт
+`GUEST_SESSION_EXPIRED` (404), отсутствие аккаунта там, где он нужен, — `LOGIN_REQUIRED` (401).
+Ошибки возвращаются машинным кодом без текстов переписки.
 Webhook проверяет секрет, группу, тему/reply reference, enabled-оператора и роль; bots, forwarded/channel
 messages игнорируются. Технические ошибки и журнал не содержат токенов, SQL или текстов сообщений.
 
@@ -186,7 +192,7 @@ Cloud, надпись в UI её не доказывает. Ошибки дос�
 | Диалоги | Поиск имени/email/телефона, status/locale фильтры, пагинация, оригиналы/переводы, customer/product ссылки, reply/status/retry |
 | Настройки чата | Enabled, гости, SR/EN title/button, положение, статус/контекст/уведомления, retention, preview |
 | Telegram | Token, группа, Topics, уведомления, check/test/webhook |
-| Автоматические сообщения | 7 шаблонов, SR/EN, enabled, текстовый preview |
+| Автоматические сообщения | 6 текстовых шаблонов SR/EN и переключатель галочек доставки |
 | Переводы | Включение, язык оператора, обслуживаемые языки, ключ, тест, API status |
 | Операторы | Добавить/изменить/отключить, IDs, роли и доступность |
 | История и статистика | Реальные события/ошибки, пагинация, переход к диалогу |
@@ -196,8 +202,18 @@ Backend читает актуальные настройки на запрос/�
 правки, загрузка сохранённого состояния требует подтверждения их потери. Произвольный CSS/HTML
 не разрешён: title/button до 120, template до 1000 символов на язык.
 
-Welcome/offline/returning/sent/error показываются локально. Closed/reopened — system rows без outbox,
-чтобы не создавать циклы переводов и уведомлений. Настройки из вкладок сохраняются общей кнопкой.
+Welcome/returning — обычные приветственные пузыри; returning выбирается при наличии прежнего
+диалога. Offline/closed/reopened — компактные события с иконкой робота и подписью автоматического
+уведомления, без оформления сообщения человека. Ошибка доставки — небольшая системная пометка
+у сообщения. Closed/reopened сохраняются как system rows без outbox.
+
+Sent никогда не выводится текстом в переписке. Его enabled управляет только двумя маленькими
+галочками тёмной фуксии (#842154) рядом со временем исходящего сообщения при status=delivered,
+включая изображения. Это доставка в Telegram, не прочтение оператором. Ожидающие и ошибочные
+сообщения не получают галочки; входящие ответы оператора также без них. Старые поля текста sent
+сохраняются для совместимости настроек, но редактор и виджет их не используют. Распознанные
+system rows также учитывают enabled (по template_key или совпадению старого текста).
+Настройки сохраняются общей кнопкой и приходят в открытый виджет с очередным обновлением config.
 
 ## API endpoints
 
@@ -261,11 +277,22 @@ npm run test:cjs -- --no-db --junit-dir=reports
 # Только изолированная *_test БД и Redis:
 npm run test:cjs -- --db-only --junit-dir=reports
 npm run test:integration:http -- --runTestsByPath integration-tests/http/tamir-chat.spec.ts
+# проверка деплойного origin-окружения (CI, без сети):
+node --test test-support/production-chat.test.mjs
+# smoke-проверка живого BFF (вызывается автоматически при активации релиза):
+node scripts/check-chat-origin.mjs
 ```
+
+`scripts/check-chat-origin.mjs` проверяет локальный процесс и оба публичных домена: `POST /api/chat/config`
+с Origin наших публичных https-хостов принимается и отвечает `404 CHAT_NOT_FOUND` без данных диалога,
+произвольный origin — `403 INVALID_ORIGIN`, редиректы не следуются. Скрипт выполняется в
+`activate-release.sh` до `pm2 save`; неуспех откатывает активацию. Полный каталог чат-тестов — в
+`TESTING.md`; фактическое состояние production/staging за ноябрь 2026 — в `TAMIR-CHAT-AUDIT-2026-11.md`.
 
 Перед включением остаются: реальный bot/private group/Topics, Google credentials/Billing,
 native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudflare без buffering,
 два независимых покупателя в браузерах и действующий Medusa scheduler. Production не разворачивался.
+*(Статус на ноябрь 2026: чат развернут и проверен на staging; см. `TAMIR-CHAT-AUDIT-2026-11.md`.)*
 
 Известные ограничения:
 
@@ -274,25 +301,31 @@ native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudf
   дедуплицируются; exactly once не заявляется.
 - 8 попыток с exponential backoff от 10 сек; затем manual retry из админки. При выключенной
   интеграции сообщения остаются в очереди. Перевод сохраняется и переиспользуется при retry Telegram.
-- Только текст до 1500 символов; нет typing, вложений, автоматического Online и read receipts.
+- Только текст до 1500 символов; из вложений — одна статичная картинка к сообщению (раздел
+  «Ввод, автоматические сообщения и изображения»), других вложений нет. Нет typing, автоматического
+  Online и read receipts; галочки доставки означают только доставку в Telegram.
 - История/статистика ограничены retention. Telegram-копии и backups удаляются отдельно.
 - Заголовок существующей темы автоматически не переименовывается; актуальные locale/profile
   указываются в следующих сообщениях.
 
 ## Изменённые файлы
 
-Новые: `backend/src/utils/chat/{schema,security,settings,conversations,providers,delivery,http}.ts`,
+Новые: `backend/src/utils/chat/{schema,security,settings,conversations,providers,delivery,http,images,http-errors}.ts`,
 `backend/src/shared/chat-config.ts`, `backend/src/jobs/tamir-chat.ts`,
 `backend/src/api/admin/tamir-chat/[action]/route.ts`, `backend/src/api/store/chat/[action]/route.ts`,
 `backend/src/api/store/chat/stream/route.ts`, `backend/src/api/hooks/tamir-chat/route.ts`,
 `backend/src/admin/routes/tamir-chat/{page.tsx,settings.tsx,chat-admin.css}`,
 `frontend/src/app/api/chat/[...path]/route.ts`, `frontend/src/components/chat/{ChatWidget.tsx,chat-client.ts,chat.css}`,
-`backend/tests/tamir-chat.test.cjs`, `backend/tests/tamir-chat.integration.cjs`,
+`backend/tests/tamir-chat.test.cjs`, `backend/tests/tamir-chat-http-errors.test.cjs`,
+`backend/tests/tamir-chat-images.test.cjs`, `backend/tests/tamir-chat.integration.cjs`,
 `backend/integration-tests/http/tamir-chat.spec.ts`, `frontend/tests/tamir-chat.test.mjs`,
+`scripts/check-chat-origin.mjs` (smoke-проверка origin-политики при активации релиза),
+`test-support/production-chat.test.mjs` (проверки деплойного окружения в CI),
 этот документ и `openspec/specs/tamir-chat/spec.md`.
 
-Изменены: backend middlewares/setup-reviews и README jobs/scripts;
-frontend StoreProviders/ProductDetails, SR/EN dictionaries; docs index/TESTING.
+Изменены: backend middlewares (обработчик тела `chatBodyErrorHandler`) и setup-reviews, README jobs/scripts;
+frontend StoreProviders/ProductDetails, SR/EN dictionaries; `scripts/activate-release.sh` и `scripts/deploy-vps.sh`
+(проверка origin и фиксация `NEXT_PUBLIC_SITE_URL`); docs index/TESTING/ENVIRONMENT/DEPLOY.
 
 
 ## Ввод, автоматические сообщения и изображения
