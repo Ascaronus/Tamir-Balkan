@@ -1,8 +1,8 @@
-# Скрипты обслуживания TAMIR
+# TAMIR Maintenance Scripts
 
 Сверено с кодом 11 октября 2026. Рабочий каталог — `backend/` соответствующего окружения/релиза. Обычный формат запуска: `npx medusa exec ./src/scripts/<file>.ts`. Он загружает конфигурацию приложения и может менять реальную БД; сам по себе `exec` не означает dry run.
 
-## Поддерживаемые операции
+## Supported Operations
 
 | Файл | Действие / условия |
 | --- | --- |
@@ -24,7 +24,7 @@ ROZETKA_NORMALIZE_APPLY=false npx medusa exec ./src/scripts/normalize-rozetka-pr
 
 Перед записью проверьте резервную копию и результат dry run. Не запускайте нормализацию, импорт и deploy параллельно. Текущий deploy выполняет setup и SMTP check до активации, а normalize/apply и prepare-English — после неё; [порядок и откат](../../../DEPLOY.md).
 
-## Демо и первоначальная настройка
+## Demo and Initial Setup
 
 | Файл | Ограничение |
 | --- | --- |

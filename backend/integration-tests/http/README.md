@@ -1,4 +1,4 @@
-# HTTP интеграционные тесты
+# HTTP Integration Tests
 
 Проверено 2026-10-11. Каталог сейчас содержит `health.spec.ts`: он использует `medusaIntegrationTestRunner` из `@medusajs/test-utils`, поднимает приложение и проверяет, что GET `/health` отвечает 200. Это Jest-тест, отдельный от наборов Node-тестов в `backend/tests/`.
 

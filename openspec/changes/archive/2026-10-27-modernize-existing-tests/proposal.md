@@ -1,4 +1,4 @@
-# Предложение: modernize-existing-tests
+# Proposal: modernize-existing-tests
 
 ## Why
 

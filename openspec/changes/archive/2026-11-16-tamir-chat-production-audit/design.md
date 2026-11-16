@@ -6,7 +6,7 @@
 
 Базовая линия аудита (2026-11-16): релиз стенда `test.tamir.rs`/`test-api.tamir.rs` = **`origin/main` = `218d8fb`** (merge PR #117; в него уже входят чат‑тики доставки PR #114 `70b8d95`). Локальный `main` (`1f9de9a`) — предок origin/main, все сверки кода вести по `git show 218d8fb:<путь>`. Схема БД стенда подтверждена прямым запросом `information_schema`: ровно 13 таблиц `tamir_chat_*` — идентично DDL `schema.ts` (settings, secret, operator, guest, conversation, message, image, outbox, telegram_ref, update, event, connection, rate); отдельных таблиц product_context/template/delivery_event нет — контекст в `conversation.context`, шаблоны в `settings.config->templates`, дедуп в `update`.
 
-### Архитектура и поток сообщения (код подтверждает)
+### Architecture and message flow (code confirms)
 
 1. **Storefront**: `frontend/src/components/chat/ChatWidget.tsx` + `chat-client.ts` → same-origin BFF `frontend/src/app/api/chat/[...path]/route.ts` (allowlist действий, проверка `Origin` по публичным хостам, лимиты тела 7 MiB / 8 KiB → 413 `PAYLOAD_TOO_LARGE`, httpOnly-cookie `tb_chat_guest` 30 дней, 503 `CHAT_UNAVAILABLE` при недоступности Medusa).
 2. **Store API Medusa**: `backend/src/api/store/chat/[action]/route.ts` (config, conversations, conversation-stream; session, claim, image-message, messages, reopen, context, delete) и `.../stream/route.ts` (SSE). Идентичность: Medusa customer-auth или заголовок `x-tamir-chat-guest` (`backend/src/utils/chat/http.ts`); rate-limit по действиям (`tamir_chat_rate`).
@@ -18,12 +18,12 @@
 8. **Изображения**: `images.ts` — вход base64 ≤5 MiB и ≤20 Мп (`limitInputPixels`), только статичные JPEG/PNG/WebP (APNG отсекается по `acTL`), соотношение сторон ≤20:1, перекодировка в JPEG ≤1600 px, q85, ≤2 MiB (иначе 400/413); лимит 50 изображений на диалог (409 `CHAT_IMAGE_LIMIT`); отдача приватно (`private, no-store`, owner-check).
 9. **Ограничения ввода**: текст 1–1500 символов без control-символов (`shared/chat-config.ts`); гость: имя 2–100 обязательно, email ≤254 и телефон опциональны; `clientId` — UUID.
 
-### Состояние документации и тестов
+### Documentation and test state
 
 - `docs/TAMIR-CHAT.md` существует и, по предварительной сверке, частично отстаёт от кода (драйф — предмет этапа аудита).
 - Тесты чата уже существуют и покрывают значительную часть поведения: `backend/tests/tamir-chat.test.cjs` (unit: валидация guest/сообщения, safe defaults, канонический chat id, шифрование секретов, стойкость webhook-сравнения и guest-токенов, сокрытие оригинала при недоступном переводе, безопасные тексты ошибок), `backend/tests/tamir-chat-http-errors.test.cjs` (413 и обработка ошибок), `backend/tests/tamir-chat-images.test.cjs` (кодек/политика изображений), `backend/tests/tamir-chat.integration.cjs` (16 SQL-сценариев: персистентность, идемпотентность, ретраи перевода и Telegram, webhook, retention-каскады, роли и rate limit, SSE-replay, вложения), `frontend/tests/tamir-chat.test.mjs` (BFF: bearer/cookie, origins, SSE cursor, claim; composer Enter/Shift+Enter/IME; словарь по локалям; выбор файла), `backend/integration-tests/http/tamir-chat.spec.ts` (изоляция аккаунтов/claimed guests, защита admin-секретов). Правила и маски зон — `docs/TESTING-RULES.md`, реестр — `docs/02_EXISTING_TESTS_AUDIT.md`. Playwright/vitest в этом репозитории не используются; внешний e2e живёт в отдельном репозитории Tamir-QA-Automation.
 
-### Итоги этапов 1–2 аудита (2026-11-16, стенд `test.tamir.rs`)
+### Stage 1–2 audit results (2026-11-16, `test.tamir.rs` stand)
 
 Раздел «Архитектура» выше подтверждён live‑пробами на релизе `218d8fb`: сквозной цикл клиент→Telegram за 25 с (seq 52, tg_msg 59 в топике 58 группы `-1003977063535`), ответы оператора в трёх диалогах (ru→en, ru→sr, en→sr), идемпотентность по `client_id` (повтор = тот же id), SSE `retry: 1500` + replay по `Last-Event-ID`, rate limit 40/мин (`429 CHAT_RATE_LIMIT`, ключ `chat-context`), дедуп update_id (23 ключа), connections google/telegram ok, журнал проб — в `tasks.md` §3.
 
@@ -83,7 +83,7 @@
 - **Figma** — **закрыт 2026-11-16**: свежего макета чата в Figma нет; владелец поручил создать слепок текущего UI чата по проду (этап фиксации Figma в tasks.md).
 - **Удаление отдельного сообщения** — **закрыт 2026-11-16 решением владельца**: штучное удаление сообщений не планируется, каноническое поведение — полное удаление переписки (admin delete). Дельта-спека фиксирует удаление на уровне переписки как ожидаемое; вопрос к продукту снимается.
 
-## Допущения (зафиксированы вместо вопросов пользователю)
+## Assumptions (recorded instead of asking the user)
 
 - Название change — `tamir-chat-production-audit` (указание родителя, несмотря на иное название в самом TB-21).
 - Сценарий «Send from the message composer» в main spec сейчас висит под требованием «Honest status and retention» — в дельте он сохранён под этим же требованием (MODIFIED-блок заменяет требование целиком, все существующие сценарии перенесены в переводной версии, новые расширяют блок).

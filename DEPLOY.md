@@ -1,14 +1,14 @@
-# Выпуск TAMIR на VPS
+# TAMIR Release on VPS
 
 Актуально на 2 ноября 2026. Рабочий checkout: `/root/tamir_balkan`; PM2-процессы: `tamir-backend`, `tamir-frontend`. Приложения работают из отдельных каталогов релизов, а не обязательно из checkout.
 
-## Перед деплоем: секреты вне Git
+## Before Deploying: Secrets Outside Git
 
 Пароли и приватные ключи приложения хранятся на VPS и в защищённой резервной копии владельца. В репозиторий попадают только шаблоны. См. [SECRETS.md](docs/SECRETS.md): перед первым выпуском этой конфигурации заполните локальное окружение, согласуйте его с окружением PM2 и проверьте JWT/COOKIE. Push в `main` ведёт себя иначе: он проверяется CI и автоматически разворачивается на staging
 ([STAGING.md](docs/STAGING.md)), а на прод попадает только то, что выпускают вручную. Не
 объединяйте изменение до подготовки VPS. Простое изменение Compose не меняет пароль существующей БД.
 
-## Основной способ: GitHub Actions
+## Primary Method: GitHub Actions
 
 1. Подготовить PR в `main`, проверить diff и результат `Verify storefront and backend`.
 2. После merge CI на push в `main` автоматически разворачивает этот коммит на staging —
@@ -29,7 +29,7 @@
 
 Workflow использует ограниченный SSH-доступ `tamir-deploy` и команду `deploy`, secrets `VPS_HOST`, `VPS_PORT`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, проверку host key. Конкурентные выпуски сериализованы. Перед тем как что-либо отправить на сервер, workflow сверяет введённый `sha` с GitHub API: `compare main...sha` обязан вернуть `behind` (коммит входит в историю `main`) или `identical`, а прогоны `verify.yml` на этом коммите в `main` (события `push`/`workflow_dispatch`) — быть `completed` с conclusion `success`/`neutral`/`skipped`. Иначе запуск падает на первом же шаге, и до VPS ничего не доходит. Deploy выпускает ровно тот коммит, который указан в `sha`: значение проверяется на формат из 40 hex-символов и передаётся команде `deploy` обязательным аргументом; `deploy-vps.sh` без него отказывается запускаться. Обёртка `deploy` на VPS обязана пробрасывать аргументы (`"$@"`) в `scripts/deploy-vps.sh`. Всё равно проверяйте SHA в имени активированного релиза.
 
-### Staging перед продом
+### Staging Before Prod
 
 Тот же коммит сначала проверяется на стенде автоматически: push в `main` → `Verify` →
 **Deploy to Staging** (self-hosted runner на машине владельца, `test.tamir.rs` /
@@ -43,7 +43,7 @@ Workflow использует ограниченный SSH-доступ `tamir-d
 и staging — чтобы принудительно развернуть стенд, запустите **Deploy to Staging** вручную с тем же
 SHA. На PR фильтр не действует: required-чеки защищённого `main` приходят по любому PR.
 
-### known_hosts и HostKeyAlias
+### known_hosts and HostKeyAlias
 
 Workflow подключается к `tamir-deploy@$VPS_HOST` с `StrictHostKeyChecking=yes`, `HostKeyAlias=tamir-vps` (`.github/workflows/deploy.yml`) и известными хостами из secret `VPS_KNOWN_HOSTS`. При `HostKeyAlias` ssh сверяет ключ по имени алиаса, поэтому запись в секрете обязана начинаться с `tamir-vps`, а не с адреса или домена сервера; запись вида `<адрес> ssh-ed25519 ...` не сработает и выпуск упадёт на проверке host key.
 
@@ -55,7 +55,7 @@ ssh-keyscan -t ed25519 -p <VPS_PORT> <адрес VPS> | sed 's/^[^ ]*/tamir-vps/
 
 В secret `VPS_KNOWN_HOSTS` сохраняют строку целиком (алиас, тип ключа, base64, комментарий). При смене host key VPS (переустановка, перевыпуск ключа) секрет обновляют той же командой до ближайшего выпуска.
 
-## Что делает скрипт
+## What the Script Does
 
 `scripts/deploy-vps.sh`:
 
@@ -71,7 +71,7 @@ ssh-keyscan -t ed25519 -p <VPS_PORT> <адрес VPS> | sed 's/^[^ ]*/tamir-vps/
 
 Для deploy необходимы `git`, `npm`, `node`, `pm2`, `pg_dump`, `curl`, `tar`, `flock`, готовое окружение и по одному online-процессу каждого приложения. Это обновление существующего сервера, не установщик чистого VPS.
 
-## Ручной запуск через SSH
+## Manual Run over SSH
 
 ```bash
 ssh root@tamir.rs
@@ -92,13 +92,13 @@ bash /tmp/tamir-deploy.sh "$(git rev-parse origin/main)"
 
 Скрипт сам переносит checkout к выбранному коммиту. Не используйте `scp` поверх активного релиза, удаление работающего `.next`, `fuser -k` или ручной `npm start` как штатный способ выпуска.
 
-## Конфигурация и данные
+## Configuration and Data
 
 Окружение редактируется в исходном каталоге и согласуется с существующими переменными PM2: [ENVIRONMENT.md](docs/ENVIRONMENT.md). Скрипт запуска backend в production стартует из `.medusa/server`; простая замена `.env` в другом каталоге не меняет уже работающий процесс.
 
 Не удаляйте старые релизы, пока не проверили `media-paths.json` и реальные цели ссылок `static`/`private-static`: новый релиз может использовать принадлежащие им фотографии. Резервная копия содержит секреты и данные покупателей; храните её вне Git и публичной раздачи.
 
-## Диагностика
+## Diagnostics
 
 ```bash
 pm2 list
@@ -125,14 +125,14 @@ docker compose logs --tail=100 postgres
 
 Сначала изучите ошибку. Не удаляйте том `postgres_data` и не запускайте `down -v` для восстановления рабочей базы.
 
-## Ротация бэкапов
+## Backup Rotation
 
 Каждый релиз создаёт бэкап в `/root/tamir-backups/<UTC>-<sha>`. Скрипт деплоя
 хранит **последние 14** релизных бэкапов и после успешной активации релиза удаляет
 более старые; файлы, созданные вручную (не по шаблону имени релизной папки), не
 трогаются.
 
-## Ошибки и откат
+## Errors and Rollback
 
 - До активации: старые процессы продолжают работать; используйте путь резервной копии из лога. Отдельные подготовительные изменения БД могли уже выполниться.
 - При ошибке активации/health: `activate-release.sh` пытается восстановить предыдущую PM2-конфигурацию и сообщает результат.

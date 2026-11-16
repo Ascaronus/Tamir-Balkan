@@ -1,6 +1,6 @@
-# Задачи: modernize-existing-tests
+# Tasks: modernize-existing-tests
 
-## 1. Baseline и каталог тестов (P0)
+## 1. Baseline and test catalog (P0)
 
 - [x] 1.1 Составить каталог всех тестов `frontend/tests/`, `backend/tests/`,
   `backend/integration-tests/` со слоем, границами мокирования и «что доказывает»
@@ -18,7 +18,7 @@
   для независимых задач» (решение пользователя против политики аудита);
   проверка — раздел «Process deviations» в описании PR
 
-## 2. Discovery и исполнение тестов в CI (P1)
+## 2. Test discovery and execution in CI (P1)
 
 - [x] 2.1 Создать `backend/test-support/run-tests.mjs`: glob-поиск
   `tests/*.test.cjs` и `tests/*.integration.cjs`, разделение на «нужна БД» и
@@ -42,7 +42,7 @@
 - [x] 2.7 Обновить `docs/TESTING.md`: новый порядок локальных прогонов через
   helper, перечень CI-шагов; проверка — команды из документа исполняются локально
 
-## 3. Реальные HTTP-интеграционные тесты (P2)
+## 3. Real HTTP integration tests (P2)
 
 - [x] 3.1 Добавить `backend/integration-tests/http/catalog.spec.ts`: in-app
   `GET /api/store/catalog/products` против реальной БД — позитив (200, структура
@@ -54,7 +54,7 @@
 - [x] 3.3 Обновить классификацию новых spec-файлов в каталоге `docs/TESTING.md`
   (слой `http-integration`); проверка — новые файлы есть в таблице каталога
 
-## 4. Изоляция тестовой среды (P3)
+## 4. Test environment isolation (P3)
 
 - [x] 4.1 Реализовать `backend/test-support/guard-env.mjs` (`assertNonProduction`):
   стоп-лист боевых хостов/`DATABASE_URL`, вызов из run-tests helper, Jest-setup
@@ -64,7 +64,7 @@
   обратном порядке файлов; проверка — оба прогона зелёные и дают одинаковый
   список результатов; при расхождении — починить общие фикстуры тестов
 
-## 5. Локализационные проверки (P4)
+## 5. Localization checks (P4)
 
 - [x] 5.1 Дополнить тесты `frontend/tests/` (например `catalog-translations.test.mjs`)
   assert'ами реальных en- и sr-строк из `frontend/src/messages/` вместо
@@ -74,7 +74,7 @@
   маршруты (несимметричный маршрут валит шаг CI); проверка — временная несимметрия
   в тестовой ветке красит шаг, после отката — зелено
 
-## 6. Итоговая проверка
+## 6. Final verification
 
 - [x] 6.1 Прогнать полный CI на подготовленной ветке и сравнить с baseline из 1.2:
   все наборы исполняются, отчёты загружены, деградация длительности объяснима

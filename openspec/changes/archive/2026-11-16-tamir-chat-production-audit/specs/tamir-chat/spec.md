@@ -1,4 +1,4 @@
-# TAMIR Chat — дельта-спецификация (production audit)
+# Spec Delta: tamir-chat
 
 ## MODIFIED Requirements
 

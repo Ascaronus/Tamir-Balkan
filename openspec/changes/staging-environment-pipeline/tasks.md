@@ -1,6 +1,6 @@
 # Tasks: staging-environment-pipeline
 
-## 1. Контракт и проверки (P0)
+## 1. Contract and checks (P0)
 
 - [x] 1.1 `backend/tests/staging-contract.test.cjs` — контракт стенда: нет прод-URL, нет `VPS_*`,
       БД/Redis/SMTP только на `127.0.0.1`, веб-почта Mailpit опубликована в LAN только под
@@ -14,7 +14,7 @@
 - [x] 1.4 Шаг `bash -n` по `scripts/*.sh` и `scripts/lib/*.sh` + шаг staging-guard в `verify.yml`.
       Доказательство: `bash -n` по всем 9 скриптам + либе через git-bash → без ошибок.
 
-## 2. Workflow-слой (P0)
+## 2. Workflow layer (P0)
 
 - [x] 2.1 `deploy.yml`: `workflow_run` убран, только `workflow_dispatch` с обязательным `sha`,
       API-гейт `compare main...sha` + прогоны `verify.yml` в `main`, `environment: production`.
@@ -23,7 +23,7 @@
       concurrency, timeout 90) без `actions/checkout`, шаг `Staging health snapshot` при `always()`.
 - [x] 2.3 Комментарии `paths-ignore` в `verify.yml` приведены в соответствие (staging вместо прода).
 
-## 3. Скрипты стенда (P0)
+## 3. Staging scripts (P0)
 
 - [x] 3.1 `docker-compose.staging.yml` — Postgres 16, Redis 7, Mailpit v1.33, тома и healthcheck,
       порты `5432`/`6379`/`587` только на `127.0.0.1`, веб-интерфейс Mailpit `8025` — на интерфейсы
@@ -49,14 +49,14 @@
       `tamir_staging.anonymized_column`, assert об оставшихся email, guard имён баз `$guard$`,
       сброс кэша publishable key.
 
-## 4. Документация (P1)
+## 4. Documentation (P1)
 
 - [x] 4.1 `docs/STAGING.md` переписан под новый конвейер (пути, compose, секреты, Mailpit +
       STARTTLS, туннель, анонимизация, шаги деплоя, smoke, таблица сбоев, ограничения).
 - [x] 4.2 `DEPLOY.md`: прод только вручную по `sha` с API-гейтом, подраздел «Staging перед продом»
       с нюансом `paths-ignore`.
 
-## 5. Машина `tamir-staging` (P0, выполняется на HP Mini)
+## 5. The `tamir-staging` machine (P0, runs on the HP Mini)
 
 - [x] 5.1 Архитектура и пакеты: `uname -m`, `apt install git build-essential openssl`, Node
       20.20.2 из tarball в `/usr/local`, `npm -g pm2`, `cloudflared`.
@@ -108,7 +108,7 @@
       смоук строкой `ERROR` без `FAIL` — для проверки добавлена не-aborting обёртка
       `staging_call`.)
 
-## 6. Публичный вход (P0, требует участия владельца)
+## 6. Public access (P0, requires the owner)
 
 - [ ] 6.1 Sitekey Turnstile для `test.tamir.rs` + секрет в `secrets/turnstile-secret-key`
       (blocked: ждём sitekey от владельца).
@@ -123,7 +123,7 @@
       `/store/products?limit=2` с publishable key — все проверки зелёные; тестовое письмо с кодом
       доставлено в Mailpit)
 
-## 7. Проверка потока целиком (P0)
+## 7. Full-flow verification (P0)
 
 - [x] 7.1 PR → зелёный Verify на PR → merge → Verify на push → автозапуск `Deploy to Staging` →
       стенд на SHA merge-коммита. (измерено 05.11 на PR #88: Verify на PR #274 зелёный → merge

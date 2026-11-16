@@ -1,4 +1,4 @@
-# TAMIR Chat — production-аудит (ноябрь 2026)
+# TAMIR Chat — Production Audit (November 2026)
 
 **Задача:** TB-21 (YouTrack) · change `tamir-chat-production-audit` (OpenSpec)
 **Базовая версия кода:** `origin/main` @ `218d8fb` (merge PR #117; чат-контур включён PR #96, #110, #111, #112, #113, #114)
@@ -9,7 +9,7 @@
 Development-план могли устареть — все расхождения зафиксированы ниже. Секреты (токен бота,
 API-ключи, cookie, chatId группы) в отчёт не попадают — только имена переменных и таблиц.
 
-## 0. Что делалось и как оценивалось
+## 0. What Was Done and How It Was Assessed
 
 1. Инвентарь кода `218d8fb` (маршруты BFF, API-роуты, модули `src/lib/tamir-chat/*`, admin-вкладки,
    миграции, фоны, тесты).
@@ -24,7 +24,7 @@ API-ключи, cookie, chatId группы) в отчёт не попадают
 **Verified on Staging** (подтверждено живой пробой на стенде) · **Verified manually** (ручной прогон
 пользователя 16.11.2026) · **Not Verified** (доказательств нет) · **Issue Found** (подтверждённое расхождение).
 
-## 1. Фактическая архитектура (инвентарь)
+## 1. Actual Architecture (Inventory)
 
 Схема движения сообщения подтверждается кодом и пробами:
 
@@ -53,7 +53,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 
 Статус: **Implemented + Verified on Staging** (обе цепочки подтверждены пробами F-03, F-04, F-09).
 
-## 2. Ожидания vs фактическое поведение
+## 2. Expectations vs Actual Behavior
 
 Детальный чек-лист с построчными вердиктами — `openspec/changes/tamir-chat-production-audit/tasks.md`
 (§0–§3). Сводка по доменам:
@@ -79,9 +79,9 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 | Операторы/роли (viewer/operator/manager, backend-контроль) | Implemented + Tested | Telegram User ID оператора: 1 запись — Not Verified live |
 | Безопасность (auth, webhook-секрет, секреты в БД, origin) | Implemented + Tested + Verified on Staging | F-08: admin API 401 без auth; `check-chat-origin.mjs` в build |
 
-## 3. Журнал живых проб (staging, 16.11.2026)
+## 3. Live-Probe Log (Staging, 16.11.2026)
 
-### API-пробы (curl/HTTPS, разрушительных действий нет)
+### API Probes (curl/HTTPS, No Destructive Actions)
 
 | # | Проба | Факт | Вердикт |
 |---|---|---|---|
@@ -100,7 +100,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 | F-12 | Connections | google ok, telegram ok; `telegram/check` ok group; `telegram/test` ok (сообщение в группу стенда); `translation/test` ok | ✅ |
 | F-13 | Идемпотентность | повтор POST с тем же `clientId` → **тот же** message id, без дублей | ✅ |
 
-### Админ-пробы (browser + curl с cookie-jar, только non-destructive)
+### Admin Probes (browser + curl with a Cookie-Jar, Non-Destructive Only)
 
 | # | Проверка | Факт |
 |---|---|---|
@@ -115,7 +115,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 | A-09 | reply API (GET) | 405 → маршрутизация live; мутации админки (create/send/delete/retry/status/seen) **проверены пользователем вручную 16.11.2026** |
 | A-10 | telegram check/test + translation test | все ok (тестовое сообщение ушло в группу стенда) |
 
-## 4. Находки и дефекты
+## 4. Findings and Defects
 
 Исправления **не выполнялись** (аудит документирует; правки — отдельными согласованными change).
 
@@ -131,7 +131,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 | 8 | В логах Next-контейнера стенда периодический `ioredis read ECONNRESET` (шум, на чат не влияет) | Info | Наблюдение по инфраструктуре стенда |
 | 9 | Удаление диалога из админки (роут `delete` + каскад) — сверено только по коду | Info | Дефекта нет: **подтверждено пользователем вручную 16.11.2026** |
 
-## 5. Матрица покрытия тестами (TB-21 §8.5)
+## 5. Test Coverage Matrix (TB-21 §8.5)
 
 Тесты чата в репо на `218d8fb` (каталог — `docs/TESTING.md`):
 
@@ -152,7 +152,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 **Новых тестов в этом аудите не добавляли** (решение design.md: аудит документирует, без new zones);
 список дописывания (SSE replay, 429 на live-маршруте, идемпотентность) вынесен в отдельный change.
 
-### Результаты прогонов (по docs/TESTING-RULES.md)
+### Test Run Results (per docs/TESTING-RULES.md)
 
 | Прогон | Команда | Результат |
 |---|---|---|
@@ -165,7 +165,7 @@ Telegram → Webhook → Medusa → Translation → PostgreSQL → SSE/poll → 
 production build в этом аудите не перезапускались — код не менялся, релизный контур `218d8fb` собран CI
 (GitHub Actions) и выкачен на стенд/прод деплой-пайплайном.
 
-## 6. Figma — фиксация существующего интерфейса (TB-21 §7)
+## 6. Figma — Capturing the Existing UI (TB-21 §7)
 
 Файл `2u9V1x7faa2yieZqRP0KaF`, страница **«05 TAMIR Chat (audit)»** (`79:1215`), фрейм-слепок
 **`TB-21 · TAMIR Chat — production snapshot` (`302:3754`)** — добавлен 16.11.2026 (до этого дизайнов
@@ -194,7 +194,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
 Ссылки на макеты зафиксированы в артефактах OpenSpec (страница `79:1215`). По решению владельца
 от 16.11.2026 комментарии в YouTrack не публикуются.
 
-## 7. Влияние на OpenSpec
+## 7. Impact on OpenSpec
 
 - Change аудита: `openspec/changes/tamir-chat-production-audit/` (proposal/design/specs/tasks) —
   behavioral-delta к `openspec/specs/tamir-chat/spec.md` (6 ADDED требований: identity-first session,
@@ -210,7 +210,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
 `cart-checkout`) к чату не относятся и в этом аудите не менялись.
 - Синхронизация спеков и архивация change — только после явного одобрения (tasks.md §7.3).
 
-## 8. Что не удалось проверить (Not Verified)
+## 8. What Could Not Be Verified (Not Verified)
 
 - Живой claim гостевого диалога после login на стенде (нет тестового customer-аккаунта на стенде) —
   только unit-покрытие.
@@ -227,7 +227,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
 - Production-проверки (§9 TB-21 «Verified on Production») — не выполнялись намеренно: все живые
   пробы только на стенде; прод наблюдён лишь визуально для Figma-слепка.
 
-## 9. Устаревшие пункты Development-плана
+## 9. Outdated Items of the Development Plan
 
 `docs/TAMIR-CHAT-DEVELOPMENT-PLAN.md` **отсутствует в репозитории** (нет в рабочем дереве, в
 `218d8fb`, ни в одной истории git). Его пункты существовали только как ожидания постановки TB-21;
@@ -243,7 +243,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
 | §12 лимиты | иные значения | факт: 40/120/15/10/20 за мин; гостевые сессии 90d; idle 30d; история 100/30 (не 500/100) |
 | коды ошибок (`CHAT_SESSION_EXPIRED`, `PRODUCT_NOT_FOUND`) | см. план | факт: `GUEST_SESSION_EXPIRED`, `INVALID_PRODUCT_CONTEXT`, `INVALID_LOCALE`, `LOGIN_REQUIRED`, `CHAT_RATE_LIMIT`, `404 CHAT_NOT_FOUND` |
 
-## 10. Итоговые статусы по группам требований TB-21
+## 10. Final Statuses by TB-21 Requirement Groups
 
 | Группа TB-21 | Статус |
 |---|---|
@@ -267,7 +267,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
 | 8.5 Автотесты | аудит выполнен; новых тестов не добавляли; прогоны §5.1–5.4 —Passed (пользователь) |
 | 9 «Verified on Production» | не выполнялось намеренно (только стенд) |
 
-## 11. Рекомендации (без изменений кода в этом аудите)
+## 11. Recommendations (No Code Changes in This Audit)
 
 1. Вынести hardcoded `https://tamir.rs` из `context.url` BFF в env (находка 1) — отдельный change.
 2. Рассмотреть rate limit / защиту `POST /chat/telegram-webhook` (находка 7) — с проверкой, что
@@ -280,7 +280,7 @@ TB‑15 (фрейм `216:3701`, подпись `218:3702` — hover для мы�
    (TB-14: сердца `209:3591`…`209:3794` → accent `#842154`, заметки `209:3822`/`218:3702`; TB-15:
    подпись `218:3702` под pinned-toggle; TB-13: макет `202:3521` сверен, перерисовка не потребовалась).
 
-## 12. Файлы, изменённые в рамках аудита (документация)
+## 12. Files Changed by the Audit (Documentation)
 
 - `docs/TAMIR-CHAT.md` — актуализация по факту `218d8fb` (PR #96–#117; точные лимиты и коды ошибок;
   «галочки = доставка»; ссылка на этот отчёт) — правки поверх baseline `218d8fb`.

@@ -4,7 +4,7 @@
 админки. Актуальный статус развертывания, прогона проверок и найденных расхождений —
 в `TAMIR-CHAT-AUDIT-2026-11.md`.
 
-## Архитектура
+## Architecture
 
 За reverse proxy frontend проверяет Origin POST-запросов чата. Разрешены два набора:
 https-origin наших публичных хостов (`tamir.rs`, `www.tamir.rs`) и точный origin из
@@ -44,7 +44,7 @@ SSE использует стабильные message IDs и Last-Event-ID, пе
 сообщения повторяются для обновления статусов; UI объединяет их по ID. После перезагрузки
 показываются последние 100, более ранние доступны кнопкой. Список собственных диалогов ограничен 50.
 
-## Покупатели, права и секреты
+## Customers, Permissions and Secrets
 
 Customer ID и профиль берутся сервером из проверенной Medusa-сессии. При открытии/отправке профиль
 обновляется; admin dialog также получает актуальные имя/email/телефон. Гость вводит имя 2–100 символов;
@@ -79,7 +79,7 @@ master key. Сохранённый token не возвращается API: UI �
 не даёт Medusa-сессию. Доступность устанавливается вручную у enabled-оператора, не по подключению бота.
 `delivered` не означает `read`. Непрочитанные в обзоре — customer messages, не отмеченные в админке.
 
-## Таблицы и миграция
+## Tables and Migration
 
 `backend/src/utils/chat/schema.ts` подключён к существующему `setup-reviews.ts`, как reviews/wishlist/banners.
 CREATE TABLE/INDEX IF NOT EXISTS выполняется в общей транзакции с advisory lock. Повтор сохраняет
@@ -120,7 +120,7 @@ npm run build
 Существующий deploy уже вызывает setup-reviews. При rollback кода сохраняйте таблицы/историю;
 чат можно выключить. Бэкап БД без master key не восстанавливает provider secrets.
 
-## Серверные параметры
+## Server Settings
 
 Обычные настройки меняются через UI без перезапуска. Только инфраструктура/первичная установка:
 
@@ -139,7 +139,7 @@ Master key можно создать на сервере через `openssl ran
 Bootstrap manager сохраняет доступ независимо от operator row; отзыв bootstrap-прав требует изменения
 серверного allowlist. Обычные операторы управляются полностью через UI.
 
-## Telegram: установка
+## Telegram: Setup
 
 1. Создайте бота через официальный `@BotFather` (`/newbot`). Token введите только в
    **TAMIR Chat → Telegram → Bot Token → Сохранить / заменить токен**.
@@ -249,7 +249,7 @@ BFF. ID диалога не является доказательством до
 | POST | /admin/tamir-chat/delete | Удаление; manager |
 | GET | /admin/tamir-chat/overview, history?offset= | Агрегаты/события |
 
-## Проверки и ограничения
+## Checks and Limits
 
 Подтверждённый прогон реализации 7 ноября 2026:
 
@@ -312,7 +312,7 @@ native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudf
 - Заголовок существующей темы автоматически не переименовывается; актуальные locale/profile
   указываются в следующих сообщениях.
 
-## Изменённые файлы
+## Changed Files
 
 Новые: `backend/src/utils/chat/{schema,security,settings,conversations,providers,delivery,http,images,http-errors}.ts`,
 `backend/src/shared/chat-config.ts`, `backend/src/jobs/tamir-chat.ts`,
@@ -332,7 +332,7 @@ frontend StoreProviders/ProductDetails, SR/EN dictionaries; `scripts/activate-re
 (проверка origin и фиксация `NEXT_PUBLIC_SITE_URL`); docs index/TESTING/ENVIRONMENT/DEPLOY.
 
 
-## Ввод, автоматические сообщения и изображения
+## Input, Automatic Messages and Images
 
 Enter отправляет, Shift+Enter добавляет строку; ввод через IME и удержание Enter не создают повторных отправок.
 Форма использует отдельные строки для статуса, вложения и ввода. Автоматические сообщения отображаются

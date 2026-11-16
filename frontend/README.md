@@ -2,7 +2,7 @@
 
 Next.js 16.4.5 / React 19 / TypeScript / Tailwind CSS 4. Витрина SR/EN обслуживает один рынок Сербии и цены RSD. Шрифт — Manrope через `next/font`, не шаблонный Geist.
 
-## Запуск
+## Running
 
 Из корня репозитория установите зависимости через `npm ci` и `npm run deps`, настройте [окружение](../docs/ENVIRONMENT.md), запустите backend и инфраструктуру.
 
@@ -17,7 +17,7 @@ npm start
 
 `dev` использует webpack, production — штатную сборку Next. Для проверки production-маршрутов после сборки: `node test-support/verify-localized-routes.mjs`. На VPS используйте [общий деплой](../DEPLOY.md).
 
-## Карта кода
+## Code Map
 
 - `src/proxy.ts`: выбор языка только для `/`, доверенный серверный заголовок локали, редиректы старых служебных адресов.
 - `src/lib/i18n/`: сообщения интерфейса, SR ↔ EN пути и серверная локаль.

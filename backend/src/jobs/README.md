@@ -1,4 +1,4 @@
-# Плановые задания
+# Scheduled Jobs
 
 `tamir-chat.ts`: Medusa job `tamir-chat-delivery`, interval 10000 ms, concurrency `forbid`.
 Обрабатывает до 10 сообщений PostgreSQL outbox и удаляет истёкшую историю/гостей/счётчики.

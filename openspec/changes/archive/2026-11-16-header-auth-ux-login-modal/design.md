@@ -1,4 +1,4 @@
-# Дизайн: UX авторизации в шапке и модалка входа (TB-13)
+# Design: Header Auth UX and Login Modal (TB-13)
 
 ## Context
 

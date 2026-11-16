@@ -7,7 +7,7 @@
 Стенд поднят на машине владельца (HP Mini, `tamir-staging` → 192.168.1.143, хост `tamir-server`,
 Ubuntu 24.04). Публичный вход — только через Cloudflare Tunnel: ни проброса портов, ни nginx.
 
-## Как устроен конвейер
+## How the Pipeline Works
 
 ```
 PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
@@ -35,7 +35,7 @@ PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
 предком `origin/main` (`git merge-base --is-ancestor`). Обход — только ручным запуском по SSH
 с `TAMIR_ALLOW_NON_MAIN=1`.
 
-## Подключение к машине
+## Connecting to the Machine
 
 Алиас в `~/.ssh/config` машины владельца:
 
@@ -58,7 +58,7 @@ ssh tamir-staging "uname -a"
 self-hosted runner GitHub Actions, pm2 и docker (вход в группу `docker`); `root` нужен только для
 `apt`, systemd-юнитов и `staging-tunnel.sh`. Ручные команды на машине — `sudo -u actions-runner …`.
 
-## Расположение на машине
+## Layout on the Machine
 
 Всё стенда — в одном каталоге, прод его не видит:
 
@@ -77,7 +77,7 @@ PM2-процессы называются так же, как на проде (`
 `scripts/check-review-config.cjs`, но работают они из каталога релиза стенда и с портами,
 заданными в экосистеме релиза.
 
-## Инфраструктура: `docker-compose.staging.yml`
+## Infrastructure: `docker-compose.staging.yml`
 
 Отдельный Compose-файл с проектом `tamir-staging` (не путать с прод-`docker-compose.yml`):
 
@@ -94,7 +94,7 @@ PM2-процессы называются так же, как на проде (`
 (порт + адрес) и допускает непро-loopback-адрес только для `8025`, и только если в секретах задан
 `MP_UI_AUTH`.
 
-## Секреты и конфигурация
+## Secrets and Configuration
 
 Секреты генерирует `scripts/staging-bootstrap.sh` и складывает в `/opt/tamir-staging/secrets`
 (права `600`/`700`, вне Git, в отчётах и логах не публикуются):
@@ -120,7 +120,7 @@ PM2-процессы называются так же, как на проде (`
 `scripts/lib/staging-release.sh` не даёт деплою пройти, если в env-файлах встречается
 прод-домен, прод-строка БД/Redis или адрес, не указывающий на `test.*`/loopback.
 
-## Почта: Mailpit вместо реального SMTP
+## Email: Mailpit Instead of Real SMTP
 
 Продуктовый код почты (`backend/src/utils/registration-email.ts`) требует `requireTLS` и порт
 из `{587, 465}` — менять продукт под стенд нельзя, поэтому:
@@ -170,7 +170,7 @@ sudo -u actions-runner bash scripts/staging-smoke.sh
 Письма не теряются: ящик лежит в томе `tamir-staging-mailpit` (`MP_DATABASE=/data/mailpit.db`),
 пересоздание контейнера его не затрагивает.
 
-## Публичный вход: Cloudflare Tunnel
+## Public Entry: Cloudflare Tunnel
 
 `scripts/staging-tunnel.sh` (подкоманды `login` / `create` / `dns` / `status` / `remove`):
 
@@ -189,7 +189,7 @@ sudo -u actions-runner bash scripts/staging-smoke.sh
 - после успешного `dns` появляется маркер `/opt/tamir-staging/.tunnel-enabled` — с него
   smoke и деплой начинают проверять публичные HTTPS-адреса.
 
-### Стенд закрыт от поисковиков
+### Staging Is Closed to Search Engines
 
 Стенд отвечает тем же кодом, что и прод, поэтому закрытие от индексации держится на имени хоста,
 а не на отдельном конфиге: любой хост вне списка прод-адресов получает
@@ -203,7 +203,7 @@ sudo -u actions-runner bash scripts/staging-smoke.sh
 (норма `PASS=21 FAIL=0 GAP=0`). Полное описание, координаты правила в Cloudflare и порядок снятия
 URL из индекса: [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md).
 
-## Данные: анонимизированный дамп с прода
+## Data: Anonymized Dump from Production
 
 Стенд стартует на копии прода, но обезличенной. Порядок: с прода снимается `pg_dump`, затем на
 машине владельца `scripts/staging-db-refresh.sh` пересоздаёт базу `tamir_staging`, загружает дамп
@@ -237,7 +237,7 @@ IP, fingerprint и user-agent. Почты заменяются на
 S3-демо Medusa) не трогаются: соответствующих файлов нет ни на проде, ни на стенде, а сами строки
 помечены `deleted_at`.
 
-## Деплой стенда: `scripts/deploy-staging.sh`
+## Staging Deploy: `scripts/deploy-staging.sh`
 
 ```bash
 sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
@@ -277,7 +277,7 @@ Turnstile: bootstrap требует sitekey (`--turnstile-site-key <key>` или
 нужен новый деплой. Секретный ключ читается в рантайме — его достаточно положить в
 `secrets/turnstile-secret-key` и `secrets/backend.env`.
 
-## Проверки и диагностика
+## Checks and Diagnostics
 
 ```bash
 sudo -u actions-runner bash scripts/staging-smoke.sh   # полная проверка стенда
@@ -298,7 +298,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 приём в Mailpit под `MP_UI_AUTH`, `401` без токена и доступность веб-почты с адреса домашней сети)
 и публичные HTTPS при выпущенном туннеле.
 
-## Что стенд не делает
+## What the Staging Environment Does Not Do
 
 - Не трогает прод: ни БД, ни Redis, ни почту, ни платежи, ни DNS `tamir.rs`/`api.tamir.rs`.
 - Не деплоит прод и не запускает прод-скрипты; прод-деплой — отдельный ручной workflow.
@@ -307,7 +307,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
   под HTTP Basic; публичного адреса у неё нет.
 - Не хранит прод-дампы и секреты в Git.
 
-## Типовые сбои
+## Typical Failures
 
 | Симптом | Причина / что делать |
 | --- | --- |
@@ -326,7 +326,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 | Картинки 404 на `https://test-api.tamir.rs/static/...` | медиа-симлинк создан до `medusa build` (тот пересоздаёт `.medusa/server`) или медиа не перенесены в `shared/uploads`. Проверка: `readlink -f <release>/backend/.medusa/server/static` → должен быть `/opt/tamir-staging/shared/uploads/static`; `ls shared/uploads/static | wc -l`. Если симлинк на месте, а 404 — в БД остались продные префиксы: прогнать `scripts/sql/staging-anonymize.sql` |
 | Капча отвечает «Капча не удалась», ключи на стенде есть | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` впекается в бандл витрины при сборке: если стенд собран до записи настоящего sitekey, в `.next` лежит `staging-placeholder-sitekey-00000000`. Проверка: `grep -rlF "$(cat /opt/tamir-staging/secrets/turnstile-site-key)" <release>/frontend/.next | wc -l` (0 = нужен новый деплой). Второе место: в Cloudflare у sitekey в Allowed domains обязан быть `test.tamir.rs` |
 
-## Проверено локально и на машине
+## Verified Locally and on the Machine
 
 Локально (машина владельца): `node test-support/run-tests.mjs --no-db` — 84/84, включая
 `backend/tests/staging-contract.test.cjs` (контракт стенда с продуктовым кодом: SMTP-контракт,

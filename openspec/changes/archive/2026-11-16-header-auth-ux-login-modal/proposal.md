@@ -1,4 +1,4 @@
-# Предложение: UX авторизации в шапке и модальное окно входа (TB-13)
+# Proposal: Header Auth UX and Login Modal (TB-13)
 
 ## Why
 

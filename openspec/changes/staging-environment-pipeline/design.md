@@ -1,6 +1,6 @@
 # Design
 
-## Контекст
+## Context
 
 Прод живёт на VPS (Германия) и выкладывается из GitHub Actions по SSH (`tamir-deploy@$VPS_HOST`).
 Staging-машина — домашний HP Mini (`tamir-staging`, 192.168.1.143, Ubuntu 24.04, ~14 GiB RAM) за
@@ -13,9 +13,9 @@ Staging-машина — домашний HP Mini (`tamir-staging`, 192.168.1.14
 - продуктовый SMTP-код требует `requireTLS` и порт ∈ {587, 465} — править продукт под стенд нельзя;
 - прод-секреты и прод-данные не должны попасть на стенд в открытом виде.
 
-## Решения
+## Decisions
 
-### 1. Исполнение кода стенда: `workflow_run` + гейт в job `gate`
+### 1. Staging code execution: `workflow_run` + gate in the `gate` job
 
 `deploy-staging.yml` не имеет `pull_request`/`push`-триггеров. `workflow_run` берёт файл workflow из
 default branch, а `head_sha` — из уже завершившегося `Verify`, то есть на машине исполняется только
@@ -48,7 +48,7 @@ default branch, а `head_sha` — из уже завершившегося `Veri
 она возможна лишь кодом, уже прошедшим Verify и слитым в `main`, и не даёт доступа к проду
 (прод-секретов на машине нет).
 
-### 2. Прод: только ручной `workflow_dispatch` по SHA
+### 2. Prod: manual `workflow_dispatch` by SHA only
 
 `deploy.yml` теряет `workflow_run`. Вход `sha` обязателен, `VERIFIED_SHA = inputs.sha`, job
 обязателен `if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'`,
@@ -59,7 +59,7 @@ default branch, а `head_sha` — из уже завершившегося `Veri
 Почему не автодеплой прода после стенда: стенд проверяет миграции и конфигурацию, но не замену
 платежного провайдера и не контент; решение «когда» остаётся за человеком.
 
-### 3. Изоляция данных и инфраструктуры
+### 3. Data and infrastructure isolation
 
 Отдельный Compose-проект `tamir-staging` с собственными томами, ролью БД `tamir_staging` и
 секретами из `/opt/tamir-staging/secrets` (вне Git). Порты Postgres (`5432`), Redis (`6379`) и
@@ -77,7 +77,7 @@ Staging-контракт отделён от прод-гвардов: staging-с
 `backend/test-support/guard-env.mjs`, у них свой guard, потому что набор допустимых значений разный
 (`test.tamir.rs`, `127.0.0.1`, Mailpit).
 
-### 4. Почта без правки продукта: Mailpit + STARTTLS + self-signed CA
+### 4. Mail without touching the product: Mailpit + STARTTLS + self-signed CA
 
 `mailConfig()` (`backend/src/utils/registration-email.ts`) жёстко требует `requireTLS` и
 `SMTP_PORT` ∈ {587, 465}, а `check-review-config.cjs` не пропускает env без `SMTP_USER`/
@@ -95,7 +95,7 @@ Staging-контракт отделён от прод-гвардов: staging-с
 поэтому smoke отдаёт тот же пароль в `staging-mail-check.ts` через `STAGING_MAILPIT_AUTH`, а проверка
 периметра требует, чтобы пароль был в секретах, до публикации порта.
 
-### 5. Данные: обезличивание по `information_schema`
+### 5. Data: anonymization via `information_schema`
 
 Стенд стартует на копии прода, но `scripts/sql/staging-anonymize.sql` не знает конкретную схему:
 он проходит по `information_schema.columns` и маскирует колонки по имени (`email`, `first_name`,
@@ -108,7 +108,7 @@ Staging-контракт отделён от прод-гвардов: staging-с
 Медиа прода на стенд не копируются (объём + личные файлы), поэтому картинки могут отдавать 404 —
 это фиксируется как известное ограничение, а загруженное на стенде живёт в `shared/uploads`.
 
-### 6. Публичный вход: Cloudflare Tunnel вместо проброса портов
+### 6. Public access: Cloudflare Tunnel instead of port forwarding
 
 `scripts/staging-tunnel.sh` создаёт туннель `tamir-staging`, systemd-сервис и ingress только на
 `localhost:3000` / `localhost:9000`. DNS создаётся строго для `test` и `test-api`; имена проверяются
@@ -120,14 +120,14 @@ Staging-контракт отделён от прод-гвардов: staging-с
 `/opt/tamir-staging/.tunnel-enabled`, и только с него smoke и деплой начинают проверять публичные
 HTTPS-адреса — иначе локальный стенд падает из-за отсутствия DNS.
 
-### 7. Миграции: стенд всегда впереди прода
+### 7. Migrations: staging always ahead of prod
 
 `deploy-staging.sh` всегда выполняет `medusa db:migrate`, `setup-reviews.ts` и
 `setup-decimal-attributes.ts`; прод-`deploy-vps.sh` общую миграцию не запускает. Отсюда требование
 порядка: коммит с миграцией обязан отработаться на стенде до прод-выпуска. Сид — только по явному
 `TAMIR_ALLOW_SEED=1`, чтобы случайно не затереть обезличенные данные.
 
-## Риски и открытые вопросы
+## Risks and Open Questions
 
 - GitHub периодически отвергает deploy key при `git fetch` (измерено на проде 04.11) — в стенде это
   снято 12 попытками; при регулярных отказах нужен перевыпуск ключа.

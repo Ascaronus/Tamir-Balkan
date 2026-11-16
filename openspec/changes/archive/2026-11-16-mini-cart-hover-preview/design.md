@@ -28,21 +28,21 @@
 
 ## Decisions
 
-### D1. Мобильный тап = закреплённый предпросмотр (решение владельца продукта 2026-11-16)
+### D1. Mobile tap = pinned preview (product owner decision 2026-11-16)
 **Решение:** оставить текущую реализацию `main` без изменений: при тапе touch/pen или на устройстве без hover (`CartPreviewControl`: `pointerType === "touch" | "pen"` либо `!(any-hover: hover)`) выполняется `event.preventDefault(); interaction.toggle()` — открывается pinned-предпросмотр; повторный тап по иконке, Escape или `pointerdown` вне закрывают его (`dismiss()`). Механика `pinned`/`toggle()` в `CartPreviewInteraction` остаётся. Тесты pinned-toggle (`cart-preview.test.mjs`, ~153–165) сохраняются как эталон; специфика TB-15 §4 («тап → страница корзины») заменена решением владельца.
 **Альтернатива:** навигация на страницу корзины по тапу (буквальное TB-15 §4) — отклонена владельцем продукта: pinned-preview нужен гибридным ноутбукам (коммит `3f6ba16`: «touch must work on hybrid laptops too»), а переход на страницу корзины остаётся доступным через «View cart» в предпросмотре.
 **Следствие:** правки кода в группе 2 отсутствуют; задача группы — сверка и дополнение тестов, плюс перенос решения в YouTrack TB-15.
 
-### D2. Триггер остаётся ссылкой на страницу корзины
+### D2. Trigger remains a link to the cart page
 Ссылка (`LocalizedLink href="/…/cart"`) сохраняет семантику и TB-15 §2.1 «обычный клик открывает страницу корзины» на десктопе. Popover — надстройка через pointer/keyboard, не замена ссылки. Альтернатива `<button>` + программный роутинг — отклонена (ломает среднюю кнопку/открытие в новой вкладке и уже реализованный a11y-путь).
 
-### D3. Состояние корзины — только из `CartProvider`
+### D3. Cart state comes only from `CartProvider`
 Предпросмотр читает `useCart()` (`cart`, `displayReady`, `displayError`, `retryDisplay`), расчёт — через `cartLineTotal`/`cartProductsTotal`, URL — через `cartLineHref` (`?v_id=`). Никаких новых запросов и хранилищ; `tb_cart_id` не трогаем (TB-15 §5).
 
-### D4. Габариты и стили — существующие значения валидны, минимум правок
+### D4. Dimensions and styles — existing values are valid, minimal edits
 `cartPreviewPosition`: ширина `min(380, vw−32)` (TB-15: 340–400), `maxHeight = min(520, vh−top−16)` (TB-15: 450–550) — оставляем как есть; фиксированный footer и скролл `.cart-preview-items` уже есть. Проверить визуально соответствие теней/скруглений (`globals.css` 529–555) — правки только если ревью/Figma укажет.
 
-### D5. Тесты — существующая зона `frontend/tests/*.test.mjs`
+### D5. Tests use the existing `frontend/tests/*.test.mjs` zone
 Согласно `docs/TESTING-RULES.md`: не создавать новую test-зону; дополнить `cart-preview.test.mjs` (открытие/задержка, закрытие/задержка, Esc, пустая корзина, клик → страница товара с `?v_id=`, пустой footer скрыт) и сценариями закрытия pinned-режима (повторный тап, клик вне, Escape); существующие pinned-toggle тесты сохраняются без замены; проверить en/sr-пары клавиш `cartPreview.*`. Прогон: `npm test` в `frontend/` + `tsc`/ESLint/build. Если правки затронут Next-специфичные API компонентов — свериться с `node_modules/next/dist/docs/` (frontend/AGENTS.md).
 
 ## Risks / Trade-offs
