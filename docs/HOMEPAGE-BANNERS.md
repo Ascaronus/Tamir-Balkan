@@ -1,6 +1,6 @@
 # Карусель баннеров
 
-Макет подготовлен перед реализацией: https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF?node-id=223-3703
+Эталонный макет в Figma (реализовано, сверено с кодом): https://www.figma.com/design/2u9V1x7faa2yieZqRP0KaF?node-id=223-3703
 
 ## Управление
 

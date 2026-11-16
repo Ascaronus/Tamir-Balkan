@@ -4,6 +4,9 @@
 проверки; последующие изменения маршрутов, локализации и галереи описаны в
 [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md), [LOCALIZATION.md](LOCALIZATION.md)
 и [RESPONSIVE-V2.md](RESPONSIVE-V2.md). Актуальные команды тестов: [TESTING.md](TESTING.md).
+Функции, добавленные в хедер после этого выпуска (избранное со счётчиком, меню аккаунта,
+диалог входа, предпросмотр корзины), описаны отдельно: [WISHLIST.md](WISHLIST.md),
+[CART-PREVIEW.md](CART-PREVIEW.md), [CUSTOMER-CART.md](CUSTOMER-CART.md).
 
 Существующая витрина на Next.js использует согласованную концепцию TAMIR из Figma:
 белый, чёрный, серый и тёмная фуксия (#842154). Переданный логотип TAMIR остаётся

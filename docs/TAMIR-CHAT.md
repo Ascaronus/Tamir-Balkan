@@ -291,8 +291,12 @@ node scripts/check-chat-origin.mjs
 
 Перед включением остаются: реальный bot/private group/Topics, Google credentials/Billing,
 native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudflare без buffering,
-два независимых покупателя в браузерах и действующий Medusa scheduler. Production не разворачивался.
-*(Статус на ноябрь 2026: чат развернут и проверен на staging; см. `TAMIR-CHAT-AUDIT-2026-11.md`.)*
+два независимых покупателя в браузерах и действующий Medusa scheduler.
+
+*(Статус на 16.11.2026: код чата входит в релиз и на прод, и на стенд — один и тот же билд. Виджет
+открыт покупателю на prod (`GET /api/chat/config` отвечает `enabled: true`, `guests: true`); живые
+диалоги и доставка в Telegram на проде этим не подтверждены — они проверены только на стенде. Полное
+состояние production/staging за ноябрь 2026: `TAMIR-CHAT-AUDIT-2026-11.md`.)*
 
 Известные ограничения:
 

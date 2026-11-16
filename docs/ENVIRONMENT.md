@@ -30,11 +30,19 @@ MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Почта: код регистрации/сброса и welcome email; порты 587 или 465 |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_HOSTNAMES` | Серверная проверка CAPTCHA; рабочие домены витрины |
 | `REVIEW_RATE_SECRET` | Необязательный отдельный секрет HMAC; иначе используется `JWT_SECRET` |
+| `CHAT_ENCRYPTION_KEY` | Ключ AES-256-GCM для секретов провайдеров чата, которые лежат в таблице `tamir_chat_secret`: ровно 64 hex-символа (32 случайных байта). Без корректного ключа запись секрета возвращает `503 CHAT_ENCRYPTION_KEY_REQUIRED`, открытый текст в базу не попадает. Резервная копия БД без этого ключа секреты чата не восстанавливает |
+| `CHAT_ADMIN_EMAILS` | Bootstrap-адреса менеджера чата через запятую (сверх Medusa-сессии и ролей viewer/operator/manager). Fallback: `BANNER_ADMIN_EMAILS`, затем `admin@tamir.local` |
 | `STORE_LOCALE_CODES` | Только скрипт подготовки локалей; по умолчанию `en,sr,sr-RS`. Витрина использует фиксированные `sr-RS`/`en` |
 | `ROZETKA_STOCK_LOCATION_ID` | Предпочитаемый склад импорта; проверьте выбор в форме |
 | `MEDUSA_BACKEND_HOST`, `MEDUSA_BACKEND_PORT` | Только прод-старт (`backend`, `npm start`): адрес и порт, на котором слушает Medusa. Значения по умолчанию — `127.0.0.1:9000`: публичный вход — за nginx (`api.tamir.rs`). Менять только если витрина и API живут на разных узлах |
 
 Другие `ROZETKA_*` относятся к [CLI-режиму](IMPORT-MODES.md), а не к сохранённым настройкам страницы админки.
+
+Настройки чата и токены провайдеров (Telegram, форум-темы, уведомления, ключ перевода чата) не являются
+обязательными переменными окружения: они лежат в БД (`tamir_chat_settings`, `tamir_chat_secret`) и
+заполняются на страницах админки, а токен Telegram читается только из базы. `TELEGRAM_*`-переменных в
+конфигурации нет. Перевод чата берёт ключ Google из базы, а при его отсутствии использует
+`GOOGLE_TRANSLATE_API_KEY` — тот же ключ, что и перевод каталога. Подробности: [TAMIR Chat](TAMIR-CHAT.md).
 
 ## Frontend: `frontend/.env.local`
 
