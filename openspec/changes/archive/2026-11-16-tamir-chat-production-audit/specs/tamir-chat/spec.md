@@ -4,240 +4,240 @@
 
 ### Requirement: Isolate customer and guest history
 
-The server SHALL derive customer identity from Medusa authentication and verify ownership on every read/mutation. Guest proofs SHALL be random, hashed in storage and expiring. Explicit claims SHALL require both identities and revoke old guest access atomically.
+Сервер SHALL выводить идентичность покупателя из аутентификации Medusa и проверять владение при каждом чтении и изменении. Гостевые подтверждения SHALL быть случайными, хешироваться в хранилище и иметь срок действия. Явное присвоение SHALL требовать обе идентичности и атомарно отзывать старый гостевой доступ.
 
 #### Scenario: Stale guest request after claim
 
-- GIVEN a customer claims a guest conversation
-- WHEN the old guest proof requests or changes that conversation
-- THEN access is rejected, including requests whose preliminary check preceded the claim
+- GIVEN покупатель присваивает себе гостевой диалог
+- WHEN старый гостевой токен читает или изменяет этот диалог
+- THEN доступ отклоняется, включая запросы, чья предварительная проверка прошла до присвоения
 
 #### Scenario: Guest conversation identity
 
-- WHEN an anonymous shopper opens the chat
-- THEN the server issues the HttpOnly, SameSite=Lax cookie `tb_chat_guest` with a random proof and a 30-day lifetime
-- AND history is keyed by the SHA-256 hash of the proof, never by client-declared identity
+- WHEN анонимный покупатель открывает чат
+- THEN сервер выдаёт cookie `tb_chat_guest` с флагами HttpOnly, SameSite=Lax, со случайным подтверждением и сроком 30 дней
+- AND история привязывается к SHA-256 хешу подтверждения, а не к идентичности, объявленной клиентом
 
 #### Scenario: Cross-tenant history isolation
 
-- WHEN a customer of another tenant or sales channel references conversation or message IDs that exist
-- THEN the endpoints return 404 without exposing the resource
-- AND customer conversation lists are filtered by customer, region and sales channel
+- WHEN покупатель другого тенанта или канала продаж ссылается на существующие идентификаторы диалога или сообщения
+- THEN эндпоинты возвращают 404, не раскрывая ресурс
+- AND списки диалогов покупателя фильтруются по покупателю, региону и каналу продаж
 
 #### Scenario: Bounded history pages
 
-- WHEN the widget loads conversation history
-- THEN it receives a newest-first bounded page with a resume cursor
-- AND paging further never duplicates or skips messages at the page boundary
+- WHEN виджет загружает историю диалога
+- THEN он получает ограниченную страницу сообщений от новых к старым с курсором продолжения
+- AND дальнейшая пагинация никогда не дублирует и не пропускает сообщения на границе страниц
 
 ### Requirement: Durable delivery
 
-The system SHALL persist message and outbox atomically, deduplicate client UUIDs and Telegram updates, retain original text, and retry failures. Unconfirmed operator translation SHALL remain hidden. External Telegram sends SHALL be documented as at least once.
+Система SHALL сохранять сообщение и задачу отправки атомарно, дедуплицировать клиентские UUID и обновления Telegram, хранить исходный текст и повторять неудачные попытки. Неподтверждённый перевод оператора SHALL оставаться скрытым. Внешние отправки в Telegram SHALL документироваться как «не менее одного раза».
 
 #### Scenario: Translation unavailable
 
-- WHEN Google translation fails
-- THEN the original remains stored, a safe error is recorded, retry is scheduled and no unconfirmed operator text is delivered
+- WHEN перевод Google не удаётся
+- THEN исходный текст сохраняется, фиксируется безопасная ошибка, планируется повтор, и никакой неподтверждённый текст оператора не доставляется
 
 #### Scenario: Message delivery lifecycle
 
-- WHEN a shopper sends a message
-- THEN the message and its outbox task are persisted in one transaction with status `sent`
-- AND after Telegram acceptance the status becomes `delivered` and the Telegram message id is stored
-- AND a terminal failure records status `error` with a safe error code while the original text is retained
-- AND read state is tracked separately from delivery via `seen_at`, never as a message status
+- WHEN покупатель отправляет сообщение
+- THEN сообщение и его задача отправки сохраняются в одной транзакции со статусом `sent`
+- AND после принятия Telegram статус становится `delivered` и сохраняется идентификатор сообщения Telegram
+- AND финальный сбой фиксирует статус `error` с безопасным кодом ошибки, а исходный текст сохраняется
+- AND состояние прочтения отслеживается отдельно от доставки через `seen_at`, а не как статус сообщения
 
 #### Scenario: Unconfirmed sends are retried
 
-- WHEN a stored send has no Telegram message id
-- THEN the delivery worker re-attempts it, deduplicating by Telegram update id so retries create no duplicate side effects
-- AND automatic and operator messages retry with capped exponential backoff `min(1h, 5s * 2^attempts)` up to 8 attempts, after which the task is parked as failed
+- WHEN у сохранённой отправки нет идентификатора сообщения Telegram
+- THEN воркер доставки повторяет её, дедуплицируя по идентификатору обновления Telegram, чтобы повторы не создавали лишних побочных эффектов
+- AND автоматические и операторские сообщения повторяются с ограниченным экспоненциальным backoff `min(1h, 5s * 2^attempts)` до 8 попыток, после чего задача паркуется как failed
 
 #### Scenario: Widget receives delivery state over SSE
 
-- WHEN message, read, typing or attachment events are committed
-- THEN they are published per conversation (PostgreSQL NOTIFY + polled outbox) and pushed over SSE within ~2 seconds
-- AND a client whose stream is disabled or expired falls back to polling without losing messages
+- WHEN события сообщений, прочтения, набора текста или вложений зафиксированы
+- THEN они публикуются по диалогам (PostgreSQL NOTIFY + опрашиваемый outbox) и отправляются через SSE в пределах ~2 секунд
+- AND клиент с отключённым или просроченным потоком переходит на опрос без потери сообщений
 
 ### Requirement: Authenticate Telegram replies
 
-Every webhook SHALL pass secret, group, thread/reply reference and enabled operator role checks. Unknown operators, bots and forwarded/channel messages SHALL NOT send replies to customers.
+Каждый webhook SHALL проходить проверки секрета, группы, ссылки на тему/ответ и роли включённого оператора. Неизвестные операторы, боты и пересланные или канальные сообщения SHALL NOT отправлять ответы покупателям.
 
 #### Scenario: Webhook secret is generated and rotated
 
-- WHEN an admin saves Telegram provider secrets
-- THEN the server re-validates them with `getMe`, always stores a freshly generated webhook secret and re-registers the webhook in the same request
+- WHEN администратор сохраняет секреты провайдера Telegram
+- THEN сервер повторно проверяет их через `getMe`, всегда сохраняет заново сгенерированный секрет webhook и в том же запросе перерегистрирует webhook
 
 #### Scenario: Unsigned webhook delivery is rejected
 
-- WHEN a webhook request lacks the `x-telegram-bot-api-secret-token` header or the value does not match
-- THEN the server responds 401 with `CHAT_WEBHOOK_UNAUTHORIZED` and performs no processing
-- AND the check is never skipped, including when no secret has been saved yet
+- WHEN у запроса webhook отсутствует заголовок `x-telegram-bot-api-secret-token` или значение не совпадает
+- THEN сервер отвечает 401 с `CHAT_WEBHOOK_UNAUTHORIZED` и не выполняет никакой обработки
+- AND проверка никогда не пропускается, в том числе когда секрет ещё не сохранён
 
 #### Scenario: Reply reference must match the conversation topic
 
-- WHEN a Telegram update does not match the expected chat id, forum topic or reply reference
-- THEN it is routed to the reconcile queue instead of a conversation
-- AND unknown operators, bots and forwarded or channel messages never produce customer-visible replies
+- WHEN обновление Telegram не совпадает с ожидаемым chat id, форумной темой или ссылкой на ответ
+- THEN оно попадает в очередь reconcile вместо диалога
+- AND неизвестные операторы, боты и пересланные или канальные сообщения никогда не порождают видимых покупателю ответов
 
 ### Requirement: Native administrative control
 
-Eight native Medusa Admin sections SHALL provide real settings, checks, templates, operators, dialogs and statistics. PostgreSQL SHALL persist configuration with revision conflict checks. Encrypted provider secrets SHALL be write-only; viewer/operator/manager permissions SHALL be checked server-side.
+Восемь нативных разделов Medusa Admin SHALL предоставлять реальные настройки, проверки, шаблоны, операторов, диалоги и статистику. PostgreSQL SHALL хранить конфигурацию с проверкой конфликтов ревизий. Зашифрованные секреты провайдеров SHALL быть доступны только для записи; права viewer/operator/manager SHALL проверяться на сервере.
 
 #### Scenario: Eight admin sections
 
-- WHEN an operator with sufficient capabilities opens the TAMIR Chat plugin UI
-- THEN the sections Обзор, Провайдеры, Топики, Шаблоны, Авто сообщения, Операторы, Диалоги and История are all present and functional against real data
+- WHEN оператор с достаточными правами открывает интерфейс плагина TAMIR Chat
+- THEN разделы Обзор, Провайдеры, Топики, Шаблоны, Авто сообщения, Операторы, Диалоги и История присутствуют и работают на реальных данных
 
 #### Scenario: Configuration revision conflict
 
-- WHEN an admin form is saved with a stale settings revision
-- THEN the server rejects it with 409 and `CHAT_SETTINGS_CHANGED`
-- AND the admin UI reloads the latest revision instead of overwriting it
+- WHEN форма администратора сохраняется с устаревшей ревизией настроек
+- THEN сервер отклоняет её с 409 и `CHAT_SETTINGS_CHANGED`
+- AND интерфейс администратора перезагружает последнюю ревизию вместо её перезаписи
 
 #### Scenario: Provider secrets encrypted at rest
 
-- WHEN Telegram credentials are saved
-- THEN they are stored AES-256-GCM-encrypted with `CHAT_ENCRYPTION_KEY` (64 hex characters, required)
-- AND without a valid key the server returns 503 with `CHAT_ENCRYPTION_KEY_REQUIRED` and never stores plaintext secrets
-- AND admin reads expose only masked placeholders
+- WHEN учётные данные Telegram сохраняются
+- THEN они хранятся зашифрованными AES-256-GCM с ключом `CHAT_ENCRYPTION_KEY` (64 hex-символа, обязателен)
+- AND без корректного ключа сервер возвращает 503 с `CHAT_ENCRYPTION_KEY_REQUIRED` и никогда не сохраняет секреты в открытом виде
+- AND чтение в административном интерфейсе показывает только маскированные плейсхолдеры
 
 #### Scenario: Administrative actions are permission-checked
 
-- WHEN an admin calls chat management endpoints (settings, dialogs, operator replies, attachment viewing, conversation deletion)
-- THEN server-side policy checks on chat capabilities run for every action
-- AND insufficient permissions are rejected without performing the action
+- WHEN администратор вызывает эндпоинты управления чатом (настройки, диалоги, ответы оператора, просмотр вложений, удаление диалога)
+- THEN серверные проверки политик по правам чата выполняются для каждого действия
+- AND недостаточные права отклоняются без выполнения действия
 
 ### Requirement: Localized and recoverable widget
 
-SR/EN SHALL cover labels and configurable templates. Account users SHALL bypass guest form; guest email/phone SHALL be independently optional. SSE SHALL reconnect and replay more than one page without duplicated IDs. Logout SHALL unmount private state. Product context SHALL use actual selection and server validation.
+SR/EN SHALL покрывать подписи и настраиваемые шаблоны. Пользователи аккаунта SHALL обходить гостевую форму; email/телефон гостя SHALL быть независимо необязательными. SSE SHALL переподключаться и воспроизводить более одной страницы без дублирующихся ID. Выход из аккаунта SHALL размонтировать приватное состояние. Контекст товара SHALL использовать фактический выбор и серверную валидацию.
 
 #### Scenario: Stream resumes after disconnect
 
-- WHEN the SSE connection drops and the browser reconnects with a Last-Event-ID cursor
-- THEN the server replays only events after that cursor, bounded per conversation, without duplicated message ids
+- WHEN соединение SSE обрывается и браузер переподключается с курсором Last-Event-ID
+- THEN сервер воспроизводит только события после этого курсора, с ограничением по диалогу и без дублирующихся идентификаторов сообщений
 
 #### Scenario: Both locales fully cover the interface
 
-- WHEN the widget renders in SR or EN
-- THEN every label, status, template and admin-visible chat string resolves from the active locale catalog
-- AND the SR and EN catalogs contain identical key sets so no raw key or empty label can appear
+- WHEN виджет отображается на SR или EN
+- THEN каждая подпись, статус, шаблон и видимая администратору строка чата берётся из активного каталога локали
+- AND каталоги SR и EN содержат одинаковые наборы ключей, поэтому сырой ключ или пустая подпись появиться не могут
 
 #### Scenario: Chat remains usable on small screens
 
-- WHEN the storefront is viewed below the 768px breakpoint
-- THEN the chat is reachable through the dedicated mobile route with the composer, status and attachment controls fully usable
+- WHEN витрина просматривается ниже брейкпоинта 768px
+- THEN чат доступен через отдельный мобильный маршрут, а поле ввода, статус и элементы вложений полностью работоспособны
 
 ### Requirement: Honest status and retention
 
-Availability SHALL require an enabled operator explicitly marked available, not bot connectivity. Delivered SHALL NOT mean read. The widget SHALL disclose Telegram/Google processing and retention. System templates SHALL NOT enqueue recursive external delivery. Deletion/retention SHALL cascade through chat storage; external copies require separate handling.
+Доступность SHALL требовать включённого оператора, явно помеченного доступным, а не связности бота. Статус «доставлено» SHALL NOT означать «прочитано». Виджет SHALL раскрывать обработку и хранение данных Telegram/Google. Системные шаблоны SHALL NOT ставить в очередь рекурсивную внешнюю доставку. Удаление и хранение SHALL каскадно проходить через хранилище чата; внешние копии требуют отдельной обработки.
 
 #### Scenario: Send from the message composer
 
-- WHEN Enter is pressed in the message field
-- THEN the same form submission as the Send button runs without adding a newline
-- WHEN Shift+Enter is pressed or an IME composition is being confirmed
-- THEN typing continues without sending
-- Empty drafts, held-key repeats and attempts during an in-flight send SHALL NOT submit another message
+- WHEN нажат Enter в поле сообщения
+- THEN выполняется та же отправка формы, что и по кнопке Send, без добавления переноса строки
+- WHEN нажат Shift+Enter или подтверждается IME-композиция
+- THEN ввод продолжается без отправки
+- Пустые черновики, повтор удерживаемой клавиши и попытки во время незавершённой отправки SHALL NOT отправлять ещё одно сообщение
 
 #### Scenario: Grey checkmark means accepted
 
-- WHEN the server has persisted the message and its outbox task
-- THEN the widget shows the single grey checkmark state
+- WHEN сервер сохранил сообщение и его задачу отправки
+- THEN виджет показывает состояние с одной серой галочкой
 
 #### Scenario: Blue double checkmark means delivered
 
-- WHEN Telegram accepts the send and the Telegram message id is stored
-- THEN the widget shows the blue double checkmark state
-- AND no read receipt is implied, because delivered is never presented as read
+- WHEN Telegram принял отправку и сохранён идентификатор сообщения Telegram
+- THEN виджет показывает состояние с двумя синими галочками
+- AND подтверждение прочтения не подразумевается, потому что «доставлено» никогда не подаётся как «прочитано»
 
 #### Scenario: Failed delivery is disclosed
 
-- WHEN a message ends in the `error` status
-- THEN the widget and the admin dialog show a distinct failure state
-- AND the original message text remains visible to the shopper and the operator
+- WHEN сообщение завершается в статусе `error`
+- THEN виджет и административный диалог показывают отличное от других состояние сбоя
+- AND исходный текст сообщения остаётся виден покупателю и оператору
 
 #### Scenario: Retention is configurable and bounded
 
-- WHEN an admin sets the conversation retention
-- THEN values outside 7–730 days (default 90) are rejected
-- AND expired conversations cascade-delete messages, attachments and delivery tasks in chat storage
+- WHEN администратор задаёт срок хранения диалогов
+- THEN значения вне 7–730 дней (по умолчанию 90) отклоняются
+- AND просроченные диалоги каскадно удаляют сообщения, вложения и задачи доставки в хранилище чата
 
 ### Requirement: Private image attachments
 
-Shoppers MAY send one static JPEG, PNG or WebP image per message, with optional text. The server MUST decode and re-encode uploads, reject invalid/animated/oversized input, strip metadata and enforce ownership and rate limits.
+Покупатели MAY отправлять по одному статичному изображению JPEG, PNG или WebP на сообщение, при желании с текстом. Сервер MUST декодировать и перекодировать загружаемое, отклонять некорректные, анимированные и слишком большие входные данные, удалять метаданные и ограничивать владение и частоту.
 
 #### Scenario: Image-only submission and replay
 
-- WHEN a shopper sends an image up to 5 MiB and 20 megapixels
-- THEN a normalized private JPEG, message and delivery task are persisted atomically
-- AND replaying the client ID creates no duplicate
-- AND Telegram receives the photo in the matching conversation topic without invoking text translation for the image
+- WHEN покупатель отправляет изображение до 5 MiB и 20 мегапикселей
+- THEN нормализованный приватный JPEG, сообщение и задача доставки сохраняются атомарно
+- AND повтор с тем же клиентским ID не создаёт дубликат
+- AND Telegram получает фото в соответствующей теме диалога без вызова перевода текста для изображения
 
 #### Scenario: Isolation and deletion
 
-- WHEN another account or a logged-out visitor requests an attachment
-- THEN access is denied even if the image and conversation IDs are known
-- AND deleting or expiring the conversation deletes its stored images
+- WHEN другой аккаунт или посетитель без входа запрашивает вложение
+- THEN доступ запрещается, даже если идентификаторы изображения и диалога известны
+- AND удаление или истечение срока диалога удаляет его сохранённые изображения
 
 #### Scenario: Mobile composer
 
-- WHEN the chat is opened on a 320px-wide viewport
-- THEN status, attachment controls, textarea and send button have separate space without horizontal overflow
+- WHEN чат открыт во viewport шириной 320px
+- THEN статус, элементы вложений, textarea и кнопка отправки имеют отдельное место без горизонтального переполнения
 
 #### Scenario: Oversized chat HTTP bodies
 
-- WHEN the body parser rejects a request exceeding the text or image upload limit
-- THEN chat endpoints return HTTP 413 with `PAYLOAD_TOO_LARGE`, without reflecting the request body
-- AND unrelated API errors retain the default Medusa error handling
+- WHEN парсер тела отклоняет запрос, превышающий лимит текста или загрузки изображения
+- THEN эндпоинты чата возвращают HTTP 413 с `PAYLOAD_TOO_LARGE`, не отражая тело запроса
+- AND несвязанные ошибки API сохраняют обработку ошибок Medusa по умолчанию
 
 #### Scenario: Normalized attachment limits
 
-- WHEN any accepted image is stored
-- THEN it is re-encoded to JPEG with max side 1600 px, quality 85 and a final size cap of 2 MiB
-- AND animated or undecodable input is rejected, unsupported types return 415 `CHAT_IMAGE_TYPE_UNSUPPORTED` and oversized uploads return 413
-- AND a conversation holding 50 attachments rejects further images with 409 `CHAT_IMAGE_LIMIT`
+- WHEN любое принятое изображение сохраняется
+- THEN оно перекодируется в JPEG с максимальной стороной 1600 px, качеством 85 и финальным ограничением размера 2 MiB
+- AND анимированный или нечитаемый вход отклоняется, неподдерживаемые типы возвращают 415 `CHAT_IMAGE_TYPE_UNSUPPORTED`, а слишком большие загрузки возвращают 413
+- AND диалог с 50 вложениями отклоняет дальнейшие изображения с 409 `CHAT_IMAGE_LIMIT`
 
 ## ADDED Requirements
 
 ### Requirement: Storefront chat proxy
 
-The Next.js storefront SHALL proxy every browser chat call through a same-origin route so the browser never contacts the Medusa origin directly. The proxy SHALL allowlist chat paths and methods, resolve the tenant from server-side environment configuration, forward auth cookies and the visitor id, and translate upstream failures into the chat error contract.
+Витрина Next.js SHALL проксировать каждый вызов чата из браузера через маршрут того же origin, чтобы браузер никогда не обращался к origin Medusa напрямую. Прокси SHALL иметь allowlist путей и методов чата, определять тенанта из серверной конфигурации окружения, пробрасывать cookie аутентификации и id посетителя, и переводить сбои upstream в контракт ошибок чата.
 
 #### Scenario: Browser never sees the Medusa origin
 
-- WHEN the widget is loaded on any production domain
-- THEN all chat requests target same-origin `/api/chat/...` routes
-- AND the response `Access-Control-Allow-Origin` is exactly the configured storefront origin
+- WHEN виджет загружен на любом производственном домене
+- THEN все запросы чата идут на маршруты `/api/chat/...` того же origin
+- AND заголовок `Access-Control-Allow-Origin` в ответе точно равен настроенному origin витрины
 
 #### Scenario: Unknown proxy path is refused
 
-- WHEN a client requests a path or method outside the chat allowlist through the proxy
-- THEN the proxy returns 404 or 405 without forwarding the request upstream
+- WHEN клиент запрашивает через прокси путь или метод вне allowlist чата
+- THEN прокси возвращает 404 или 405, не передавая запрос upstream
 
 #### Scenario: Upstream outage is reported honestly
 
-- WHEN the Medusa origin is unreachable when a chat route is invoked
-- THEN the route answers 503 with `UPSTREAM_UNAVAILABLE` in the chat error shape
-- AND no HTML error page or upstream detail is returned to the widget
+- WHEN origin Medusa недоступен при вызове маршрута чата
+- THEN маршрут отвечает 503 с `UPSTREAM_UNAVAILABLE` в формате ошибок чата
+- AND виджету не возвращается ни HTML-страница ошибки, ни детали upstream
 
 ### Requirement: Chat rate limits and error contract
 
-Every chat entry point (REST, SSE and Telegram webhook) SHALL enforce Redis-backed limits with per-scope budgets, and every chat failure SHALL use one error shape. The system SHALL NOT fall back to an unlimited counter store when Redis is unavailable.
+Каждая точка входа чата (REST, SSE и Telegram webhook) SHALL применять лимиты на базе Redis с бюджетами по областям, и каждый сбой чата SHALL использовать единый формат ошибки. Система SHALL NOT откатываться на неограниченное хранилище счётчиков, когда Redis недоступен.
 
 #### Scenario: Budgets per action class
 
-- WHEN clients exceed the budgets (history/session reads, sends per session, image and message writes, storefront POSTs, admin reads, SSE connections, webhook deliveries), the corresponding scope overflows or the global flood budget is exceeded
-- THEN the server responds 429 with the chat error shape and the action is not executed
-- AND per-conversation parallel streams stay within their connection cap
+- WHEN клиенты превышают бюджеты (чтения истории и сессии, отправки на сессию, записи изображений и сообщений, POST витрины, чтения администратора, соединения SSE, доставки webhook), переполняется соответствующая область или превышается общий бюджет flood-защиты
+- THEN сервер отвечает 429 с форматом ошибок чата, а действие не выполняется
+- AND параллельные потоки одного диалога остаются в пределах своего лимита соединений
 
 #### Scenario: Counter store outage fails closed
 
-- WHEN Redis is unreachable for a rate-limited request
-- THEN the request is denied with the retryable rate-limit error instead of being processed unlimited
+- WHEN Redis недоступен для запроса с лимитом
+- THEN запрос отклоняется с повторяемой ошибкой лимита, а не обрабатывается без ограничений
 
 #### Scenario: Telegram webhook flood guard
 
-- WHEN anonymous webhook traffic exceeds the anonymous or global budget
-- THEN excess deliveries are rejected with 429 before any Telegram processing
-- AND legitimate operator and customer traffic within budget continues unaffected
+- WHEN анонимный трафик webhook превышает анонимный или общий бюджет
+- THEN избыточные доставки отклоняются с 429 до любой обработки Telegram
+- AND легитимный трафик операторов и покупателей в пределах бюджета продолжает работать без изменений

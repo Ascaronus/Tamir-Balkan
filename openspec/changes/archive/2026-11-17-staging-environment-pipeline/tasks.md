@@ -110,8 +110,17 @@
 
 ## 6. Public access (P0, requires the owner)
 
-- [ ] 6.1 Sitekey Turnstile для `test.tamir.rs` + секрет в `secrets/turnstile-secret-key`
-      (blocked: ждём sitekey от владельца).
+- [x] 6.1 Sitekey Turnstile для `test.tamir.rs` + секрет в `secrets/turnstile-secret-key`
+      (измерено 16.11: владелец выдал пару ключей виджета с `test.tamir.rs` в Allowed domains; старые
+      ключи забэкаплены в `/opt/tamir-staging/backups/pre-turnstile-20261116T230948Z`, новый secret
+      записан в `secrets/turnstile-secret-key` (36 Б, actions-runner, 600, значения в отчёты не пишутся);
+      `staging-bootstrap.sh --turnstile-site-key` — BOOTSTRAP_EXIT=0, в `frontend.env` новый sitekey,
+      `TURNSTILE_HOSTNAMES=test.tamir.rs`, в `backend.env` secret совпадает с файлом; живой
+      `siteverify` отвечает `invalid-input-response` (не `invalid-input-secret`) — секрет настоящий;
+      повторный деплой `218d8fb` (run 43977026279, success) — новый sitekey вписан в бандл `.next`
+      (4 файла), старый исчез; `staging-smoke.sh` — все проверки зелёные; POST
+      `/store/password-reset/start` с фейковым токеном даёт `400 CAPTCHA_FAILED`, не
+      `503 CAPTCHA_UNAVAILABLE` — backend читает секрет из `backend/.env` релиза.)
 - [x] 6.2 `scripts/staging-tunnel.sh login` — владелец открывает ссылку и выбирает зону `tamir.rs`.
       (туннель `tamir-staging` прикреплён к зоне, id `5470a703-691e-4e21-a721-39fdbad109de`)
 - [x] 6.3 `staging-tunnel.sh create` и `dns` — добавлены только `test.*`; `tamir.rs` /
@@ -130,12 +139,25 @@
       `96c205f` → Verify на push #275 зелёный → автозапуск `Deploy TAMIR Staging` #4 (`workflow_run`,
       тот же SHA) зелёный → `current` = релиз `20261105T181854Z-96c205f65cf9`, pm2-процессы работают
       из него, `/health`, `robots.txt`, `sitemap.xml` и публичные URL — 200)
-- [ ] 7.2 Ручной `Deploy to Staging` с более старым SHA `main` → ff-merge пропущен, откат стенда
-      удался.
+- [x] 7.2 Ручной `Deploy to Staging` с более старым SHA `main` → ff-merge пропущен, откат стенда
+      удался. (измерено 16.11: ручной `workflow_dispatch` со старым SHA `96c205f` (run 43977998048) —
+      гейт пропустил (коммит достижим из `main`, зелёный Verify-push на `main` есть), job собрал и
+      активировал релиз `20261116T231751Z-96c205f65cf9`: `current` переключён, pm2 online из него,
+      на старом коде `127.0.0.1:9000/health` 200 и публичные `test.tamir.rs/robots.txt`, `/rs`,
+      `test-api.tamir.rs/health` 200 — откат работает. Job при этом красный: смоук упал на 2 проверках
+      (`порты инфраструктуры смотрят только на loopback` — Mailpit UI теперь на `0.0.0.0:8025`;
+      `Mailpit API не отвечает` — 401, `MP_UI_AUTH` добавлен после 05.11). Это ожидаемый дрейф: смоук
+      старого релиза проверяет старый контракт инфраструктуры против новой. Наблюдение: при падении
+      смоука `current` остаётся на откаченном релизе, авто-отката нет — восстановление только ручным
+      деплоем (бэкап `/opt/tamir-staging/backups/20261116T231751Z-96c205f65cf9`). Стенд восстановлен
+      ручным деплоем `218d8fb` (run 43978731336, зелёный): `current` =
+      `20261116T232250Z-218d8fbf197e`, смоук зелёный.)
 - [x] 7.3 Ручной `Deploy TAMIR` с непроверенным/чужим SHA → job падает на гейте, на VPS ничего не
       отправлено. (измерено 05.11: ручной `workflow_dispatch` прогона `deploy.yml` со SHA `19c7dd5`,
       у которого нет зелёного Verify-push в `main` → run `Deploy TAMIR` #97: job `deploy` красный на
       шаге `Confirm the commit passed Verify on main`, шаг `Deploy the verified commit to VPS` —
       skipped; на VPS команда не уходила)
-- [ ] 7.4 Итоговый отчёт по формату `stage.txt` (что сделано, что проверено, что осталось
-      незакрытым: 404 медиа-дампа, CAPTCHA до sitekey).
+- [x] 7.4 Итоговый отчёт по формату `stage.txt` (что сделано, что проверено, что осталось
+      незакрытым). (сделано 16.11: `report.md` в каталоге изменения. Формулировка про «404
+      медиа-дампа» устарела — по замерам медиа перенесены (922 файла) и отдают 200; CAPTCHA закрыта
+      16.11 с отдельным sitekey для `test.tamir.rs`.)
