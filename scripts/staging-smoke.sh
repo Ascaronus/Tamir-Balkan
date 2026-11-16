@@ -145,10 +145,10 @@ if staging_public_checks_enabled; then
     fi
   done
   # Витрина закрывает и входной redirect: Google снимает URL с индекса по заголовкам
-  # и того ответа. -D - без -f: 307 — легальный ответ, тело не нужно.
+  # и того ответа. -D - без -f: 308 — легальный ответ, тело не нужно.
   if curl -sS --max-time 30 --max-redirs 0 -o /dev/null -D - "${STAGING_SITE_URL}/" | tr -d '\r' \
     | grep -qi '^x-robots-tag:.*noindex'; then
-    ok "X-Robots-Tag: noindex отвечает ${STAGING_SITE_URL}/ (307)"
+    ok "X-Robots-Tag: noindex отвечает ${STAGING_SITE_URL}/ (308)"
   else
     bad "нет X-Robots-Tag: noindex на редиректе ${STAGING_SITE_URL}/ — прокси его не закрыл"
   fi

@@ -121,7 +121,10 @@ const newApps = names.map((name, i) => ({
   name, script: 'npm', args: 'start',
   cwd:path.join(release, i === 0 ? 'backend' : 'frontend'),
   interpreter:'none', exec_mode:'fork', instances:1,
-  env:{...oldApps[i].env, NODE_ENV:'production'}
+  // This script deploys only tamir.rs. Override stale PM2 values before both
+  // next build (NEXT_PUBLIC_* is inlined) and startup; staging has its own script.
+  env:{...oldApps[i].env, NODE_ENV:'production',
+    ...(name === 'tamir-frontend' ? {NEXT_PUBLIC_SITE_URL:'https://tamir.rs'} : {})}
 }))
 fs.writeFileSync(path.join(release, 'ecosystem.config.cjs'), 'module.exports = ' + JSON.stringify({apps:newApps}, null, 2))
 JS
@@ -186,7 +189,8 @@ const decimals = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scri
 if (decimals.status !== 0) process.exit(decimals.status || 1)
 JS
 trap - ERR
-bash "$source_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
+# Use the activation checks belonging to the selected, verified release.
+bash "$release_dir/scripts/activate-release.sh" "$release_dir" "$backup_dir"
 # Advance the source checkout only after the new release is live: activate-release.sh
 # rolls the PM2 apps back on failure, and main on the VPS must then still point at the
 # previous release. No reset/force or credentials changes.

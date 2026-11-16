@@ -54,7 +54,7 @@ export default async function CatalogPage({ params, searchParams }: {
 }
 
 import type { Metadata } from "next"
-import { siteUrl, languageAlternates } from "@/lib/seo"
+import { siteUrl, languageAlternates, pageRobots } from "@/lib/seo"
 
 export async function generateMetadata({ searchParams, params }: {
   searchParams: Promise<CatalogQuery>; params?: Promise<CatalogRouteParams>
@@ -81,5 +81,5 @@ export async function generateMetadata({ searchParams, params }: {
     alternates: languageAlternates(canonical.pathname + canonical.search, locale, enCanonical.pathname + enCanonical.search),
     // Search results and empty categories have no useful standalone search landing page.
     // This is evaluated against published products on every request, so a populated category becomes indexable automatically.
-    robots: { index: !query.q?.trim() && categoryCount !== 0, follow: true } }
+    robots: await pageRobots(!query.q?.trim() && categoryCount !== 0) }
 }

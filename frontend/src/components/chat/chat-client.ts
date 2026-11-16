@@ -68,10 +68,15 @@ export function imageData(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
-// Template identity survives locale changes. Legacy status messages can still match their old text.
+// Template identity survives locale changes; legacy rows match only system text.
+export function systemTemplateKey(message: ChatMessage, config: WidgetConfig) {
+  if (message.sender !== 'system') return null
+  return message.template_key || Object.keys(config.templates).find((key) =>
+    Object.values(config.templates[key].text).includes(message.text || '')) || null
+}
 export function systemText(message: ChatMessage, config: WidgetConfig, locale: 'sr' | 'en') {
   if (message.sender !== 'system') return message.text
-  const key = message.template_key || ['closed', 'reopened'].find((key) =>
-    Object.values(config.templates[key]?.text || {}).includes(message.text || ''))
+  const key = systemTemplateKey(message, config)
+  if (key === 'sent' || (key && config.templates[key]?.enabled === false)) return null
   return key && config.templates[key] ? config.templates[key].text[locale] : message.text
 }

@@ -485,6 +485,7 @@
     "viewCart": "View cart"
   },
   "chat": {
+    "automatic": "Automated notice",
     "image": "Attached image",
     "attachImage": "Attach image",
     "removeImage": "Remove image",

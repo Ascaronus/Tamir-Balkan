@@ -1,4 +1,5 @@
 name: Deploy TAMIR
+run-name: Deploy TAMIR · ${{ inputs.sha }}
 
 # Выпуск на прод — только вручную (ТЗ §2): push в main запускает Verify, а затем
 # автоматически поднимается staging. Прод ждёт решения человека: workflow_dispatch

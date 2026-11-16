@@ -78,12 +78,13 @@ try {
       console.log(`PASS pair ${path}: ${language}`)
     }
   }
-  for (const [language, cookie, expected] of [['en-GB', '', '/en'], ['ru-RU,en;q=0.8', 'en', '/en'], ['ru-RU,en;q=0.8', '', '/rs'], ['sr-Latn-RS', '', '/rs'], ['', '', '/rs'], ['en-US', 'sr', '/rs']]) {
+  for (const [language, cookie] of [['en-GB', ''], ['ru-RU,en;q=0.8', 'en'], ['ru-RU,en;q=0.8', ''], ['sr-Latn-RS', ''], ['', ''], ['en-US', 'sr'], ['en-US', 'invalid']]) {
     const res = await fetch(`http://127.0.0.1:${port}/?q=hat`, { headers: { 'Accept-Language': language, Cookie: cookie ? `store_locale=${cookie}` : '' }, redirect: 'manual' })
-    assert.equal(res.status, 307)
-    assert.equal(new URL(res.headers.get('location'), `http://127.0.0.1:${port}`).pathname, expected)
+    assert.equal(res.status, 308)
+    assert.equal(new URL(res.headers.get('location'), `http://127.0.0.1:${port}`).pathname, '/rs')
     assert.equal(new URL(res.headers.get('location'), `http://127.0.0.1:${port}`).search, '?q=hat')
     assert.match(res.headers.get('cache-control'), /no-store/)
+    assert.doesNotMatch(res.headers.get('vary') || '', /Accept-Language|Cookie/i)
   }
   for (const [oldPath, newPath] of [['/rs/cart', '/rs/korpa'], ['/rs/account', '/rs/nalog'], ['/rs/account/login', '/rs/nalog/prijava'], ['/rs/account/register', '/rs/nalog/registracija'], ['/rs/account/forgot-password', '/rs/nalog/zaboravljena-lozinka']]) {
     const res = await fetch(`http://127.0.0.1:${port}${oldPath}?next=checkout`, { redirect: 'manual' })
@@ -95,8 +96,14 @@ try {
   const publicEntry = await fetch(`http://127.0.0.1:${port}/?q=hat`, {
     headers: { Host: 'tamir.rs', 'X-Forwarded-Proto': 'https', 'Accept-Language': 'en-US' }, redirect: 'manual',
   })
-  assert.equal(publicEntry.status, 307)
-  assert.equal(new URL(publicEntry.headers.get('location'), 'https://tamir.rs').href, 'https://tamir.rs/en?q=hat')
+  assert.equal(publicEntry.status, 308)
+  assert.equal(new URL(publicEntry.headers.get('location'), 'https://tamir.rs').href, 'https://tamir.rs/rs?q=hat')
+  const stagingEntry = await fetch(`http://127.0.0.1:${port}/?q=hat`, {
+    headers: { Host: 'test.tamir.rs', 'X-Forwarded-Proto': 'https', 'Accept-Language': 'en-US', Cookie: 'store_locale=en' }, redirect: 'manual',
+  })
+  assert.equal(stagingEntry.status, 308)
+  assert.equal(new URL(stagingEntry.headers.get('location'), 'https://test.tamir.rs').href, 'https://test.tamir.rs/rs?q=hat')
+  assert.match(stagingEntry.headers.get('x-robots-tag'), /noindex/)
   console.log('PASS public redirect behind reverse proxy')
 } finally {
   server.kill('SIGTERM')

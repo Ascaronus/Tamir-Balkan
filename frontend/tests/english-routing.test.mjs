@@ -30,13 +30,16 @@ test('every host that is not a public production origin is closed to search engi
   assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test(path),false,path)
  assert.equal(new RegExp(`^(?:${proxyConfig.matcher[0]})$`).test('/rs/catalog'),true)
 })
-test('only an unqualified entry selects browser/saved language, using temporary uncacheable redirects',()=>{
- for(const browser of ['en','en-GB,en;q=0.8','en-US']) {
-  const result=proxy(request('/?q=hat',browser));assert.equal(result.status,307);assert.equal(result.url,'https://tamir.rs/en?q=hat');assert.match(result.headers.get('cache-control'),/no-store/)
+test('root permanently redirects to the Serbian canonical regardless of browser or saved language',()=>{
+ for(const browser of ['en','en-GB,en;q=0.8','en-US','ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS','']) {
+  for(const cookie of [undefined,'sr','en','invalid']) {
+   const result=proxy(request('/?q=hat&size=42%2C5',browser,cookie))
+   assert.equal(result.status,308)
+   assert.equal(result.url,'https://tamir.rs/rs?q=hat&size=42%2C5')
+   assert.match(result.headers.get('cache-control'),/no-store/)
+   assert.equal(result.headers.get('vary'),null)
+  }
  }
- for(const browser of ['ru-RU,ru;q=0.9,en;q=0.8','de-DE','sr-Latn-RS',''])assert.equal(proxy(request('/',browser)).url,'https://tamir.rs/rs')
- assert.equal(proxy(request('/','en','sr')).url,'https://tamir.rs/rs')
- assert.equal(proxy(request('/','ru','en')).status,307)
 })
 test('explicit links override cookies and browser without rewriting away the language',()=>{
  const sr=proxy(request('/rs/catalog/hats','en','en'));assert.equal(sr.next,true);assert.equal(sr.request.headers.get('x-tamir-locale'),'sr')
@@ -51,7 +54,7 @@ test('entry redirect removes the reverse proxy internal port but preserves an ex
   const req=request('/?q=hat','en')
   req.nextUrl=new URL('https://localhost:3000/?q=hat')
   req.headers.set('host',host)
-  assert.equal(proxy(req).url,`https://${host}/en?q=hat`)
+  assert.equal(proxy(req).url,`https://${host}/rs?q=hat`)
  }
 })
 test('localized navigation preserves filters, variants and fragments, leaving APIs and external links untouched',()=>{
@@ -93,13 +96,13 @@ test('switcher remembers selection and requests the same translated product and 
  assert.equal(saved,'en');assert.equal(destination,'/en/products/hat?v_id=variant_1#reviews')
 })
 
-function productPage(locale, ready=true, {resolverStatus, available=true}={}) {
+function productPage(locale, ready=true, {resolverStatus, available=true,host='tamir.rs'}={}) {
  const product={id:'p1',handle:'bordo-kapa',title:locale==='en'?'Burgundy hat':'Bordo kapa',description:'Description',metadata:{en_handle:'burgundy-hat',en_content_ready:ready},variants:[{id:'variant_1'}]}
  return load('frontend/src/app/[countryCode]/products/[handle]/page.tsx',{
   '@/lib/store/category-url':load('frontend/src/lib/store/category-url.ts'),
   react:{cache:fn=>fn},'@/components/reviews/Stars':{},'@/lib/reviews/server':{productReviews:async()=>null},'@/components/reviews/ProductReviews':{},
   '@/lib/i18n/content':{localizedText:(_p,_key,fallback)=>fallback},'@/lib/product-image':{getImagesForVariant:()=>[]},'@/lib/seo/product':{productJsonLd:()=>null},
-  '@/lib/seo':{siteUrl,languageAlternates},'@/components/i18n/LocalizedLink':'Link',
+  '@/lib/seo':load('frontend/src/lib/seo.ts',{'next/headers':{headers:async()=>new Headers({host,'x-forwarded-proto':'https'})},'./i18n/paths':paths}),'@/components/i18n/LocalizedLink':'Link',
   'next/navigation':{notFound:()=>{throw Error('NOT_FOUND')},permanentRedirect:location=>{throw Object.assign(Error('REDIRECT'),{location})}},
   '@/lib/medusa':{sdk:{client:{fetch:async()=>{if(resolverStatus)throw Object.assign(Error('RESOLVER_FAILURE'),{status:resolverStatus});return {handle:'bordo-kapa'}}}}},
   '@/lib/store/products':{listProductsByCountry:async({handle,countryCode,locale:requested})=>{assert.equal(countryCode,'rs');assert.equal(requested,locale);return {products:available&&handle==='bordo-kapa'?[product]:[],count:1}}},
@@ -152,5 +155,15 @@ test('resolver failures remain failures and an unavailable product is not expose
  for(const action of ['generateMetadata','default']) {
   await assert.rejects(productPage('en',true,{resolverStatus:503})[action](props),/RESOLVER_FAILURE/)
   await assert.rejects(productPage('en',true,{available:false})[action](props),/NOT_FOUND/)
+ }
+})
+
+test('translated product metadata stays noindex on staging',async()=>{
+ for(const locale of ['sr','en']) {
+  const page=productPage(locale,true,{host:'test.tamir.rs'})
+  const metadata=await page.generateMetadata({params:Promise.resolve({countryCode:locale==='sr'?'rs':'en',handle:locale==='sr'?'bordo-kapa':'burgundy-hat'})})
+  assert.equal(metadata.robots.index,false)
+  assert.equal(metadata.robots.follow,false)
+  assert.ok(metadata.alternates.canonical.startsWith('https://tamir.rs/'))
  }
 })
