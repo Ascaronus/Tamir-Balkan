@@ -228,7 +228,8 @@ IP, fingerprint и user-agent. Почты заменяются на
 Дампы прода на стенде не хранятся: после загрузки промежуточный файл удаляется.
 
 Медиа с прода на стенд переносится один раз вручную (архив `backend/static` →
-`shared/uploads/static`, на стенде 05.11 — 919 файлов / 194 МБ) и дальше между релизами не теряется,
+`shared/uploads/static`; замер 17.11: 919 записей верхнего уровня, из них 918 файлов и каталог
+`banners/` с 4 файлами — всего 922 файла, 194 МБ) и дальше между релизами не теряется,
 потому что лежит вне релизов. Но в дампе адреса остаются продными, поэтому тот же
 `scripts/sql/staging-anonymize.sql` переписывает префиксы `api.tamir.rs/static/`, `tamir.rs/static/`,
 `localhost:9000/static/` и `127.0.0.1:9000/static/` на `https://test-api.tamir.rs/static/`
@@ -236,6 +237,13 @@ IP, fingerprint и user-agent. Почты заменяются на
 тянула бы картинки с прода — нарушение изоляции из ТЗ. Чужие префиксы (`tamir.ua/images/uploads`,
 S3-демо Medusa) не трогаются: соответствующих файлов нет ни на проде, ни на стенде, а сами строки
 помечены `deleted_at`.
+
+Найденное исключение (замер 16.11): одна residual-строка в `tamir_banner_media`
+(id `media_3b7c9e98-d028-4280-b12a-0b9e1e7dd38a`) осталась с продным URL
+`https://api.tamir.rs/static/banners/media_3b7c9e98-d028-4280-b12a-0b9e1e7dd38a.jpg` — блок `$media$`
+её не тронул, остальные три строки той же таблицы переписаны. Файл лежит в
+`shared/uploads/static/banners/`, URL отвечает 200, баннер в витрине работает, но тянется он с прода.
+Лечится разовой ручной правкой на `https://test-api.tamir.rs/static/banners/…`.
 
 ## Staging Deploy: `scripts/deploy-staging.sh`
 
@@ -276,6 +284,34 @@ Turnstile: bootstrap требует sitekey (`--turnstile-site-key <key>` или
 сборке, поэтому после записи настоящего ключа в `secrets/turnstile-site-key` и `secrets/frontend.env`
 нужен новый деплой. Секретный ключ читается в рантайме — его достаточно положить в
 `secrets/turnstile-secret-key` и `secrets/backend.env`.
+
+### Rollback and Recovering a Failed Release
+
+Откат стенда — это обычный деплой более старого релиза, отдельного скрипта нет:
+
+```bash
+sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA>
+```
+
+или ручной запуск workflow **Deploy to Staging** (`workflow_dispatch`) с полем `sha`. Раннер принимает
+такой коммит, потому что гейт требует лишь быть предком `origin/main` — старый коммит `main` ему
+удовлетворяет; для коммита вне `main` нужен `TAMIR_ALLOW_NON_MAIN=1`. Перед активацией снимаются
+`pg_dump` базы и экосистема pm2 текущего релиза в `backups/<id>`.
+
+Два ограничения, измерены прогоном 16.11:
+
+- **Авто-отката после переключения `current` нет.** Шаги 1-8 откатываются сами (сбой до активации или
+  провал health-проверок шага 8 возвращают экосистему из `backups/<id>`), а вот падение
+  `scripts/staging-smoke.sh` (шаг 9) — нет: релиз уже активирован и продолжает работать. Стенд
+  возвращают повторным деплоем актуального SHA.
+- **Смоук старого релиза краснеет на проверках инфраструктуры**, которых не было в контракте на дату
+  этого релиза — доступность Mailpit на `0.0.0.0:8025` и `MP_UI_AUTH`. Это не поломка стенда: при
+  откате смотреть нужно публичные URL, `pm2 list` и локальные health/robots, а не зелёный смоук.
+
+Замер 16.11: `workflow_dispatch` по старому SHA `96c205f` → активирован релиз
+`20261116T231751Z-96c205f65cf9`, `https://test.tamir.rs` и `https://test-api.tamir.rs` отвечают 200,
+смоук красный на двух проверках (обе про Mailpit); повторный `workflow_dispatch` на `218d8fb` — все
+проверки зелёные. Кандидат на доработку: откатывать `current` при падении смоука.
 
 ## Checks and Diagnostics
 
@@ -325,6 +361,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 | `Процессы pm2 работают не в каталоге релиза` | pm2 поднят из другого релиза или `pm2 jlist` пуст: `pm2 jlist` глазами, затем повторный `scripts/deploy-staging.sh <sha>` |
 | Картинки 404 на `https://test-api.tamir.rs/static/...` | медиа-симлинк создан до `medusa build` (тот пересоздаёт `.medusa/server`) или медиа не перенесены в `shared/uploads`. Проверка: `readlink -f <release>/backend/.medusa/server/static` → должен быть `/opt/tamir-staging/shared/uploads/static`; `ls shared/uploads/static | wc -l`. Если симлинк на месте, а 404 — в БД остались продные префиксы: прогнать `scripts/sql/staging-anonymize.sql` |
 | Капча отвечает «Капча не удалась», ключи на стенде есть | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` впекается в бандл витрины при сборке: если стенд собран до записи настоящего sitekey, в `.next` лежит `staging-placeholder-sitekey-00000000`. Проверка: `grep -rlF "$(cat /opt/tamir-staging/secrets/turnstile-site-key)" <release>/frontend/.next | wc -l` (0 = нужен новый деплой). Второе место: в Cloudflare у sitekey в Allowed domains обязан быть `test.tamir.rs` |
+| Смоук красный сразу после отката на старый релиз | контракт инфраструктуры (`8025` на `0.0.0.0` + `MP_UI_AUTH`) появился позже этого релиза, поэтому проверки Mailpit падают, хотя витрина и API живые (200). Ориентироваться на `pm2 list`, локальные health/robots и публичные URL; авто-отката после переключения `current` нет — стенд возвращают деплоем актуального SHA |
 
 ## Verified Locally and on the Machine
 
@@ -342,5 +379,12 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 порт 587 доступен. Веб-почта: после дописи `MP_UI_AUTH` и пересоздания контейнера `ss -ltn` даёт
 `0.0.0.0:8025`, UI и API без пароля отвечают `401`, с паролем — `200`, а `587`/`5432`/`6379`/`3000`/`9000`
 остались на loopback; с рабочего компьютера вход в `http://<IP стенда>:8025` работает. Полный смоук
-релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
+релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Откат проверен отдельным прогоном 16.11
+(замеры — в «Rollback and Recovering a Failed Release»): активация старого релиза даёт 200 на публичных
+URL, повторный деплой актуального SHA возвращает зелёный смоук. Медиа на стенде пересчитаны 16.11 и
+17.11: 922 файла в `shared/uploads/static`, по 8 картинкам и 4 баннерам `curl` отвечает 200, ссылок на
+прод-хосты в `image.url` не осталось; одна residual-строка в `tamir_banner_media` (см. раздел про дампы).
+Раннер и pm2 на машине работают под `actions-runner` — подтверждено 17.11:
+`systemctl show actions.runner.Ascaronus-Tamir-Balkan.tamir-staging-hp-mini.service -p User` отвечает
+`User=actions-runner`. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
 `pm2-resurrect.service` настроен, перезагрузку не выполняли).

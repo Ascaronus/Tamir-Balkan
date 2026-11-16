@@ -9,7 +9,7 @@
 - [Переменные окружения](ENVIRONMENT.md) — что хранится на backend/frontend, локальный запуск и обновление конфигурации.
 - [Хранение секретов вне Git](SECRETS.md) — локальные файлы, резервная копия владельца, подготовка VPS и замена опубликованных значений.
 - [Деплой](../DEPLOY.md) — GitHub Actions, VPS, релизы, резервные копии и диагностика.
-- [Стенд test.tamir.rs / test-api.tamir.rs](STAGING.md) — сборка из `main`, туннель Cloudflare, анонимизированный дамп и closed loop почтовой проверки.
+- [Стенд test.tamir.rs / test-api.tamir.rs](STAGING.md) — сборка из `main`, туннель Cloudflare, анонимизированный дамп, closed loop почтовой проверки и откат релиза по старому SHA.
 - [Тестирование](TESTING.md) — команды и границы проверок.
 - [Правила тестирования](TESTING-RULES.md) — обязательные правила для инженеров и AI-агентов.
 - [Frontend](../frontend/README.md) и [Backend](../backend/README.md) — устройство приложений.

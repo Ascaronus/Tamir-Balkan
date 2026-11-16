@@ -136,7 +136,8 @@ HTTPS-адреса — иначе локальный стенд падает и�
 - Sitekey Turnstile для `test.tamir.rs` отдельный: прод-виджет Cloudflare отклоняет hostname. Закрыто
   16.11: отдельный sitekey/secret на стенде, bootstrap подхватил их с редеплоем, живой `siteverify`
   и POST на стенде отвечают как настроенная CAPTCHA (подробности — в `report.md`).
-- Runner от root (см. §1) — осознанный компромисс; ужесточение возможно при переносе pm2/Docker под
-  отдельного пользователя.
+- Runner и pm2 работают под выделенным пользователем `actions-runner` (задача 5.3). Замер 17.11:
+  `systemctl show actions.runner.Ascaronus-Tamir-Balkan.tamir-staging-hp-mini.service -p User`
+  отвечает `User=actions-runner`. Ранняя формулировка «runner от root» была неверной — см. §1.
 - Поведение `npx medusa user` и `NODE_EXTRA_CA_CERTS` в собранном релизе (`NODE_ENV=production`)
   подтверждается только фактическим прогоном на машине.
