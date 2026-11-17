@@ -1,20 +1,21 @@
-# Документация TAMIR
+# TAMIR Documentation
 
-Актуализировано по коду на **11 октября 2026**. Начните с [README](../README.md).
+Актуализировано по коду на **16 ноября 2026**. Начните с [README](../README.md).
 
-## Запуск и эксплуатация
+## Running and Operations
 
 - [План отказа от Docker](DOCKER-EXIT-PLAN.md) — перенос PostgreSQL и Redis в системные службы VPS; план, ещё не выполнен.
 
 - [Переменные окружения](ENVIRONMENT.md) — что хранится на backend/frontend, локальный запуск и обновление конфигурации.
 - [Хранение секретов вне Git](SECRETS.md) — локальные файлы, резервная копия владельца, подготовка VPS и замена опубликованных значений.
 - [Деплой](../DEPLOY.md) — GitHub Actions, VPS, релизы, резервные копии и диагностика.
+- [Стенд test.tamir.rs / test-api.tamir.rs](STAGING.md) — сборка из `main`, туннель Cloudflare, анонимизированный дамп, closed loop почтовой проверки и откат релиза по старому SHA.
 - [Тестирование](TESTING.md) — команды и границы проверок.
 - [Правила тестирования](TESTING-RULES.md) — обязательные правила для инженеров и AI-агентов.
 - [Frontend](../frontend/README.md) и [Backend](../backend/README.md) — устройство приложений.
 - [История исправлений](../REPAIR-NOTES.md) — завершённые этапы, а не текущая инструкция деплоя.
 
-## Работа с каталогом
+## Working with the Catalog
 
 - [Импорт через админку](ROZETKA-ADMIN-IMPORT.md).
 - [Режимы CLI-импорта](IMPORT-MODES.md).
@@ -23,27 +24,54 @@
 - [API каталога и фильтры](CATALOG-API.md).
 - [Дробные значения в админке](ADMIN-DECIMALS.md).
 - [Отзывы и CAPTCHA](REVIEWS.md).
+- [Карусель баннеров на главной](HOMEPAGE-BANNERS.md) — публикация, порядок, варианты для десктопа и мобильных.
 
-## Покупатели и публичные документы
+## Customer Scenarios
 
 - [TAMIR Chat: архитектура, API, Telegram, переводы и админка](TAMIR-CHAT.md).
 
 - [Регистрация](REGISTRATION.md).
 - [Восстановление аккаунта и гостевое оформление](ACCOUNT-RECOVERY.md).
+- [Корзина аккаунта](CUSTOMER-CART.md) — возврат сохранённых позиций после входа без приватного ID корзины в браузере.
+- [Предпросмотр корзины по наведению](CART-PREVIEW.md).
+- [Избранное](WISHLIST.md) — серверное хранение, счётчик в шапке, поведение гостя.
+- [Остатки в карточке и корзине](STOCK-FEEDBACK.md).
+- [Стоимость доставки в карточке товара](PRODUCT-DELIVERY.md).
 - [SMTP и письма](EMAIL.md).
 - [Условия, конфиденциальность и cookies](LEGAL-AND-COOKIES.md).
 - [Контакты поддержки: чек-лист перед публикацией](SUPPORT-CONTACTS.md).
 
-## SEO и интерфейс
+## SEO and Interface
 
 - [Адреса и структурированные данные товаров](PRODUCT-SEO.md).
-- [Sitemap, robots и Google Search Console](GOOGLE-SEARCH-CONSOLE.md).
+- [Sitemap, robots и Google Search Console](GOOGLE-SEARCH-CONSOLE.md) — в том числе закрытие стенда от индексации.
+- [Аудит Search Console: 10 ноября 2026](SEO-AUDIT-2026-11-10.md).
 - [HTTP-аудит ссылок Search Console: 12 октября 2026](SEO-AUDIT-2026-10-12.md).
 - [Аудит кода и CI/CD: 23 октября 2026](CODE-AUDIT-2026-10-23.md) — рабочий список исправлений.
+- [TAMIR Chat: production-аудит, ноябрь 2026](TAMIR-CHAT-AUDIT-2026-11.md) — сверка кода, стенда и планов чата.
 - [Редизайн: история релиза](FRONTEND-REDESIGN.md).
 - [Адаптивная витрина и текущая галерея](RESPONSIVE-V2.md).
 - [Соответствие витрины макетам Figma](FIGMA-ALIGNMENT.md).
 
-## Где поддерживать сведения
+## Archived Documents
 
-Поведение подтверждается кодом, команды — `package.json` и workflow-файлами. При изменении маршрутов обновляйте BROWSER-LANGUAGE и SEO; импорта — ROZETKA-ADMIN-IMPORT и IMPORT-MODES; окружения/деплоя — ENVIRONMENT и DEPLOY. Датированные результаты старых проверок не являются доказательством проверки новой версии. Пароли и реальные ключи в документацию не добавляются.
+- [Аудит существующих тестов: 26 октября 2026](02_EXISTING_TESTS_AUDIT.md) — зафиксированный аудит; не рабочий документ и не источник правил (§6 в TESTING-RULES.md).
+
+## Documentation Style
+
+- Заголовки (`#`, `##`, `###`, `####` и глубже) всех Markdown-документов репозитория — на английском;
+  текст (абзацы, списки, таблицы, цитаты) — на русском. Это касается `docs/**`, `openspec/**`
+  (включая `openspec/changes/archive/`) и датированных отчётов.
+- Не переводить: блоки кода и inline-код, команды, имена файлов, URL, числа и фактические значения
+  в таблицах. При переименовании заголовка правять внутрифайловые якоря `](#...)` под новый слаг.
+- Исключения: `.opencode/commands/opsx-*.md`, `.opencode/skills/openspec-*/SKILL.md`,
+  `frontend/AGENTS.md` и `frontend/CLAUDE.md` — их потребляет инструмент OpenSpec/OpenCode.
+- Заголовки коммитов и pull request — на английском (формат conventional commits), тело — на русском.
+- Датированные отчёты (`SEO-AUDIT-…`, `CODE-AUDIT-…`, `TAMIR-CHAT-AUDIT-…`) — снимок на дату проверки;
+  они не обновляются молча и не заменяют описание поведения.
+- Поведение фич описывается в `docs/` и в спек-файлах; для уже принятого поведения источник истины —
+  `openspec/specs/`, активные изменения — в `openspec/changes/`, завершённые — в `openspec/changes/archive/`.
+
+## Where to Keep Information
+
+Поведение подтверждается кодом, команды — `package.json` и workflow-файлами. При изменении маршрутов обновляйте BROWSER-LANGUAGE и SEO; импорта — ROZETKA-ADMIN-IMPORT и IMPORT-MODES; окружения/деплоя — ENVIRONMENT и DEPLOY; окружения стенда — STAGING. Датированные результаты старых проверок не являются доказательством проверки новой версии. Пароли и реальные ключи в документацию не добавляются.

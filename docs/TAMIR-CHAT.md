@@ -1,8 +1,10 @@
 # TAMIR Chat
 
-Feature-ветка: `feat/tamir-telegram-chat`. Production не изменён. Чат и Telegram по умолчанию выключены.
+Реализация объединена в `main` (PR #96–#117). Чат и Telegram по умолчанию выключены в настройках
+админки. Актуальный статус развертывания, прогона проверок и найденных расхождений —
+в `TAMIR-CHAT-AUDIT-2026-11.md`.
 
-## Архитектура
+## Architecture
 
 За reverse proxy frontend проверяет Origin POST-запросов чата. Разрешены два набора:
 https-origin наших публичных хостов (`tamir.rs`, `www.tamir.rs`) и точный origin из
@@ -42,7 +44,7 @@ SSE использует стабильные message IDs и Last-Event-ID, пе
 сообщения повторяются для обновления статусов; UI объединяет их по ID. После перезагрузки
 показываются последние 100, более ранние доступны кнопкой. Список собственных диалогов ограничен 50.
 
-## Покупатели, права и секреты
+## Customers, Permissions and Secrets
 
 Customer ID и профиль берутся сервером из проверенной Medusa-сессии. При открытии/отправке профиль
 обновляется; admin dialog также получает актуальные имя/email/телефон. Гость вводит имя 2–100 символов;
@@ -55,8 +57,12 @@ email и телефон независимо необязательны и ва�
 не имеют доступа. Вторая вкладка обновляет auth при возвращении фокуса/ошибке SSE. Открытый поток
 ограничен 20 секундами; собственный механизм отзыва stateless JWT Medusa не добавляется.
 
-Текст ограничен 1500 символами, не вставляется как HTML. PostgreSQL rate limit использует существующий
-доверенный proxy-IP helper; не выставляйте внутренний backend-порт наружу в обход reverse proxy.
+Текст ограничен 1500 символами, не вставляется как HTML (ошибка `INVALID_MESSAGE`). PostgreSQL rate limit
+использует существующий доверенный proxy-IP helper: 40 сообщений в минуту на покупателя, 10 загрузок
+изображений, 15 сессий, 120 чтений и 20 SSE-потоков в минуту; превышение — `429 CHAT_RATE_LIMIT`.
+Не выставляйте внутренний backend-порт наружу в обход reverse proxy. Просроченный guest proof даёт
+`GUEST_SESSION_EXPIRED` (404), отсутствие аккаунта там, где он нужен, — `LOGIN_REQUIRED` (401).
+Ошибки возвращаются машинным кодом без текстов переписки.
 Webhook проверяет секрет, группу, тему/reply reference, enabled-оператора и роль; bots, forwarded/channel
 messages игнорируются. Технические ошибки и журнал не содержат токенов, SQL или текстов сообщений.
 
@@ -73,7 +79,7 @@ master key. Сохранённый token не возвращается API: UI �
 не даёт Medusa-сессию. Доступность устанавливается вручную у enabled-оператора, не по подключению бота.
 `delivered` не означает `read`. Непрочитанные в обзоре — customer messages, не отмеченные в админке.
 
-## Таблицы и миграция
+## Tables and Migration
 
 `backend/src/utils/chat/schema.ts` подключён к существующему `setup-reviews.ts`, как reviews/wishlist/banners.
 CREATE TABLE/INDEX IF NOT EXISTS выполняется в общей транзакции с advisory lock. Повтор сохраняет
@@ -114,7 +120,7 @@ npm run build
 Существующий deploy уже вызывает setup-reviews. При rollback кода сохраняйте таблицы/историю;
 чат можно выключить. Бэкап БД без master key не восстанавливает provider secrets.
 
-## Серверные параметры
+## Server Settings
 
 Обычные настройки меняются через UI без перезапуска. Только инфраструктура/первичная установка:
 
@@ -133,7 +139,7 @@ Master key можно создать на сервере через `openssl ran
 Bootstrap manager сохраняет доступ независимо от operator row; отзыв bootstrap-прав требует изменения
 серверного allowlist. Обычные операторы управляются полностью через UI.
 
-## Telegram: установка
+## Telegram: Setup
 
 1. Создайте бота через официальный `@BotFather` (`/newbot`). Token введите только в
    **TAMIR Chat → Telegram → Bot Token → Сохранить / заменить токен**.
@@ -243,7 +249,7 @@ BFF. ID диалога не является доказательством до
 | POST | /admin/tamir-chat/delete | Удаление; manager |
 | GET | /admin/tamir-chat/overview, history?offset= | Агрегаты/события |
 
-## Проверки и ограничения
+## Checks and Limits
 
 Подтверждённый прогон реализации 7 ноября 2026:
 
@@ -271,11 +277,26 @@ npm run test:cjs -- --no-db --junit-dir=reports
 # Только изолированная *_test БД и Redis:
 npm run test:cjs -- --db-only --junit-dir=reports
 npm run test:integration:http -- --runTestsByPath integration-tests/http/tamir-chat.spec.ts
+# проверка деплойного origin-окружения (CI, без сети):
+node --test test-support/production-chat.test.mjs
+# smoke-проверка живого BFF (вызывается автоматически при активации релиза):
+node scripts/check-chat-origin.mjs
 ```
+
+`scripts/check-chat-origin.mjs` проверяет локальный процесс и оба публичных домена: `POST /api/chat/config`
+с Origin наших публичных https-хостов принимается и отвечает `404 CHAT_NOT_FOUND` без данных диалога,
+произвольный origin — `403 INVALID_ORIGIN`, редиректы не следуются. Скрипт выполняется в
+`activate-release.sh` до `pm2 save`; неуспех откатывает активацию. Полный каталог чат-тестов — в
+`TESTING.md`; фактическое состояние production/staging за ноябрь 2026 — в `TAMIR-CHAT-AUDIT-2026-11.md`.
 
 Перед включением остаются: реальный bot/private group/Topics, Google credentials/Billing,
 native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudflare без buffering,
-два независимых покупателя в браузерах и действующий Medusa scheduler. Production не разворачивался.
+два независимых покупателя в браузерах и действующий Medusa scheduler.
+
+*(Статус на 16.11.2026: код чата входит в релиз и на прод, и на стенд — один и тот же билд. Виджет
+открыт покупателю на prod (`GET /api/chat/config` отвечает `enabled: true`, `guests: true`); живые
+диалоги и доставка в Telegram на проде этим не подтверждены — они проверены только на стенде. Полное
+состояние production/staging за ноябрь 2026: `TAMIR-CHAT-AUDIT-2026-11.md`.)*
 
 Известные ограничения:
 
@@ -284,28 +305,34 @@ native PostgreSQL multiworker и HTTP-suite, SSE через staging Nginx/Cloudf
   дедуплицируются; exactly once не заявляется.
 - 8 попыток с exponential backoff от 10 сек; затем manual retry из админки. При выключенной
   интеграции сообщения остаются в очереди. Перевод сохраняется и переиспользуется при retry Telegram.
-- Только текст до 1500 символов; нет typing, вложений, автоматического Online и read receipts.
+- Только текст до 1500 символов; из вложений — одна статичная картинка к сообщению (раздел
+  «Ввод, автоматические сообщения и изображения»), других вложений нет. Нет typing, автоматического
+  Online и read receipts; галочки доставки означают только доставку в Telegram.
 - История/статистика ограничены retention. Telegram-копии и backups удаляются отдельно.
 - Заголовок существующей темы автоматически не переименовывается; актуальные locale/profile
   указываются в следующих сообщениях.
 
-## Изменённые файлы
+## Changed Files
 
-Новые: `backend/src/utils/chat/{schema,security,settings,conversations,providers,delivery,http}.ts`,
+Новые: `backend/src/utils/chat/{schema,security,settings,conversations,providers,delivery,http,images,http-errors}.ts`,
 `backend/src/shared/chat-config.ts`, `backend/src/jobs/tamir-chat.ts`,
 `backend/src/api/admin/tamir-chat/[action]/route.ts`, `backend/src/api/store/chat/[action]/route.ts`,
 `backend/src/api/store/chat/stream/route.ts`, `backend/src/api/hooks/tamir-chat/route.ts`,
 `backend/src/admin/routes/tamir-chat/{page.tsx,settings.tsx,chat-admin.css}`,
 `frontend/src/app/api/chat/[...path]/route.ts`, `frontend/src/components/chat/{ChatWidget.tsx,chat-client.ts,chat.css}`,
-`backend/tests/tamir-chat.test.cjs`, `backend/tests/tamir-chat.integration.cjs`,
+`backend/tests/tamir-chat.test.cjs`, `backend/tests/tamir-chat-http-errors.test.cjs`,
+`backend/tests/tamir-chat-images.test.cjs`, `backend/tests/tamir-chat.integration.cjs`,
 `backend/integration-tests/http/tamir-chat.spec.ts`, `frontend/tests/tamir-chat.test.mjs`,
+`scripts/check-chat-origin.mjs` (smoke-проверка origin-политики при активации релиза),
+`test-support/production-chat.test.mjs` (проверки деплойного окружения в CI),
 этот документ и `openspec/specs/tamir-chat/spec.md`.
 
-Изменены: backend middlewares/setup-reviews и README jobs/scripts;
-frontend StoreProviders/ProductDetails, SR/EN dictionaries; docs index/TESTING.
+Изменены: backend middlewares (обработчик тела `chatBodyErrorHandler`) и setup-reviews, README jobs/scripts;
+frontend StoreProviders/ProductDetails, SR/EN dictionaries; `scripts/activate-release.sh` и `scripts/deploy-vps.sh`
+(проверка origin и фиксация `NEXT_PUBLIC_SITE_URL`); docs index/TESTING/ENVIRONMENT/DEPLOY.
 
 
-## Ввод, автоматические сообщения и изображения
+## Input, Automatic Messages and Images
 
 Enter отправляет, Shift+Enter добавляет строку; ввод через IME и удержание Enter не создают повторных отправок.
 Форма использует отдельные строки для статуса, вложения и ввода. Автоматические сообщения отображаются

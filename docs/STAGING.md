@@ -7,7 +7,7 @@
 Стенд поднят на машине владельца (HP Mini, `tamir-staging` → 192.168.1.143, хост `tamir-server`,
 Ubuntu 24.04). Публичный вход — только через Cloudflare Tunnel: ни проброса портов, ни nginx.
 
-## Как устроен конвейер
+## How the Pipeline Works
 
 ```
 PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
@@ -35,7 +35,7 @@ PR → Verify (GitHub-hosted) → merge в main → Verify на push в main
 предком `origin/main` (`git merge-base --is-ancestor`). Обход — только ручным запуском по SSH
 с `TAMIR_ALLOW_NON_MAIN=1`.
 
-## Подключение к машине
+## Connecting to the Machine
 
 Алиас в `~/.ssh/config` машины владельца:
 
@@ -58,7 +58,7 @@ ssh tamir-staging "uname -a"
 self-hosted runner GitHub Actions, pm2 и docker (вход в группу `docker`); `root` нужен только для
 `apt`, systemd-юнитов и `staging-tunnel.sh`. Ручные команды на машине — `sudo -u actions-runner …`.
 
-## Расположение на машине
+## Layout on the Machine
 
 Всё стенда — в одном каталоге, прод его не видит:
 
@@ -77,7 +77,7 @@ PM2-процессы называются так же, как на проде (`
 `scripts/check-review-config.cjs`, но работают они из каталога релиза стенда и с портами,
 заданными в экосистеме релиза.
 
-## Инфраструктура: `docker-compose.staging.yml`
+## Infrastructure: `docker-compose.staging.yml`
 
 Отдельный Compose-файл с проектом `tamir-staging` (не путать с прод-`docker-compose.yml`):
 
@@ -94,7 +94,7 @@ PM2-процессы называются так же, как на проде (`
 (порт + адрес) и допускает непро-loopback-адрес только для `8025`, и только если в секретах задан
 `MP_UI_AUTH`.
 
-## Секреты и конфигурация
+## Secrets and Configuration
 
 Секреты генерирует `scripts/staging-bootstrap.sh` и складывает в `/opt/tamir-staging/secrets`
 (права `600`/`700`, вне Git, в отчётах и логах не публикуются):
@@ -120,7 +120,7 @@ PM2-процессы называются так же, как на проде (`
 `scripts/lib/staging-release.sh` не даёт деплою пройти, если в env-файлах встречается
 прод-домен, прод-строка БД/Redis или адрес, не указывающий на `test.*`/loopback.
 
-## Почта: Mailpit вместо реального SMTP
+## Email: Mailpit Instead of Real SMTP
 
 Продуктовый код почты (`backend/src/utils/registration-email.ts`) требует `requireTLS` и порт
 из `{587, 465}` — менять продукт под стенд нельзя, поэтому:
@@ -170,7 +170,7 @@ sudo -u actions-runner bash scripts/staging-smoke.sh
 Письма не теряются: ящик лежит в томе `tamir-staging-mailpit` (`MP_DATABASE=/data/mailpit.db`),
 пересоздание контейнера его не затрагивает.
 
-## Публичный вход: Cloudflare Tunnel
+## Public Entry: Cloudflare Tunnel
 
 `scripts/staging-tunnel.sh` (подкоманды `login` / `create` / `dns` / `status` / `remove`):
 
@@ -189,7 +189,21 @@ sudo -u actions-runner bash scripts/staging-smoke.sh
 - после успешного `dns` появляется маркер `/opt/tamir-staging/.tunnel-enabled` — с него
   smoke и деплой начинают проверять публичные HTTPS-адреса.
 
-## Данные: анонимизированный дамп с прода
+### Staging Is Closed to Search Engines
+
+Стенд отвечает тем же кодом, что и прод, поэтому закрытие от индексации держится на имени хоста,
+а не на отдельном конфиге: любой хост вне списка прод-адресов получает
+`X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` на каждом ответе — включая редиректы и
+служебные маршруты backend. Три ответа, которыми приложение не управляет (`/app` и
+`/store/products` на `test-api`, плюс `youtrack.tamir.rs`), добирает правило Cloudflare
+`seo-noindex-staging`. Стендовые адреса уже попадали в Google по картинкам, поэтому заголовок
+нужен и API-хосту.
+
+Проверка — заголовки ответов, а не только тело: `bash scripts/seo-headers-check.sh`
+(норма `PASS=21 FAIL=0 GAP=0`). Полное описание, координаты правила в Cloudflare и порядок снятия
+URL из индекса: [GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md).
+
+## Data: Anonymized Dump from Production
 
 Стенд стартует на копии прода, но обезличенной. Порядок: с прода снимается `pg_dump`, затем на
 машине владельца `scripts/staging-db-refresh.sh` пересоздаёт базу `tamir_staging`, загружает дамп
@@ -214,7 +228,8 @@ IP, fingerprint и user-agent. Почты заменяются на
 Дампы прода на стенде не хранятся: после загрузки промежуточный файл удаляется.
 
 Медиа с прода на стенд переносится один раз вручную (архив `backend/static` →
-`shared/uploads/static`, на стенде 05.11 — 919 файлов / 194 МБ) и дальше между релизами не теряется,
+`shared/uploads/static`; замер 17.11: 919 записей верхнего уровня, из них 918 файлов и каталог
+`banners/` с 4 файлами — всего 922 файла, 194 МБ) и дальше между релизами не теряется,
 потому что лежит вне релизов. Но в дампе адреса остаются продными, поэтому тот же
 `scripts/sql/staging-anonymize.sql` переписывает префиксы `api.tamir.rs/static/`, `tamir.rs/static/`,
 `localhost:9000/static/` и `127.0.0.1:9000/static/` на `https://test-api.tamir.rs/static/`
@@ -223,7 +238,14 @@ IP, fingerprint и user-agent. Почты заменяются на
 S3-демо Medusa) не трогаются: соответствующих файлов нет ни на проде, ни на стенде, а сами строки
 помечены `deleted_at`.
 
-## Деплой стенда: `scripts/deploy-staging.sh`
+Найденное исключение (замер 16.11): одна residual-строка в `tamir_banner_media`
+(id `media_3b7c9e98-d028-4280-b12a-0b9e1e7dd38a`) осталась с продным URL
+`https://api.tamir.rs/static/banners/media_3b7c9e98-d028-4280-b12a-0b9e1e7dd38a.jpg` — блок `$media$`
+её не тронул, остальные три строки той же таблицы переписаны. Файл лежит в
+`shared/uploads/static/banners/`, URL отвечает 200, баннер в витрине работает, но тянется он с прода.
+Лечится разовой ручной правкой на `https://test-api.tamir.rs/static/banners/…`.
+
+## Staging Deploy: `scripts/deploy-staging.sh`
 
 ```bash
 sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA из origin/main>
@@ -263,7 +285,35 @@ Turnstile: bootstrap требует sitekey (`--turnstile-site-key <key>` или
 нужен новый деплой. Секретный ключ читается в рантайме — его достаточно положить в
 `secrets/turnstile-secret-key` и `secrets/backend.env`.
 
-## Проверки и диагностика
+### Rollback and Recovering a Failed Release
+
+Откат стенда — это обычный деплой более старого релиза, отдельного скрипта нет:
+
+```bash
+sudo -u actions-runner bash scripts/deploy-staging.sh <40-hex SHA>
+```
+
+или ручной запуск workflow **Deploy to Staging** (`workflow_dispatch`) с полем `sha`. Раннер принимает
+такой коммит, потому что гейт требует лишь быть предком `origin/main` — старый коммит `main` ему
+удовлетворяет; для коммита вне `main` нужен `TAMIR_ALLOW_NON_MAIN=1`. Перед активацией снимаются
+`pg_dump` базы и экосистема pm2 текущего релиза в `backups/<id>`.
+
+Два ограничения, измерены прогоном 16.11:
+
+- **Авто-отката после переключения `current` нет.** Шаги 1-8 откатываются сами (сбой до активации или
+  провал health-проверок шага 8 возвращают экосистему из `backups/<id>`), а вот падение
+  `scripts/staging-smoke.sh` (шаг 9) — нет: релиз уже активирован и продолжает работать. Стенд
+  возвращают повторным деплоем актуального SHA.
+- **Смоук старого релиза краснеет на проверках инфраструктуры**, которых не было в контракте на дату
+  этого релиза — доступность Mailpit на `0.0.0.0:8025` и `MP_UI_AUTH`. Это не поломка стенда: при
+  откате смотреть нужно публичные URL, `pm2 list` и локальные health/robots, а не зелёный смоук.
+
+Замер 16.11: `workflow_dispatch` по старому SHA `96c205f` → активирован релиз
+`20261116T231751Z-96c205f65cf9`, `https://test.tamir.rs` и `https://test-api.tamir.rs` отвечают 200,
+смоук красный на двух проверках (обе про Mailpit); повторный `workflow_dispatch` на `218d8fb` — все
+проверки зелёные. Кандидат на доработку: откатывать `current` при падении смоука.
+
+## Checks and Diagnostics
 
 ```bash
 sudo -u actions-runner bash scripts/staging-smoke.sh   # полная проверка стенда
@@ -284,7 +334,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 приём в Mailpit под `MP_UI_AUTH`, `401` без токена и доступность веб-почты с адреса домашней сети)
 и публичные HTTPS при выпущенном туннеле.
 
-## Что стенд не делает
+## What the Staging Environment Does Not Do
 
 - Не трогает прод: ни БД, ни Redis, ни почту, ни платежи, ни DNS `tamir.rs`/`api.tamir.rs`.
 - Не деплоит прод и не запускает прод-скрипты; прод-деплой — отдельный ручной workflow.
@@ -293,7 +343,7 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
   под HTTP Basic; публичного адреса у неё нет.
 - Не хранит прод-дампы и секреты в Git.
 
-## Типовые сбои
+## Typical Failures
 
 | Симптом | Причина / что делать |
 | --- | --- |
@@ -311,8 +361,9 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 | `Процессы pm2 работают не в каталоге релиза` | pm2 поднят из другого релиза или `pm2 jlist` пуст: `pm2 jlist` глазами, затем повторный `scripts/deploy-staging.sh <sha>` |
 | Картинки 404 на `https://test-api.tamir.rs/static/...` | медиа-симлинк создан до `medusa build` (тот пересоздаёт `.medusa/server`) или медиа не перенесены в `shared/uploads`. Проверка: `readlink -f <release>/backend/.medusa/server/static` → должен быть `/opt/tamir-staging/shared/uploads/static`; `ls shared/uploads/static | wc -l`. Если симлинк на месте, а 404 — в БД остались продные префиксы: прогнать `scripts/sql/staging-anonymize.sql` |
 | Капча отвечает «Капча не удалась», ключи на стенде есть | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` впекается в бандл витрины при сборке: если стенд собран до записи настоящего sitekey, в `.next` лежит `staging-placeholder-sitekey-00000000`. Проверка: `grep -rlF "$(cat /opt/tamir-staging/secrets/turnstile-site-key)" <release>/frontend/.next | wc -l` (0 = нужен новый деплой). Второе место: в Cloudflare у sitekey в Allowed domains обязан быть `test.tamir.rs` |
+| Смоук красный сразу после отката на старый релиз | контракт инфраструктуры (`8025` на `0.0.0.0` + `MP_UI_AUTH`) появился позже этого релиза, поэтому проверки Mailpit падают, хотя витрина и API живые (200). Ориентироваться на `pm2 list`, локальные health/robots и публичные URL; авто-отката после переключения `current` нет — стенд возвращают деплоем актуального SHA |
 
-## Проверено локально и на машине
+## Verified Locally and on the Machine
 
 Локально (машина владельца): `node test-support/run-tests.mjs --no-db` — 84/84, включая
 `backend/tests/staging-contract.test.cjs` (контракт стенда с продуктовым кодом: SMTP-контракт,
@@ -328,5 +379,12 @@ health/robots/sitemap, витринный API с publishable key из staging-Б
 порт 587 доступен. Веб-почта: после дописи `MP_UI_AUTH` и пересоздания контейнера `ss -ltn` даёт
 `0.0.0.0:8025`, UI и API без пароля отвечают `401`, с паролем — `200`, а `587`/`5432`/`6379`/`3000`/`9000`
 остались на loopback; с рабочего компьютера вход в `http://<IP стенда>:8025` работает. Полный смоук
-релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
+релиза (`scripts/staging-smoke.sh`) — все проверки зелёные. Откат проверен отдельным прогоном 16.11
+(замеры — в «Rollback and Recovering a Failed Release»): активация старого релиза даёт 200 на публичных
+URL, повторный деплой актуального SHA возвращает зелёный смоук. Медиа на стенде пересчитаны 16.11 и
+17.11: 922 файла в `shared/uploads/static`, по 8 картинкам и 4 баннерам `curl` отвечает 200, ссылок на
+прод-хосты в `image.url` не осталось; одна residual-строка в `tamir_banner_media` (см. раздел про дампы).
+Раннер и pm2 на машине работают под `actions-runner` — подтверждено 17.11:
+`systemctl show actions.runner.Ascaronus-Tamir-Balkan.tamir-staging-hp-mini.service -p User` отвечает
+`User=actions-runner`. Осталось не проверенным: реактивация pm2 после перезагрузки машины (юнит
 `pm2-resurrect.service` настроен, перезагрузку не выполняли).

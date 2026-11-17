@@ -1,4 +1,4 @@
-# Дизайн: modernize-existing-tests
+# Design: modernize-existing-tests
 
 ## Context
 
@@ -39,7 +39,7 @@
 
 ## Decisions
 
-### D1. HTTP-интеграция: Jest + `medusaIntegrationTestRunner`, а не самодельный HTTP-сервер
+### D1. HTTP integration: Jest with `medusaIntegrationTestRunner` instead of a custom HTTP server
 
 `@medusajs/test-utils` уже в зависимостях (`backend/package.json`), jest 29
 настроен (`backend/jest.config.js`, TEST_TYPE-driven), тест существует
@@ -48,7 +48,7 @@
 `node --test` — дороже и дублирует инфраструктуру Medusa. Выбор: расширять
 существующую Jest-суиту новыми spec-файлами (`catalog`, негативы авторизации).
 
-### D2. Discovery backend-тестов: helper-скрипт со glob-поиском, а не glob в `node --test`
+### D2. Backend test discovery: a helper script with glob search instead of a glob in `node --test`
 
 Node 20 не поддерживает glob-паттерны в аргументах `node --test` (появились в
 Node 22), а matrix CI включает 20.20.2. Решение: `backend/test-support/run-tests.mjs`
@@ -57,7 +57,7 @@ Node 22), а matrix CI включает 20.20.2. Решение: `backend/test-s
 уже использует рабочий паттерн (`tests/*.test.mjs` в npm-скрипте) — не трогаем.
 Альтернатива «поднять minimum Node до 22» отвергнута: сужает матрицу без нужды.
 
-### D3. Машиночитаемые отчёты: встроенный `--test-reporter=junit` c fallback
+### D3. Machine-readable reports: built-in `--test-reporter=junit` with a fallback
 
 Для Node 24 reporter junit встроен; для Node 20 — тот же флаг работает
 (node:test поддерживает junit-reporter с 20.x), но при проблемах в matrix
@@ -66,21 +66,21 @@ Node 22), а matrix CI включает 20.20.2. Решение: `backend/test-s
 новая dev-зависимость, только если встроенных средств не хватит). Артефакты
 загружаются `actions/upload-artifact@v4` с `retention-days: 14`.
 
-### D4. Анти-production-барьер: общая функция-гард в `backend/test-support/`
+### D4. Anti-production barrier: a shared guard function in `backend/test-support/`
 
 Одна проверка `assertNonProduction(databaseUrl, targetHost)` (стоп-лист боевых
 хостов/префиксов `DATABASE_URL`), вызываемая из helper-раннера (D2), Jest-setup
 (D1) и `rozetka-native`. Альтернатива «скоуп на уровне прав БД» оставлена как
 будущее усиление, сейчас — программный гард + CI-переменные только тестовые.
 
-### D5. `rozetka-native.ts`: отдельный CI-шаг с БД `_import_test`
+### D5. `rozetka-native.ts`: a separate CI step using the `_import_test` database
 
 Это нативный сценарий импорта, ему нужна отдельная база. В CI создаётся
 `CREATE DATABASE ... _import_test` на том же Postgres-service, гард (D4)
 запрещает иную цель. Если шаг окажется нестабильным — откат к задокументированному
 ручному порядку в `docs/TESTING.md` (разрешено спекой ci-test-discovery).
 
-### D6. Язык и процесс (конфликты источников, фиксируем явно)
+### D6. Language and process (source conflicts recorded explicitly)
 
 - OpenSpec-документы этого change — на русском (прямое указание пользователя),
   хотя §8 аудита требует англоязычной инженерной документации. Решение:

@@ -1,4 +1,4 @@
-# Дробные значения в админке
+# Decimal Values in Admin
 
 Сверено с кодом 11 октября 2026. Пути `src/` ниже относятся к `backend/`.
 [Общее тестирование](TESTING.md) · [Деплой](../DEPLOY.md).
@@ -22,7 +22,7 @@
 не меняются. В стандартной Medusa 2.13.6 блок размеров при создании товара
 отключён самим Dashboard: размеры товара задаются в его форме Attributes.
 
-## Реализация и обновление
+## Implementation and Updates
 
 `src/utils/admin-decimal-vite.ts` корректирует конкретные встроенные формы
 Dashboard во время сборки и разработки. Зависимости в `node_modules` не
@@ -51,7 +51,7 @@ SMTP, до переключения PM2. При блокировке табли�
 NODE_ENV=production npx --no-install medusa exec ./src/scripts/setup-decimal-attributes.ts
 ```
 
-## Проверка
+## Verification
 
 ```bash
 cd backend

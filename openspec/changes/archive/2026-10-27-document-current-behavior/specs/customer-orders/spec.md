@@ -6,47 +6,47 @@
 
 ## ADDED Requirements
 
-### Requirement: Личный кабинет доступен по сербскому и английскому путям только для авторизованных
+### Requirement: Account page is available on Serbian and English paths only to authenticated users
 
 Страница кабинета обязана (MUST) быть доступна по путям `/rs/nalog` (rewrite на внутреннюю реализацию `/rs/account`) и `/en/account` с `noindex`; без активной сессии покупателя (`tb_customer_session`) страница обязана (MUST) показать приглашение войти вместо каких-либо данных заказов.
 
-#### Scenario: Кабинет без сессии покупателя
+#### Scenario: Account page without a customer session
 
 - **WHEN** неавторизованный посетитель открывает `/rs/nalog`
 - **THEN** страница показывает кнопку входа на `/rs/nalog/prijava`
 - **AND** персональные данные и заказы не отображаются
 
-### Requirement: Список заказов загружается через /store/orders с пагинацией по 50
+### Requirement: Order list loads through /store/orders with pagination by 50
 
 Кабинет обязана (MUST) загружать заказы покупателя через `GET /store/orders` страницами по 50 (`offset`/`limit`) и показывать для каждого номер `display_id`, дату создания, итоговую сумму, статус заказа и статус доставки; пустой список обязан (MUST) показывать сообщение об отсутствии заказов.
 
-#### Scenario: Отображение истории заказов
+#### Scenario: Displaying the order history
 
 - **WHEN** авторизованный покупатель открывает кабинет
 - **THEN** отображаются его заказы с номером, датой, суммой и статусами
 - **AND** доступны кнопки перехода на предыдущую и следующую страницу по 50 записей
 
-### Requirement: Детали заказа раскрывают позиции и суммы построчно
+### Requirement: Order details expand line items and totals line by line
 
 В списке кабинета покупатель обязан (MUST) иметь возможность развернуть детали заказа: frontend вызывает `GET /store/orders` с `id={order_id}` и полями `id,display_id,status,currency_code,total,subtotal,shipping_total,tax_total,discount_total,*items` и показывает позиции (название товара, вариант, количество, цена за единицу, сумма строки), а также подытог, скидку, доставку, налог и итог в валюте заказа, отформатированные по локали; статусы обязаны (MUST) переводиться на язык интерфейса.
 
-#### Scenario: Разворачивание деталей заказа
+#### Scenario: Expanding order details
 
 - **WHEN** покупатель нажимает кнопку деталей в строке заказа
 - **THEN** frontend получает заказ по id и отображает позиции и все суммы
 - **AND** повторное нажатие скрывает детали без повторного запроса
 
-### Requirement: Доступ к заказам ограничен владельцем на уровне Store API
+### Requirement: Order access is owner-restricted at the Store API level
 
 Все чтения заказов из кабинета обязана (MUST) выполнять через эндпоинты `/store/orders...` Medusa Store API, привязанные к сессии текущего покупателя; frontend обязана (MUST) дополнительно сверять ответ (`found.id === order.id`) и при отсутствии заказа показывать ошибку загрузки с повтором, а не данные чужого заказа.
 
-#### Scenario: Заказ недоступен текущему покупателю
+#### Scenario: Order unavailable to the current customer
 
 - **WHEN** `GET /store/orders?id={id}` не возвращает заказ (он не принадлежит текущей сессии покупателя)
 - **THEN** frontend показывает сообщение об ошибке загрузки с кнопкой повтора
 - **AND** содержимое чужого заказа не отображается
 
-#### Scenario: Гость без квитанции не видит заказ
+#### Scenario: Guest without a receipt does not see the order
 
 - **WHEN** неавторизованный посетитель открывает страницу подтверждения заказа без квитанции в `sessionStorage`
 - **THEN** страница показывает состояние «не подтверждено»

@@ -1,4 +1,4 @@
-# Пользовательский API TAMIR
+# TAMIR Custom API
 
 Сверено с кодом 11 октября 2026. Методы экспортируются из `route.ts`, общие правила — в `middlewares.ts`. Ниже перечислены расширения проекта; штатные commerce/auth endpoints Medusa также используются.
 
@@ -40,7 +40,7 @@ Rozetka принимает XML до 10 МБ; middleware разрешает JSON 
 
 `GET /store/custom` и `GET /admin/custom` — оставшиеся технические ответы 200. Store-маршрут также импортирует test fulfillment provider, чтобы его файл включался в backend build. Они не заменяют `/health` и не являются API импорта.
 
-## Где искать реализацию
+## Where to Find the Implementation
 
 Основная логика — `../utils/`: `catalog-*`, `rozetka-*`, `product-urls`, `category-localization`, `option-auto-translate`, registration/password-reset/review helpers. Commerce-записи используют core flows Medusa. Дополнительные SQL-таблицы создаёт [setup-reviews](../scripts/README.md), а не произвольный SQL в браузере.
 

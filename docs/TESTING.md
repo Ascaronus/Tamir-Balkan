@@ -1,9 +1,9 @@
-# Проверка изменений
+# Verifying Changes
 
 Команды запускаются из указанного каталога. CI-конфигурация — [verify.yml](../.github/workflows/verify.yml); это источник точного списка обязательных проверок. Матрица Node: 20.20.2 и 24.
 Обязательные правила написания и изменения тестов (в том числе для AI-агентов) — [TESTING-RULES.md](TESTING-RULES.md).
 
-## Baseline CI (состояние до change modernize-existing-tests)
+## Baseline CI (State before the change modernize-existing-tests)
 
 Снято 2026-10-26 через `gh run list --workflow=verify.yml --limit 3` и GitHub API (`/actions/runs/{id}/jobs`). Все три последних прогона — `success`; длительность джоба `verify` от старта до завершения:
 
@@ -34,7 +34,7 @@ node test-support/verify-localized-routes.mjs
 из `npm ci`) и запускает `tests/*.test.mjs`. Замер 03.11: 42 файла, 280 тестов, все проходят;
 число не является контрактом и меняется вместе с набором тестов; точный список обязательных прогонов — в CI.
 
-Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень с браузерным языком и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Перед подъёмом сервера он выполняет статическую фазу — сверку симметрии дерева маршрутов `en/*` ↔ корневых (работает без сборки и падает на асимметрии). Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
+Production-route script поднимает собранный Next на `127.0.0.1:3137` и проверяет языковые заголовки, `/rs`/`/en`, корень (постоянный `308` на `/rs` без `Vary` по `Accept-Language`/cookie) и cookie, private noindex, новые сербские служебные URL, старые 308-переходы и публичный origin за reverse proxy. Перед подъёмом сервера он выполняет статическую фазу — сверку симметрии дерева маршрутов `en/*` ↔ корневых (работает без сборки и падает на асимметрии). Он завершает свой процесс после проверки. Не запускайте его поверх другого процесса на том же порту.
 
 ## Backend
 
@@ -79,7 +79,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 `npx medusa exec ./src/scripts/setup-reviews.ts` — схемы `tamir_product_url` и отзывов создаются этим скриптом,
 а не миграциями.
 
-### CI-шаги backend (`verify.yml`)
+### Backend CI Steps (`verify.yml`)
 
 1. `node test-support/guard-env.cjs --require-env` — самопроверка: окружение содержит только тестовые базы (`review_test`).
 2. `npm run test:cjs -- --no-db --junit-dir=reports` — unit/handler-тесты без БД.
@@ -91,11 +91,11 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 
 Все шаги идут на PostgreSQL- и Redis-service и на Node 20.20.2, и на Node 24.
 
-## Каталог тестов
+## Test Catalog
 
 Слой: `unit` — чистые функции/модули; `handler` — обработчик маршрута без сетевого HTTP (фейковые `req/res` либо `NextResponse`); `component` — логика UI на harness; `db-integration` — реальная PostgreSQL; `http-integration` — реальный HTTP в процессе; `scenario` — скриптовый сценарий на одноразовой базе. Имя с ⚠ не означает сетевой/реальный слой — смотри колонку границ.
 
-### Frontend (`frontend/tests/`, 42 файла)
+### Frontend (`frontend/tests/`, 48 files)
 
 Среда: `node --test` + TypeScript loader (`test-support/register.mjs`); браузер, dev/live-сервер и реальная Medusa не участвуют.
 
@@ -105,9 +105,11 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | admin-option-translations.test.mjs | handler | Сеть, БД (через `next/server`) | Перевод опций в admin-маршруте |
 | banner-admin.test.mjs | handler | admin API, БД (harness) | Баннеры в админке: превью несохранённой формы без публикации, Save Draft, публикация только с подтверждением |
 | banner-carousel.test.mjs | unit + компонент (harness) | таймеры, pointer/touch-события | Герой-карусель: неизменяемость общего источника превью, цикличность ротации, пауза (hover/focus/скрытая вкладка/reduced motion/autoplay off), свайп, индикаторы, превью одного неактивного черновика |
+| banner-device-preview.test.mjs | unit + компонент (harness) | `ResizeObserver` подменён, React-хуки через harness | Превью баннера в админке (`device-preview.tsx`): storefront-отступы по выбранной ширине устройства (320…2560), вписывание превью в узкий viewport админки без смены макета устройства, отслеживание высоты контента и отключение наблюдателя |
 | browser-locale.test.mjs | unit | — | Выбор локали по cookie/Accept-Language |
 | cart-client.test.mjs ⚠ | unit | Medusa SDK, HTTP/fetch, storage | Добавление/замена/удаление позиций, гонки создания корзины; живое поведение корзины — нет |
 | cart-confirmation.test.mjs | unit | Платёж/почта | Сборка receipt подтверждения, «Ukupno» |
+| cart-decrease-stock.test.mjs | компонент (harness) | `CartProvider`-запросы подменены, таймеры | Кнопка «минус» в корзине: при любой исходной quantity и остатке отправляется валидная новая quantity, при единице кнопка блокируется, позиции не удаляются, ошибка и alert не появляются |
 | cart-preview.test.mjs | unit + компонент (harness) | таймеры открытия/закрытия, pointer/keyboard | Превью корзины по наведению: задержки и отмена случайного hover, позиция внутри узкого вьюпорта, суммы без пересчёта скидок, тач не открывает |
 | cart-remove.test.mjs | компонент (harness) | `CartProvider`, `AuthProvider`, API | Удаление строки корзины: локализованная подпись кнопки, декоративная иконка (`aria-hidden`), удаление правильной позиции |
 | catalog-pagination.test.mjs | unit | API | Границы страниц и параметры URL |
@@ -116,6 +118,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | checkout-fields.test.mjs | unit | — | Нормализация checkout/profile-полей |
 | commerce.test.mjs | unit | — | Цены, product-mapper, схема, варианты, поля |
 | cookie-consent.test.mjs | unit | — | Состояния согласия на cookie |
+| customer-cart.test.mjs | unit + компонент (harness) | `cart-client` подменён, `CartProvider` через harness | Аккаунтная корзина: вход/выход/повторный вход возвращают сохранённые позиции без хранения приватного ID корзины; cleared только успешно claimed guest-указатель (неудачный возврат не создаёт пустую замену); при выходе аккаунт скрывается сразу, поздние ответы после смены аккаунта отбрасываются |
 | dialog-backdrop.test.mjs | unit | DOM (фейковый `getBoundingClientRect`) | Закрытие необязательных диалогов кликом по подложке; контент/drag/клавиатура/правая кнопка — не закрывают |
 | english-routing.test.mjs | unit | Сервер (только чистые URL) | Канонический вид `/en`/`rs`-ссылок |
 | header-authentication.test.mjs | компонент (harness) | auth API, сессия, `document`/focus | Шапка авторизации: одна авторизационная заявка при повторных отправках, имя пользователя, обрезка длинного имени, `Escape` и нативная модальная фокус-капсула |
@@ -143,9 +146,11 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | stable-updates.test.mjs | компонент (harness) | API товаров, роутер, локализованный провайдер | Стабильные обновления: удаление из wishlist/корзины без перезагрузки каталога, догрузка только новых товаров, отброс поздних ответов при смене аккаунта/локали |
 | store-fetch-cache.test.mjs | unit | Next data-cache (подменный `fetch`) | `revalidate` 60 с для регионов/категорий и 300 с для баннеров, локаль категории в query `?locale=` вместо заголовка (PR #70) |
 | store-fetch-timeout.test.mjs | unit | `AbortController`, таймеры | Единый дедлайн `timedSignal` для store-фетчей, `TimeoutError` по истечении, ретрансляция внешнего abort, aborted-вызывающий не начинает запрос (PR #69) |
+| tamir-chat.test.mjs | unit + handler | `next/server` BFF, fetch/cookie/SSE подменены | Чат через frontend BFF: гостевой session за reverse proxy с настроенным публичным origin, отказ чужим/`null`/внутренним origin и при подделанных proxy-заголовках, protected guest-cookie и очистка proof после claim, срез bearer и SSE-cursor без токенов в query, лимит тела и пути, дедуп SSE по ID, отправка Enter с сохранением Shift+Enter/IME, ограничения выбора картинки, приватные no-store ответы, локализация статусных сообщений и скрытие «sent» из текста диалога (15 тестов) |
+| variant-stock.test.mjs | unit (хук, harness) | `cart-client.getVariantStock` подменён, таймеры | Хук остатков варианта: поздние (stale) ответы отбрасываются, обновление по фокусу окна, при сбое запроса остатки не выдумываются (не подставляется ноль) |
 | wishlist.test.mjs | unit + компонент (harness) | Medusa wishlist API | Состояние wishlists: одна загрузка и синхронизация подписчиков, защита от двойного клика, сохранность сердечка при сбое сохранения, гость → существующий login и один сохран после входа |
 
-### Backend unit (`backend/tests/*.test.cjs`, 14 файлов)
+### Backend Unit (`backend/tests/*.test.cjs`, 19 files)
 
 Среда: `node --test` + ts-node; PostgreSQL не требуется (мок SMTP/Google/`fetch` там, где указано).
 
@@ -155,6 +160,7 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | auth-secrets.test.cjs | unit | — | Отказ weak/template-секретов; Secure-cookie в production |
 | catalog-http.test.cjs ⚠ | handler | Фейковые `req/res`, container/graph (audit p.46) | Реальный Medusa-middleware и правила маршрута: скоуп канала, сортировка, счётчики; сетевого HTTP нет |
 | catalog.test.cjs | unit | — | Утилиты каталога: фасеты, связи «размер+цвет+цена», поиск с диакритикой |
+| customer-cart.test.cjs | unit | `@medusajs/core-flows` подменён (`Module._load`), query/PG scope фейковый | Возврат последней незавершённой аккаунтной корзины без правки количеств; только зарегистрированный сервером аутентифицированный клиент, отказ на инъекцию владельца; claim только незавершённой guest-корзины того же рынка/канала; при аккаунтной корзине гость остаётся отдельным, при сбое хранилища — fail closed; родные чтение/мутация/завершение/transfer отвергают анонимных и чужих владельцев; серверный claim нельзя украсть даже при подмене customer-данных; encoded ID проверяются по владельцу, совпадающий guest email — не приватный claim |
 | guest-cart-email.test.cjs | unit | `Modules.CART`/customer — подменный `container` | Очистка email гостевой корзины: отвязка клиента без изменения клиента, compensation (`restore`), повторный вызов без email; зарегистрированный клиент и завершённая корзина не очищаются |
 | guard-env.test.cjs | unit | Строки env (реального подключения к БД нет) | Гард изоляции: боевые строки подключения отвергаются, пропускаются только базы `_test`; helper относит файл к БД-категории по маркеру `postgres://` в содержимом |
 | homepage-banners.test.cjs | unit + handler | фейковые `req/res` с подменным `query`/scope, upload без FS | Валидация баннеров: обязательные оба языка, картинка и парный CTA, границы настроек; URL-гарды (script/data/protocol-relative/credentials/управляющие символы); immutability перестановки; upload — подпись, заявленный MIME, base64, размер, отказ SVG; права администратора; public handler — только активные опубликованные данные, ETag-перевалидация без утечки черновиков |
@@ -163,10 +169,14 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | product-delivery.test.cjs | handler | фейковые `req/res`, `query`/graph подменён | Доставка на карточке: неизвестная/несовпадающая опция ≠ «бесплатно», pickup и отключённые провайдеры, невалидные/неопубликованные/вне канала товары, отсутствие профиля доставки |
 | registration-email.test.cjs ⚠ | unit | `nodemailer.createTransport` заменён (audit p.48) | Требования SMTP-конфига, двуязычное письмо welcome, retry subscriber; реальный SMTP — нет |
 | rozetka-admin.test.cjs ⚠ | unit/orchestration | Medusa-workflow, внешний `fetch` (audit p.47) | XML-парсер, валидация импорта, workflow-оркестрация; реально сохранённых товаров — нет |
+| staging-contract.test.cjs | unit (статические файлы + `spawnSync`) | БД не трогает; fixture-файлы во временном каталоге | Staging-контракт не разъезжается с продуктом: staging-файлы не адресуют production-хосты; staging-скрипты используют свой env-guard, а не CI; SMTP-контракт совпадает с mailpit-транспортом; проверка почты идёт через продуктовый код-путь; mailpit UI доступен в LAN только за HTTP Basic; сгенерированный ecosystem сохраняет pm2-имена и loopback-биндинг; staging-шаблон секретов проходит продуктовый гейт check-review-config; гейт по-прежнему останавливает релиз со сломанным Turnstile sitekey |
+| tamir-chat-http-errors.test.cjs | unit (middleware, фейковые `req/res`) | Реального HTTP-сервера нет | Ошибки тела чата: `413` без логирования и отражения приватных payload; обработчик сохраняет поведение Medusa auth/authz и необработанных ошибок; лимит тела не подменяет error handling чужих маршрутов и коллизий префикса |
+| tamir-chat-images.test.cjs | unit | sharp в процессе, сети нет | Картинки чата: декод JPEG/PNG/WebP, снятие метаданных, приватные JPEG с ограничением размера/пикселей; отказ SVG, битым данным, несовпадению MIME, анимации и избыточным размеру/пикселям |
+| tamir-chat.test.cjs | unit | — (схема/шифрование/токены в процессе) | Логика чата: гость — имя и независимо валидируемые контакты; сообщение отсекает пустое/управляющие символы/>1500 и без idempotency-ключа; безопасные дефолты и ограниченные локализованные настройки; канонический строковый chat id для admin UI и legacy jsonb; шифрование секретов с разными IV и безопасными ошибками; webhook-сравнение и guest-токены криптоустойчивы и не хранятся как bearer; pending/failed перевод оператора никогда не показывает оригинал покупателю; неизвестные ошибки не раскрывают креды и SQL |
 | subscriber-tracker.test.cjs | unit (тестовый helper) | таймеры/`setImmediate` | Observer подписчиков ждёт реальную асинхронную работу перед cleanup; падение подписчика фиксируется и пробрасывается |
 | wishlist.test.cjs | handler | фейковые `req/res`, `query`/graph подменён | Wishlist API: auth-скоуп по `actor_id`, запрет инъекции `customer_id` в теле, private-заголовки кэша, валидация `product_id`, безопасная (без деталей) ошибка при сбое БД |
 
-### Backend db-integration (`backend/tests/*.integration.cjs`, 11 файлов)
+### Backend db-integration (`backend/tests/*.integration.cjs`, 12 files)
 
 Все требуют отдельную PostgreSQL (`TEST_REVIEWS_DB_URL`). Имя `integration` = реальный SQL, а не реальный HTTP.
 
@@ -182,20 +192,31 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | product-urls.integration.cjs | db-integration | HTTP | Уникальные EN-URL при импорте, алиасы, redirect-маршрут |
 | registration-code.integration.cjs ⚠ | db-integration | Обратный вызов письма симулирован (audit p.49) | OTP: хеш при хранении, срок, 5 попыток, конкурентные confirm |
 | reviews.integration.cjs | db-integration + handler | Turnstile через подменный `global.fetch` (audit p.51) | Полный отзывный lifecycle на реальной схеме; живого Turnstile — нет |
+| tamir-chat.integration.cjs | db-integration | Telegram/Google transport подменён; отдельная `*_test` БД с guard | 15 SQL-сценариев чата: персист и revision-конфликты, шифрование секретов; guest restore, явный claim, logout и смена профиля; конкурентная идемпотентность, очередь и изоляция topics; translation failure с сохранением оригинала и retry; Telegram retry без дублей на сайте; webhook auth, дубликат update и locale ответа; numeric chat id jsonb; системные шаблоны без translation/notify-циклов; retention-каскад; роли, availability и rate limit; проверка прав группы; SSE-reconnect с реплеем >100 сообщений; атомарная пара картинка+сообщение и реплей один раз; идентичность system-шаблонов при смене локали; retry сохранённых байтов картинки и атомарные лимиты |
 | wishlist.integration.cjs | db-integration | HTTP | SQL: параллельные сохранения идемпотентны (без дублей), аккаунты изолированы, повторные delete корректны; physical delete товара/клиента каскадом чистит записи, soft delete остаётся удаляемым |
 
-### Backend http-integration и сценарии
+### Backend http-integration and Scenarios
 
 | Файл | Слой | Границы | Что доказывает |
 |---|---|---|---|
 | backend/integration-tests/http/health.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Только `/health` (audit p.52) | Medusa-приложение поднимается и отвечает по HTTP; магазин/БД/почта — нет. В CI не запускался до этого change |
 | backend/integration-tests/http/catalog.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`, изолированная тестовая БД + гард) | Реальный in-app HTTP с `x-publishable-api-key`; моки/фейковые req/res отсутствуют; внешние сервисы не задействованы | `GET /api/store/catalog/products` на созданной схеме: опубликованные товары sales channel с ценой/налогом региона (со статусом 200); фильтр по размеру/цене, сортировка, `limit`; контракт `sort_options`; 7 негативов 400: 6 случаев `INVALID_CATALOG_QUERY` (`region_id`/`limit`×2/`sort`/`min_price > max_price`/`fields`) плюс отсутствующий в ценовом контексте регион |
 | backend/integration-tests/http/auth-negative.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP без сессии администратора | Граница аутентификации на реальном HTTP: списки товаров и заказов в admin отклоняются без сессии |
+| backend/integration-tests/http/customer-cart.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP, сессия покупателя через auth-маршруты, изолированная тестовая БД + гард | Аккаунтная корзина на реальном HTTP: возврат аккаунтных корзин и сохранение устаревших позиций, изоляция владельцев, guest checkout не ломается |
+| backend/integration-tests/http/guest-cart-email.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP, гостевая корзина | Очистка ранее введённого guest email и связи с клиентом: не восстанавливается при следующем обновлении |
+| backend/integration-tests/http/homepage-banners.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP admin-маршрутов, изолированная БД | Баннеры по HTTP: требуется admin-разрешение, черновики изолированы, публикация только явной revision |
+| backend/integration-tests/http/order-email.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP, SMTP не задействован (проекции) | Проекция письма-квитанции совпадает с родными HTTP-данными заказа: количества и итог по нескольким позициям |
+| backend/integration-tests/http/product-delivery.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP с настроенными ценами/правилами | Доставка на карточке по HTTP: отражает изменение настроенной цены, цены региона, правила магазина и видимость товара |
+| backend/integration-tests/http/tamir-chat.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP чата; Telegram/Google подменены | Чат по HTTP: аккаунты и claimed гости изолированы, admin-секреты не раскрываются |
+| backend/integration-tests/http/wishlist.spec.ts | http-integration (Jest, `medusaIntegrationTestRunner`) | Реальный in-app HTTP wishlist-маршрутов | Wishlist по HTTP: auth, идемпотентность, изоляция аккаунтов, удаление устаревших товаров |
 | backend/tests/rozetka-native.ts | scenario (`medusa exec`, база `*_import_test`) | Только эта база | Реальные import-workflow создают товары/варианты/переводы; отказ дубль-handles. В CI не запускался до этого change |
 | frontend/test-support/verify-localized-routes.mjs | http-integration (собранный `next start` на 127.0.0.1:3137) + статическая фаза по дереву маршрутов | Реальный production-сбор Next; статическая фаза сервера не требует | Парность `/rs`/`/en` и headers на реальном сервере; до подъёма сервера сверяет симметрию дерева `en/*` ↔ корневых маршрутов (асимметрия падает без сборки/сервера); уже в CI |
 | test-support/verify-perimeter-bind.mjs | статический CI-guard (файлы только читаются, процессы не поднимаются) | тексты `backend/scripts/start-server.mjs` и `frontend/package.json` | Прод-старт биндится только на loopback: `-H` + дефолт `127.0.0.1` у Medusa, `next start -H 127.0.0.1` у витрины, хардкод `0.0.0.0` запрещён (контрольный аудит HIGH-1); в CI |
 
-### Отметки и план усиления
+Каталог выше включает все 9 `backend/integration-tests/http/*.spec.ts` и `backend/tests/tamir-chat.integration.cjs`. Дополнительный не-тестовый guard:
+`scripts/check-chat-origin.mjs` — smoke-проверка живого BFF при активации релиза (описание в `TAMIR-CHAT.md`).
+
+### Markings and the Hardening Plan
 
 Находки зафиксированы **без удаления тестов** (правило аудита §3): тест остаётся, граница маркируется, пробел закрывается тестом высшего слоя.
 
@@ -210,9 +231,10 @@ npm run test:cjs -- --db-only --reverse --junit-dir=reports-rev
 | Jest-суита и `rozetka-native.ts` не исполнялись в CI | **Закрыто (задачи 2.4/2.5):** шаги CI `test:integration:http` и `rozetka-native` на базе `_import_test`; подтверждено прогоном #145 с артефактами отчётов |
 | `verify-localized-routes.mjs`: асимметрия маршрутов видна только когда сервер поднят | **Закрыто (задача 5.2):** статическая фаза сверяет пары `en/*` ↔ корневых маршрутов до подъёма сервера (падает без сборки), runtime-цикл проверяет статус и `<html lang>` каждой пары |
 
-## Проверка на сайте
+## Verification on the Site
 
-- `/rs` и `/en` открываются без редиректа в каталог; root корректно выбирает язык при отсутствии cookie.
+- `/rs` и `/en` открываются без редиректа в каталог; корень всегда отдаёт `308` на `/rs` и не выбирает
+  язык по `Accept-Language` (см. [BROWSER-LANGUAGE.md](BROWSER-LANGUAGE.md)).
 - Логотип, категории и переключатель языка ведут на нужные адреса, старые ссылки сохраняют параметры.
 - SR корзина/кабинет имеют локализованные URL; английские остаются EN. Неприватные страницы индексируемы по правилам SEO, private — noindex.
 - Импорт: сначала preview/черновик, проверка native переводов, RSD, склада, профиля доставки и копирования фото.
@@ -271,20 +293,20 @@ nested events, deadlines and the installed real local event bus without a databa
 Run it with `node --test tests/subscriber-tracker.test.cjs` from backend. Full catalog
 HTTP validation still requires isolated PostgreSQL and Redis.
 
-### Избранное
+### Wishlist
 
 Контракт и границы проверок: [WISHLIST.md](WISHLIST.md). `wishlist.test.cjs` — handler,
 `wishlist.integration.cjs` — PostgreSQL с guard, `http/wishlist.spec.ts` — Medusa HTTP.
 Фронтенд: `wishlist.test.mjs` и обе локализованные страницы в `verify-localized-routes.mjs`.
 
-### Предварительный просмотр корзины в шапке
+### Cart Preview in the Header
 
 `frontend/tests/cart-preview.test.mjs` — unit/component на существующем harness: таймеры hover/focus,
 Escape, touch, границы viewport, SR/EN, ссылки вариантов, серверные суммы, empty/loading/error.
 `localized-cart.test.mjs` дополнен проверкой состояния ошибки и явного retry.
 Контракт и границы проверок: [CART-PREVIEW.md](CART-PREVIEW.md).
 
-### Карусель баннеров
+### Banner Carousel
 
 Контракты и синхронизация renderer: [HOMEPAGE-BANNERS.md](HOMEPAGE-BANNERS.md).
 `banner-carousel.test.mjs` и `banner-admin.test.mjs` — component/unit; `homepage-banners.test.cjs` — unit/handler;
@@ -298,7 +320,7 @@ Escape, touch, границы viewport, SR/EN, ссылки вариантов, 
 проверить светлую/тёмную тему, клавиатуру, вкладки SR/EN, загрузку файла, вложенный preview,
 возврат фокуса, подтверждения и узкий экран в браузере.
 
-### Checkout и подтверждение заказа
+### Checkout and Order Confirmation
 
 `frontend/tests/checkout-fields.test.mjs`: component-harness проверяет включённое
 по умолчанию согласие, снятие галочки, блокировку отправки и повторное включение.
@@ -316,7 +338,7 @@ frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint
 сборки в репозитории не менялась. SQL/HTTP-интеграции и реальный SMTP не запускались;
 конкурентность блокировки и доставка в почтовый ящик требуют отдельной проверки.
 
-### Гостевой email и удаление из корзины
+### Guest Email and Removal from the Cart
 
 `checkout-fields.test.mjs` проверяет гостя без email, обязательный телефон, ошибку
 непустого email, обязательность email аккаунта и payload клиента (email опущен, явный флаг
@@ -332,7 +354,7 @@ frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint
 Новый HTTP/БД-тест локально не запускался: PostgreSQL/Redis здесь недоступны;
 он входит в существующий Jest discovery CI. Живой заказ и SMTP не использовались.
 
-### Локализация способов доставки
+### Shipping-Method Localization
 
 `shipping-method-name.test.mjs` проверяет реальные SR/EN-переводы общих названий,
 двустороннее распознавание, пробелы/регистр, неизвестные названия и пустое имя.
@@ -351,7 +373,7 @@ frontend и 68 backend no-db тестов; TypeScript frontend/backend и ESLint
 TypeScript, ESLint и Next production build (`--webpack`) прошли. Дополненные
 проверки фактического имени ` Shipping` также прошли отдельным прогоном.
 
-### Доставка в карточке из настроек Medusa
+### Delivery on the Product Page from Medusa Settings
 
 `backend/tests/product-delivery.test.cjs` — handler: контексты страны/региона,
 канала и профиля; 0/платная цена; отсутствие цены; calculated; исключение
@@ -372,7 +394,7 @@ Medusa backend/admin и HTTP-проверка локализованных ма�
 запускался из-за отсутствия PostgreSQL/Redis. Боевые данные не изменялись.
 
 
-### Переключение языка без перехода к якорю
+### Language Switch without Jumping to the Anchor
 
 `locale-scroll.test.mjs` — unit с подменёнными browser API: сохранение позиции,
 отсутствие hash при клиентской навигации Next.js с scroll:false, возврат hash через history без перехода,
@@ -397,7 +419,7 @@ TypeScript, ESLint, Next production build (`--webpack`) и HTTP-проверка
 Локальный HTTP/БД-прогон остаётся невыполненным: окружение не разрешает
 сменить пользователя для запуска PostgreSQL. Требуется подтверждение в CI.
 
-### Единая типографика избранного в шапке
+### Unified Wishlist Typography in the Header
 
 На рабочем сайте проверены computed styles корзины, входа и языков:
 Manrope, 18px / 26px, вес 500 (активный язык — 600), высота кнопок 44px.
@@ -412,7 +434,7 @@ ESLint и production build Next (`--webpack`) прошли. Изменение �
 Текущая шапка production проверена в браузере без авторизации.
 
 
-### Стабильные обновления витрины
+### Stable Storefront Updates
 
 `stable-updates.test.mjs` — component/hook harness: удаление избранного без повторной
 выборки оставшихся товаров, дозагрузка только нового элемента страницы, сохранение
@@ -440,7 +462,7 @@ TypeScript, ESLint, production build Next (`--webpack`) и HTTP-проверка
 очистку корзины после заказа и выхода на тестовом окружении.
 
 
-### TAMIR Chat (7 ноября 2026)
+### TAMIR Chat (November 7, 2026)
 
 [Контракт, результаты и ограничения](TAMIR-CHAT.md).
 `tamir-chat.test.cjs` — unit; `tamir-chat.integration.cjs` — SQL с test DB guard;
@@ -455,3 +477,9 @@ Native PostgreSQL 16 multiworker и HTTP-тест локально не запу
 Chromium с настоящими компонентами и изолированными API/auth boundaries: виджет SR/EN,
 390/1440, восстановление/SSE/XSS/product context, authenticated entry/logout, native admin
 settings/operator/dialog/provider errors прошли. Проверка не подтверждает живые интеграции.
+
+Дополнение 16.11.2026 (TB-11): с 7 ноября добавлены `backend/tests/tamir-chat-http-errors.test.cjs`,
+`backend/tests/tamir-chat-images.test.cjs`, `scripts/check-chat-origin.mjs` (проверяется при активации
+релиза) и `test-support/production-chat.test.mjs` (CI); backend unit чата теперь 8, SQL-сценариев 15,
+frontend-тестов BFF/виджета 15. Актуальный состав — в каталоге выше; фактическое состояние
+production/staging и прогон чат-тестов на staging — в `TAMIR-CHAT-AUDIT-2026-11.md`.

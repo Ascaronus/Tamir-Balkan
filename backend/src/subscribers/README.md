@@ -1,4 +1,4 @@
-# События TAMIR
+# TAMIR Events
 
 Сверено с кодом 11 октября 2026. Medusa загружает эти subscribers; у каждого стабильный `subscriberId`.
 

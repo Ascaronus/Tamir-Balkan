@@ -1,4 +1,4 @@
-# Аудит кода и CI/CD: 23 октября 2026
+# Code and CI/CD Audit: October 23, 2026
 
 Черновик для работы. Все пункты сверены вручную с кодом в `main` на коммите
 `768426f` (после мержей #18, #19, #20). Это не отчёт «про голоса» — каждый пункт
@@ -73,7 +73,7 @@ pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend �
 
 ---
 
-## Как продолжить работу
+## How to Continue the Work
 
 1. `git fetch origin` и сверка с `origin/main` (на 04.11 это `a3d70d1`). Напоминание:
    24.10 история `main` перезаписана (force-push) — `git pull --ff-only` на старых
@@ -144,7 +144,7 @@ pm2-процесса онлайн (`tamir-backend`, `tamir-frontend`), backend �
 
 ---
 
-## Готово (замереть, не переделывать)
+## Done (Frozen, Do Not Redo)
 
 | # | Что | Коммит |
 |---|-----|--------|
@@ -185,7 +185,7 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 себя через `api.tamir.rs`), в JSON-логе бэкенда `client_ip` — реальный адрес клиента
 (правый `x-forwarded-for` от nginx).
 
-### Инцидент 24.10: «левый» автор коммита и перезапись истории `main`
+## Incident 24.10: Wrong Commit Author and Rewritten `main` History
 
 Коммит PR #28 (бывший `59a4050`) был создан с адресом `94155111+Ascaronus@users.noreply.github.com`
 — такая форма noreply приклеилась от конвенции одной из AI-сессий, но GitHub привязывает её по
@@ -207,9 +207,9 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 
 ---
 
-## HIGH — делать в первую очередь
+## HIGH — Do First
 
-### H1. Подбор пароля: неиспользуемый `phone-login` удалить, реальному логину `/auth/customer/emailpass` нужен rate-limit
+### H1. Password Guessing: Remove the Unused `phone-login`, the Real Login `/auth/customer/emailpass` Needs a Rate Limit
 
 **✅ Готово — PR #22 (ветка `fix/auth-rate-limit`, коммиты `b7139e2` + `b1806e0`,
 мерж `5f82714`, на проде с 24.10).** Реализовано по плану пункта: `phone-login` удалён
@@ -287,7 +287,7 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 квоту не расходует) и проверка, что `/store/auth/phone-login` после удаления
 возвращает 404.
 
-### H2. Деплой берёт HEAD `origin/main`, а не проверенный коммит (гонка)
+### H2. Deploy Takes HEAD of `origin/main`, Not the Verified Commit (Race)
 
 **✅ Готово — PR #23 (коммит `55a9ad2`, мерж `e6fdefc`, на проде с 24.10).** В
 `deploy.yml` SHA проверенного запуска собран в переменную `VERIFIED_SHA`
@@ -314,7 +314,7 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 жёсткая проверка, что SHA существует на `origin/main` и что это тот самый коммит,
 который прошёл `Verify`.
 
-### H3. `workflow_dispatch` в `deploy.yml` без guard'а и без `environment`
+### H3. `workflow_dispatch` in `deploy.yml` Without a Guard and Without `environment`
 
 **✅ Готово — PR #24 (коммит `c952a10`, мерж `8e88d8e`, на проде с 24.10).** В job'е
 `deploy` стоят `if` с разбором двух событий: `workflow_dispatch` допускается только
@@ -334,7 +334,7 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 Что делать (PR #24): добавить `environment: production` и условие на `refs/heads/main`
 для `workflow_dispatch`; при dispatch — брать HEAD `main`, а не HEAD ветки запуска.
 
-### H4. Токен покупателя в `localStorage` (XSS = угон аккаунта)
+### H4. Customer Token in `localStorage` (XSS = Account Takeover)
 
 **✅ Готово — PR #26 (коммит `c32b337`, мерж `5f8320e`, на проде с 24.10).** JWT
 покупателя больше не лежит в браузере: логин идёт на `POST /api/auth/login`
@@ -383,7 +383,7 @@ e-mail — `429 {"retry_after":3600}`, другой e-mail с того же IP �
 
 ## MEDIUM
 
-### M1. Прод-сборка содержит тестовую заглушку `test_test`
+### M1. Prod Build Contains the Test Stub `test_test`
 
 Файлы: `backend/medusa-config.ts:58-62`, `test-fulfillment-provider.ts`,
 `src/api/store/custom/route.ts` (`void testFulfillmentModule` — держит модуль в бандле),
@@ -405,7 +405,7 @@ fulfillment и 2 ручных заказа через заглушку. **Зач
 ops-шагом после мержа #59** (бэкап + транзакция с assert'ами, заказы не тронуты —
 подробности в «Решённых вопросах», п. 4).
 
-### M2. `backend/src/scripts/seed.ts` без guard'а
+### M2. `backend/src/scripts/seed.ts` Without a Guard
 
 Скрипт сидирует демо-товары и `pp_system_default` и может быть запущен на проде
 случайно (`npm run seed` — `backend/package.json:17`). Нужен явный guard по
@@ -419,7 +419,7 @@ ops-шагом после мержа #59** (бэкап + транзакция с
 исполнено 01.11:** `NODE_ENV=production` прописан в VPS `backend/.env`, guard
 проверен на скомпилированном артефакте прод-релиза — см. «Решённые вопросы», п. 5.
 
-### M3. Фантомные зависимости в backend
+### M3. Phantom Dependencies in the Backend
 
 Перепроверено на `main` (`git grep` + чтение `backend/package.json`):
 
@@ -445,7 +445,7 @@ ops-шагом после мержа #59** (бэкап + транзакция с
 С `3.2.8` в `node_modules` одна копия (`npm ls knex` → `knex@3.2.8` +
 `@mikro-orm/knex@6.6.12 → knex@3.2.8 deduped`), `tsc --noEmit` зелёный.
 
-### M4. Неатомарный cutover и простой
+### M4. Non-Atomic Cutover and Downtime
 
 Файлы: `scripts/deploy-vps.sh:157-159`, `scripts/activate-release.sh`.
 
@@ -463,7 +463,7 @@ ff-merge в откате не участвует. Предохранитель �
 (`merge-base --is-ancestor` в `deploy-vps.sh`, закреплен тестом
 `test-support/verify-deploy-pin.mjs`) не тронут.
 
-### M5. Публичный IP VPS в репозитории и в клиентском бандле
+### M5. Public VPS IP in the Repository and in the Client Bundle
 
 Места (перепроверено grep'ом по `main`): `DEPLOY.md:36` (`ssh root@178.104.108.200`),
 `frontend/src/lib/product-image.ts:9` (значение `178.104.108.200` попадает в
@@ -482,7 +482,7 @@ ff-merge в откате не участвует. Предохранитель �
 теперь `ssh root@tamir.rs`. Принято осознанно: сам адрес остаётся в этом
 аудит-документе и в истории git.
 
-### M6. `.gitignore` не закрывает загруженные медиа
+### M6. `.gitignore` Does Not Cover Uploaded Media
 
 `.gitignore:30-35` игнорирует только `backend/uploads/`, а реальное хранилище
 медиа — `backend/static/` и `backend/private-static/` (см.
@@ -493,7 +493,7 @@ ff-merge в откате не участвует. Предохранитель �
 (сразу после `backend/uploads/`); проверено `git check-ignore -v`, отслеживаемых
 файлов в этих каталогах нет.
 
-### M7. Тесты разъезжаются с CI
+### M7. Tests Drift from CI
 
 Перепроверено на `main`: в `backend/tests/` 15 `.cjs`-тестов, `verify.yml` явными
 списками запускает 14 — **`registration-email.test.cjs` не запускается никогда**;
@@ -513,7 +513,7 @@ ff-merge в откате не участвует. Предохранитель �
 держит ручные списки — забытый `registration-email.test.cjs` теперь запускается
 автоматически. Есть `--list`/`--junit-dir`/`--reverse` для диагностики.
 
-### M8. Фронтенд: лишние сетевые запросы и build-зависимость от сети
+### M8. Frontend: Extra Network Requests and a Build Dependency on the Network
 
 - `src/lib/store/*` — RSC-фетчи без таймаутов (единственный
   `AbortSignal.timeout` — `src/lib/reviews/server.ts:17`);
@@ -566,7 +566,7 @@ ff-merge в откате не участвует. Предохранитель �
 `714f12e`), **#70** — выборочный `revalidate` (влит `b3ad97a`, в проде с 02.11).
 M8 закрыт.
 
-### M9. Документация отстаёт от кода
+### M9. Documentation Lags Behind the Code
 
 - `DEPLOY.md`: дата «11 октября», публичный IP, `root@` в командах;
 - в `docs/SECRETS.md` есть раздел «Существующий VPS: порядок до объединения PR»
@@ -604,7 +604,7 @@ M8 закрыт.
 Отдельно по OpenSpec-спецификациям текущего поведения (`docs/specs/`) — PR #34,
 влит 27.10 (merge-коммит `3d17db3`).
 
-### M10. Локаль `sr` — только латиница (решение, а не дефект кода)
+### M10. The `sr` Locale Is Latin-Only (a Decision, Not a Code Defect)
 
 Посылка первой редакции этого пункта была **неверной** (файла `sr-LAT.json` в
 репозитории никогда не было, а кириллических строк в `sr.json` нет). Перепроверено
@@ -669,7 +669,7 @@ reserved.») — решение владельца от 02.11.
 - `frontend/AGENTS.md` в репозитории — это намеренное предупреждение про Next 16
 («this is NOT the Next.js you know»). Не удалять; обсуждать отдельно.
 
-## Проверено и чисто (не флагать повторно)
+## Checked and Clean (Do Not Flag Again)
 
 - Next на момент аудита был закреплён на `16.2.2`, react `19.2.4` — претензии про CVE из
   Next 15.x **не** применимы. (На 03.11 витрина обновлена до `16.4.5` — см. раздел
@@ -682,7 +682,7 @@ reserved.») — решение владельца от 02.11.
 - Лок-файлы валидны, `npm ci` в CI проходит.
 - `[countryCode]`-страницы валидируют локаль; JSON-LD экранирован.
 
-### Внешний QA-отчёт: что из него не подтвердилось
+### External QA Report: What It Did Not Confirm
 
 Внешний отчёт (P0/P1/P2/SR-LAT/EN) сверен с кодом `main` — часть пунктов уже учтена
 исправлениями HIGH (#22–#24, #26), остальные разобраны:
@@ -727,7 +727,7 @@ reserved.») — решение владельца от 02.11.
 
 ---
 
-## Порядок PR
+## PR Order
 
 Номера ниже — фактические (PR уже созданы и смержены) либо плановые, продолжение
 нумерации. Этот аудит-PR занял **#21**; HIGH-исправления шли отдельными PR:
@@ -814,7 +814,7 @@ reserved.») — решение владельца от 02.11.
 
 ---
 
-## Контрольный аудит 03.11: периметр и security-заголовки
+## Control Audit 03.11: Perimeter and Security Headers
 
 03.11 проведён контрольный аудит прод-контура (отдельно от этого документа).
 Из него в работу взяты: **HIGH-1 — сетевой периметр** (`0.0.0.0` у pm2-процессов
@@ -838,7 +838,7 @@ reserved.») — решение владельца от 02.11.
 - **MEDIUM п.5** (место на диске VPS) — выполнено владельцем вручную, PR не нужен;
 - **LOW п.7** (хардкод `admin@tamir.local`) — не трогаем.
 
-### HIGH-2. Security-заголовки витрины — закрыто PR #72
+### HIGH-2. Storefront Security Headers — Closed by PR #72
 
 Раньше витрина не отдавала ни CSP, ни `X-Frame-Options`, ни `Referrer-Policy`, а
 Next публиковал `X-Powered-By`. Исправление — только в `frontend/next.config.ts`
@@ -894,7 +894,7 @@ Next публиковал `X-Powered-By`. Исправление — тольк�
 - `Strict-Transport-Security: max-age=31536000` (без `includeSubDomains`);
 - `X-Powered-By` нет ни на одном ответе.
 
-### HIGH-1. Периметр — закрыто PR #74
+### HIGH-1. Perimeter — Closed by PR #74
 
 Правка в репозитории, не в `ufw`: `-H 127.0.0.1` в `backend/scripts/start-server.mjs`
 (значение по умолчанию `MEDUSA_BACKEND_HOST=127.0.0.1`, переменная оставлена под
@@ -919,7 +919,7 @@ Loopback-пробы с самого VPS: `http://127.0.0.1:9000/health` — 200,
 200. Внешние TCP-пробы `tamir.rs:3000`/`tamir.rs:9000` до мержа устанавливались,
 после — нет. Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не трогались.
 
-### Прод-зависимости витрины — закрыто PR #76
+### Storefront Production Dependencies — Closed by PR #76
 
 Прод-аудит `npm audit --omit=dev` по лок-файлам репозитория (снимался 03.11):
 
@@ -1002,7 +1002,7 @@ Image Optimization через nginx: локальный ассет `/_next/image
 так же, как до мержа. Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не
 трогались.
 
-### Прод-зависимости бэкенда — закрыто частично PR #78
+### Backend Production Dependencies — Partially Closed by PR #78
 
 Контрольный аудит 03.11 показал в prod-дереве бэкенда 155 advisory, из них 3 критичных.
 Обновления упирались в ядро Medusa, поэтому это была отдельная задача. Сделана
@@ -1115,7 +1115,7 @@ Image Optimization через nginx: локальный ассет `/_next/image
 `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`).
 Порты VPN (`2083`/`2096`/`8443`/`25638`) не проверялись и не трогались.
 
-### Апгрейд ядра Medusa (`2.13.6` → `2.21.2`/`2.22.2`) — отложено решением владельца (03.11)
+### Medusa Core Upgrade (`2.13.6` → `2.21.2`/`2.22.2`) — Deferred by Owner Decision (03.11)
 
 **Решение владельца 03.11: апгрейд ядра Medusa не делаем.** Формулировка решения:
 «тогда это не выполняем, пусть в документе будет записано, я себе повешу задачу в
@@ -1266,7 +1266,7 @@ high) → `2.19.x` (Vite 7: переподбор правил в `admin-decimal-
 переход devDep `vite` `5` → `7`, аудит `PRODUCT_FIELDS` витрины под allow-list полей из
 `2.21`. `2.22.x` — только вместе с переходом VPS на Node 22.»
 
-### Прод-зависимости бэкенда: overrides `ajv` и `@graphql-tools/utils` — закрыто PR #81
+### Backend Production Dependencies: `ajv` and `@graphql-tools/utils` Overrides — Closed by PR #81
 
 Контрольный аудит 03.11 оставил в prod-дереве бэкенда 33 advisory, из них 21 упирались в
 ядро Medusa (см. подраздел «Апгрейд ядра Medusa» выше), а **3 advisory к ядру не
@@ -1351,7 +1351,7 @@ Node 22 на VPS, а это часть решения по ядру (см. вы�
   (витрина), снаружи `https://api.tamir.rs/health` → 200 `OK`,
   `https://tamir.rs/rs` → 200 (264868 б), `https://tamir.rs/en` → 200 (262977 б).
 
-### Остаток advisory prod-дерева бэкенда после #81 — почему не делаем
+### Remaining Advisories in the Backend Prod Tree After #81 — Why We Are Not Acting on Them
 
 Актуальный прод-срез на релизе `20261104T124927Z-a3d70d1e01b7` (замер 04.11 там же, где
 работает прод, `npm audit --omit=dev --json`): **113** пакетов, **30** advisory-строк,
@@ -1384,7 +1384,7 @@ Medusa (`2.13.6` → `2.21.2`/`2.22.2`) — отложено решением в
 принуждением majors внутри `@medusajs/*`; на `@mikro-orm/*` этот приём уже проверен и
 дал падение `npx medusa db:migrate` (см. выше), поэтому повторно не применяется.
 
-### Инцидент деплоя 04.11: GitHub отклонял deploy-ключ VPS окнами → ретраи `git fetch` (PR #82)
+### Deploy Incident 04.11: GitHub Rejected the VPS Deploy Key in Windows → Retries of `git fetch` (PR #82)
 
 Первый ран `Deploy TAMIR` после влития #81 (`41815589553`) упал за 1 мин 57 с на шаге
 `Deploy the verified commit to VPS`:
@@ -1493,7 +1493,7 @@ Filesystem      Size  Used Avail Use% Mounted on
 
 ---
 
-## Открытые вопросы (ждут решения владельца)
+## Open Questions (Awaiting Owner Decision)
 
 На 02.11 открытых вопросов нет. Оба прежних вопроса (ops-зачистка прод-БД после
 PR #59 и `NODE_ENV=production` в VPS `backend/.env`) закрыты 01.11 по явному
@@ -1502,7 +1502,7 @@ PR #59 и `NODE_ENV=production` в VPS `backend/.env`) закрыты 01.11 по
 про апгрейд ядра Medusa (`2.13.6` → `2.21.x`/`2.22.x`) закрыт 03.11 решением владельца
 «не делаем» — см. «Решённые вопросы», п. 6.
 
-## Решённые вопросы
+## Resolved Questions
 
 1. Доступ к VPS для диагностики (закрыто 24.10): выбран вариант **A** — отдельный
    SSH-ключ `~/.ssh/tamir_vps_key` (комментарий `tamir-audit-agent-2026`, в
@@ -1560,7 +1560,7 @@ PR #59 и `NODE_ENV=production` в VPS `backend/.env`) закрыты 01.11 по
    Отдельная карточка-наблюдатель за этим заводится владельцем в Trello; задач по
    апгрейду ядра в репозитории нет.
 
-## Примечание: Figma MCP
+## Note: Figma MCP
 
 Настроены оба варианта (в `~/.config/opencode/opencode.json`): официальный remote
 `figma` (`https://mcp.figma.com/mcp`, OAuth, бесплатный тариф seat View, лимит
