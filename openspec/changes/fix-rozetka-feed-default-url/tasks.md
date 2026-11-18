@@ -35,7 +35,7 @@
       «Saved address wins over the default»
 - [x] 3.2 Живая спека `openspec/specs/rozetka-import/spec.md` синхронизирована с дельтой в этом же
       PR (иначе действующая спека останется с неверным MUST)
-- [ ] 3.3 Артефакты незаархивированного изменения `fix-rozetka-sku-from-url`: адрес чужой
+- [x] 3.3 Артефакты незаархивированного изменения `fix-rozetka-sku-from-url`: адрес чужой
       выгрузки убран из текста (`proposal.md`, `design.md`, `tasks.md`), «живой фид» заменён на
       украинскоязычную выгрузку, добавлен замер рабочего фида
 - [x] 3.4 Архив `openspec/changes/archive/**` не изменён
