@@ -230,11 +230,13 @@ export async function executeImport(container: MedusaContainer, body: unknown, a
         metadata: { ...metadata, rozetka_media: mediaMap } }] } })
       for (const variant of selected) {
         const match = matches.get(variant.id)
+        const sourceVariant = source.variants.find(v => v.id === variant.id)
         const data = { title: [variant.size, variant.color].filter(Boolean).join(" / "), sku: variant.sku,
           options: { Size: variant.size, ...(colorEnabled ? { Color: variant.color } : {}) },
           prices: [{ currency_code: "rsd", amount: numberInput(variant.price)! }], manage_inventory: true, allow_backorder: false,
           metadata: { ...(match?.metadata || {}), rozetka_offer_id: variant.id, rozetka_url: source.url, rozetka_feed_source: digest(preliminary.data.source ? sourceLabel(preliminary.data.source) : ROZETKA_SOURCE),
-            rozetka_params: source.variants.find(v => v.id === variant.id)?.params || [] } }
+            rozetka_article: sourceVariant?.article || "", rozetka_legacy_sku: sourceVariant?.legacy_sku || variant.id,
+            rozetka_params: sourceVariant?.params || [] } }
         if (match) await updateProductVariantsWorkflow(container).run({ input: { product_variants: [{ ...data, id: match.id }] } })
         else await createProductVariantsWorkflow(container).run({ input: { product_variants: [{ ...data, product_id: id }] } })
       }

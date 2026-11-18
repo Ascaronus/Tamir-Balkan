@@ -1,7 +1,7 @@
 import { importedProducts } from "../utils/rozetka-admin"
 import { rozetkaProductHandle } from "../utils/rozetka-product-text"
 import { missingSourceInventory } from "../utils/import-scope"
-import { offerSize, offerStock, offerPictures, offerPriceRsd } from "../utils/rozetka"
+import { offerSize, offerStock, offerPictures, offerPriceRsd, rozetkaSku, articleFromOfferUrl, legacySkuFromOffer } from "../utils/rozetka"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import type { IFileModuleService } from "@medusajs/types/dist/file/service"
@@ -644,7 +644,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
       const size = offerSize(o)
       const priceRsd = offerPriceRsd(o, uahToRsd)
 
-      const sku = slugify(String(o.id)).toUpperCase()
+      const sku = rozetkaSku(o, size)
       skuToStock[sku] = offerStock(o)
 
       return {
@@ -662,6 +662,8 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
           rozetka_feed_source: feedSource,
           rozetka_offer_id: o.id,
           rozetka_url: o.url,
+          rozetka_article: articleFromOfferUrl(o.url),
+          rozetka_legacy_sku: legacySkuFromOffer(o),
           i18n: {
             en: { title: titleEn, description: descEn },
             sr: { title: titleSr, description: descSr },
