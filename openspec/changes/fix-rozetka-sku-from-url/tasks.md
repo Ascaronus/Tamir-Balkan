@@ -88,6 +88,15 @@
       322 уникальных артикула): хелперы из `src/utils/rozetka.ts` дают 821 уникальный SKU из 821,
       0 коллизий, 0 офферов без артикула, `One Size` — 194, максимальная длина SKU 49 символов;
       примеры из таски совпали (`BAF-TMR-1BLACK`, `SHTANI-TMR-2211M43021-SIRI-48`).
-- [ ] 7.4 `fix:rozetka:sku` (dry-run, затем применение) на стейдж-БД: 821 строка сопоставлений,
+- [x] 7.4 `fix:rozetka:sku` (dry-run, затем применение) на стейдж-БД: 821 строка сопоставлений,
       ноль конфликтов, `reserved_quantity` и уровни склада не меняются, второй прогон — ноль
       изменений. Делается вместе с выкаткой на стейдж.
+      Прогон 18.11.2026 на релизе `20261118T120557Z-c43437c11af7`: фид отдал 322 товара / 821 оффер,
+      dry-run — `16 SKU rewrites, 0 conflicts, 805 feed offers without a stored variant,
+      0 offers gone from the feed, 16 inventory items to sync`; применение
+      (`ROZETKA_SKU_FIX_APPLY=true`) — те же 16 переписываний и 0 коллизий; повторный dry-run — `0 SKU rewrites,
+      16 already correct, 0 inventory items to sync`. Проверка БД после применения: 16 вариантов с
+      SKU из `<url>` (`SHAPKA-TMR-43BLACK`, `SHAPKA-BAF-TMR-77BLUE`, ...), дублей нет,
+      `metadata.rozetka_article` и `rozetka_legacy_sku` проставлены у всех 16, расхождение
+      `inventory_item.sku` с вариантом — 0, уровней склада 16, `sum(stocked_quantity)` = 30 и
+      `sum(reserved_quantity)` = 0 — как до прогона.
