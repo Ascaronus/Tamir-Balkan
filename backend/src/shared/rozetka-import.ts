@@ -1,4 +1,4 @@
-export const DEFAULT_XML_URL = "https://tamir.ua/ua/rozetka/"
+export const DEFAULT_XML_URL = "https://tamir.ua/rozetka/"
 export const MAX_XML_BYTES = 10 * 1024 * 1024
 export type ImportSource = { type: "url"; url: string } | { type: "file"; name: string; xml: string }
 export type SourceVariant = {

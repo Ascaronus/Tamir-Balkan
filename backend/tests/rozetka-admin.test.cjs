@@ -188,7 +188,7 @@ test('shipping profile fallback prefers default, supports a sole custom profile,
 
 test('uploaded XML is isolated from URL cache and imports without downloading the default feed',async()=>{
  const {loadFeed,ROZETKA_SOURCE}=require('../src/utils/rozetka-preview')
- assert.equal(ROZETKA_SOURCE,'https://tamir.ua/ua/rozetka/')
+ assert.equal(ROZETKA_SOURCE,'https://tamir.ua/rozetka/')
  const original=global.fetch; const uploads=xml.replaceAll('model.html','uploaded.html').replaceAll('Шапка TAMIR','Загруженная шапка')
  global.fetch=async()=>{throw Error('upload must not make network request')}
  try {
@@ -203,10 +203,10 @@ test('uploaded XML is isolated from URL cache and imports without downloading th
 
 test('editable URL is used and cached separately for each source',async()=>{
  const {loadFeed}=require('../src/utils/rozetka-preview'),original=global.fetch,calls=[]
- global.fetch=async url=>{calls.push(url);return new Response(xml.replaceAll('Шапка TAMIR',url.includes('/ua/')?'UA title':'RU title'))}
+ global.fetch=async url=>{calls.push(url);return new Response(xml.replaceAll('Шапка TAMIR',url.includes('www.tamir.ua')?'ALT title':'MAIN title'))}
  try {
-  assert.match((await loadFeed(true,{type:'url',url:'https://tamir.ua/ua/rozetka/'})).products[0].title,/UA title/)
-  assert.match((await loadFeed(false,{type:'url',url:'https://tamir.ua/rozetka/'})).products[0].title,/RU title/)
+  assert.match((await loadFeed(true,{type:'url',url:'https://www.tamir.ua/rozetka/'})).products[0].title,/ALT title/)
+  assert.match((await loadFeed(false,{type:'url',url:'https://tamir.ua/rozetka/'})).products[0].title,/MAIN title/)
   assert.equal(calls.length,2)
  } finally {global.fetch=original}
 })
@@ -305,12 +305,12 @@ test('saved XML address survives new requests and invalid destinations cannot ch
  const scope={resolve:key=>{assert.equal(key,Modules.STORE);return {listStores:async()=>[store],updateStores:async(id,data)=>Object.assign(store,data)}}}
  const response=()=>({code:200,status(code){this.code=code;return this},setHeader(){},json(body){this.body=body;return this}})
  const auth_context={actor_type:'user',actor_id:'admin'}
- let res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://tamir.ua/ua/rozetka/')
- res=response();await route.POST({scope,auth_context,body:{source_url:'https://tamir.ua/rozetka/'}},res);assert.equal(res.code,200)
- res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://tamir.ua/rozetka/');assert.equal(store.metadata.unrelated,'keep')
+ let res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://tamir.ua/rozetka/')
+ res=response();await route.POST({scope,auth_context,body:{source_url:'https://www.tamir.ua/rozetka/'}},res);assert.equal(res.code,200)
+ res=response();await route.GET({scope,auth_context},res);assert.equal(res.body.source_url,'https://www.tamir.ua/rozetka/');assert.equal(store.metadata.unrelated,'keep')
  for(const url of ['http://127.0.0.1/feed','https://evil.test/xml','https://user:pass@tamir.ua/rozetka/']) {
   res=response();await route.POST({scope,auth_context,body:{source_url:url}},res);assert.equal(res.code,400)
  }
- res=response();await route.POST({scope,body:{source_url:'https://tamir.ua/ua/rozetka/'}},res);assert.equal(res.code,401)
- assert.equal(store.metadata.rozetka_source_url,'https://tamir.ua/rozetka/')
+ res=response();await route.POST({scope,body:{source_url:'https://tamir.ua/rozetka/'}},res);assert.equal(res.code,401)
+ assert.equal(store.metadata.rozetka_source_url,'https://www.tamir.ua/rozetka/')
 })

@@ -2,6 +2,7 @@ import { importedProducts } from "../utils/rozetka-admin"
 import { rozetkaProductHandle } from "../utils/rozetka-product-text"
 import { missingSourceInventory } from "../utils/import-scope"
 import { offerSize, offerStock, offerPictures, offerPriceRsd, rozetkaSku, articleFromOfferUrl, legacySkuFromOffer } from "../utils/rozetka"
+import { DEFAULT_XML_URL } from "../shared/rozetka-import"
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import type { IFileModuleService } from "@medusajs/types/dist/file/service"
@@ -342,7 +343,7 @@ export default async function importRozetkaXml({ container }: ExecArgs) {
     )
   }
 
-  const xmlUrl = process.env.ROZETKA_XML_URL || "https://tamir.ua/rozetka/"
+  const xmlUrl = process.env.ROZETKA_XML_URL || DEFAULT_XML_URL
   const feedSource = crypto.createHash("sha256").update(new URL(xmlUrl).href).digest("hex")
   logger.info(`Fetching Rozetka XML: ${xmlUrl}`)
 
