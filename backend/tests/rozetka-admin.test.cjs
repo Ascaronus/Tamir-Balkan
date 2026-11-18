@@ -66,7 +66,7 @@ function setup() {
  return container
 }
 
-test('real XML parser groups size offers, preserves model and photos, reports placeholder colors',()=>{
+test('real XML parser groups size offers, builds SKUs as article-size from url, keeps legacy sku and photos, reports placeholder colors',()=>{
  assert.equal(parseFeed('<!DOCTYPE yml_catalog SYSTEM "shops.dtd">'+xml).products.length,1)
  const feed=parseFeed(xml)
  assert.equal(feed.products.length,1);assert.equal(source.variants.length,2)
@@ -74,7 +74,26 @@ test('real XML parser groups size offers, preserves model and photos, reports pl
  assert.equal(source.variants[1].stock,0);assert.equal(source.variants[0].color,'')
  assert.equal(source.images.length,2);assert.equal(feed.source_categories[0].count,1)
  assert.ok(source.warnings.some(w=>w.includes('цвет')))
+ // TB-24: the SKU follows the `<url>` article (model.html?size=58 → MODEL), not the offer id.
+ assert.equal(source.variants[0].sku,'MODEL-58');assert.equal(source.variants[1].sku,'MODEL-60')
+ assert.equal(source.variants[0].article,'MODEL');assert.equal(source.variants[0].legacy_sku,'A')
+ assert.equal(source.variants[1].article,'MODEL');assert.equal(source.variants[1].legacy_sku,'B')
+ assert.ok(!source.warnings.some(w=>/артикул/i.test(w)))
  const draft=initialDraft(source);assert.equal(draft.status,'draft');assert.equal(draft.variants[0].stock,'0');assert.equal(draft.variants[0].price,'')
+ assert.equal(draft.variants[0].sku,'MODEL-58')
+})
+test('different products sharing a size get distinct article SKUs with their own legacy ids kept for tracing',()=>{
+ const two=`<yml_catalog><shop><categories><category id="8">Шапки</category></categories><offers>
+<offer id="5c73d4b3-cba4-11eb-ab3c-8a74aeb6a5b6_3a3db20e-11ec-a298-4298adb44b20" available="true"><url>https://tamir.ua/hats/shapka-tmr-d2burg.html</url><name>Шапка TAMIR D2burg</name><price>1790</price><currencyId>UAH</currencyId><categoryId>8</categoryId><picture>https://tamir.ua/images/d2burg.jpg</picture><description>Описание</description><stock_quantity>3</stock_quantity><param name="Размер">58</param></offer>
+<offer id="9f01be77-cba4-11eb-ab3c-8a74aeb6a5b6_31ad9c60-11ec-8a2f-2a2e2b1c9d55" available="true"><url>https://tamir.ua/hats/kepi-tmr-d2blk.html</url><name>Кепи TAMIR D2blk</name><price>1990</price><currencyId>UAH</currencyId><categoryId>8</categoryId><picture>https://tamir.ua/images/d2blk.jpg</picture><description>Описание</description><stock_quantity>2</stock_quantity><param name="Размер">58</param></offer>
+</offers></shop></yml_catalog>`
+ const feed=parseFeed(two)
+ assert.equal(feed.products.length,2)
+ const [shapka,kepi]=feed.products
+ assert.equal(shapka.variants[0].sku,'SHAPKA-TMR-D2BURG-58');assert.equal(kepi.variants[0].sku,'KEPI-TMR-D2BLK-58')
+ assert.equal(shapka.variants[0].article,'SHAPKA-TMR-D2BURG');assert.equal(shapka.variants[0].legacy_sku,'5C73D4B3-CBA4-11EB-AB3C-8A74AEB6A5B6-3A3DB20E-11EC-A298-4298ADB44B20')
+ assert.notEqual(shapka.variants[0].sku,kepi.variants[0].sku)
+ for(const product of feed.products){const draft=initialDraft(product);draft.category_id='cat';draft.variants[0].price='1990';draft.variants[0].stock='2';assert.ok(!draftErrors(draft).some(e=>e.includes('различаться')))}
 })
 test('XML rejects duplicate IDs, DTDs, malformed documents and non-Tamir URLs',()=>{
  assert.throws(()=>parseFeed(xml.replace('id="b"','id="a"')),/повторяется/)

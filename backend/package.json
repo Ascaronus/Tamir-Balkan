@@ -16,6 +16,7 @@
     "postbuild": "node ./scripts/postbuild-server.mjs",
     "seed:dev": "medusa exec ./src/scripts/seed.ts",
     "store-locales": "medusa exec ./src/scripts/add-store-locales.ts",
+    "fix:rozetka:sku": "medusa exec ./src/scripts/fix-rozetka-sku.ts",
     "start": "node ./scripts/start-server.mjs",
     "dev": "medusa develop",
     "test:cjs": "node ./test-support/run-tests.mjs",

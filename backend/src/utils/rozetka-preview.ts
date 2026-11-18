@@ -2,7 +2,7 @@ import crypto from "node:crypto"
 import { z } from "zod"
 import { DEFAULT_XML_URL, MAX_XML_BYTES, type ImportSource } from "../shared/rozetka-import"
 import { XMLParser, XMLValidator } from "fast-xml-parser"
-import { numeric, offerSize, offerStock } from "./rozetka"
+import { articleFromOfferUrl, numeric, offerSize, offerStock, rozetkaSku, skuToken } from "./rozetka"
 import type { SourceProduct, SourceVariant } from "../shared/rozetka-import"
 
 export const ROZETKA_SOURCE = DEFAULT_XML_URL
@@ -86,9 +86,13 @@ export function parseFeed(xml: string): FeedSnapshot {
     const colorRaw = params.find(p => /^(цвет|колір|color|colour|boja)$/i.test(p.name))?.value || ""
     const color = /^(цвет|колір|color|colour|boja)$/i.test(colorRaw) ? "" : colorRaw
     if (colorRaw && !color) product.warnings.push("В источнике вместо цвета указано слово «цвет». Заполните цвет вручную, если нужен.")
-    const variant: SourceVariant = { id, sku: id.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toUpperCase(),
-      size: offerSize(offer), color, price: numeric(offer.price), currency: text(offer.currencyId).toUpperCase() || "UAH",
+    const size = offerSize(offer)
+    const article = articleFromOfferUrl(offer.url)
+    const legacySku = skuToken(id)
+    const variant: SourceVariant = { id, sku: rozetkaSku(offer, size), article, legacy_sku: legacySku,
+      size, color, price: numeric(offer.price), currency: text(offer.currencyId).toUpperCase() || "UAH",
       stock: offerStock(offer), available: !["false", "0"].includes(String(offer.available).toLowerCase()), params }
+    if (!article) product.warnings.push("В источнике нет артикула в адресе предложения: SKU построен из ID, сверьте его вручную")
     if (!variant.available) product.warnings.push("В источнике есть недоступные варианты")
     if (variant.price === null || variant.price <= 0) product.warnings.push("В источнике есть вариант без корректной цены")
     if (!["UAH", "RSD"].includes(variant.currency)) product.warnings.push(`Валюта ${variant.currency}: укажите цену в RSD вручную`)
