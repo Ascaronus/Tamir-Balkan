@@ -13,6 +13,7 @@ import { StoreShell } from "@/components/store/StoreShell"
 import { CatalogClient } from "@/components/store/CatalogClient"
 import { getTranslations } from "@/lib/i18n/server"
 import type { Locale } from "@/lib/i18n/config"
+import { categoryIntroParagraphs, categoryJsonLd, categoryMetaDescription } from "@/lib/seo/catalog"
 
 type CatalogRouteParams = { countryCode?: string; categoryHandle?: string }
 
@@ -50,11 +51,21 @@ export default async function CatalogPage({ params, searchParams }: {
   return <StoreShell countryCode="rs" initialCategories={categories} activeCategoryId={selection.category_id} languagePaths={category ? { sr: categoryPath(category, "sr"), en: categoryPath(category, "en") } : {}}><div className="store-container catalog-page">
     {!selection.category_id && !selection.q && <HomepageBanners carousel={await homepageBanners()} locale={locale} />}
     <CatalogClient key={catalogParams(selection).toString() + locale} initial={initial} selection={selection} basePath={basePath} regionId={region?.id ?? ""} summaries={summaries} title={category?.name || t("sidebar.allProducts")} />
+    {/* Visible server-rendered category copy: a crawled category page must carry unique on-page text, not only product tiles. */}
+    {category && <div className="catalog-seo-intro">{categoryIntroParagraphs(category.description).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
+    {category && initial?.count ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(categoryJsonLd({
+      name: category.name,
+      description: category.description,
+      url: siteUrl(categoryPath(category, locale)),
+      locale,
+      products: initial.products,
+      breadcrumbNames: { home: t("catalog.home"), catalog: t("catalog.catalog") },
+    })) }} /> : null}
   </div></StoreShell>
 }
 
 import type { Metadata } from "next"
-import { siteUrl, languageAlternates, pageRobots } from "@/lib/seo"
+import { siteUrl, languageAlternates, pageRobots, serializeJsonLd } from "@/lib/seo"
 
 export async function generateMetadata({ searchParams, params }: {
   searchParams: Promise<CatalogQuery>; params?: Promise<CatalogRouteParams>
@@ -70,9 +81,12 @@ export async function generateMetadata({ searchParams, params }: {
   if (page > 1) canonical.searchParams.set("page", String(page))
   const enCanonical = new URL(siteUrl(category ? categoryPath(category, "en") : localizedPath(canonical.pathname, "en")))
   if (page > 1) enCanonical.searchParams.set("page", String(page))
-  const description = category
+  const fallback = category
     ? locale === "sr" ? `${category.name} — TAMIR kolekcija. Pogledajte modele, boje, veličine i cene. Dostava širom Srbije.` : `${category.name} — TAMIR collection. Browse styles, colors, sizes and prices. Delivery across Serbia.`
     : locale === "sr" ? "TAMIR — muška odeća i aksesoari za svakodnevne i posebne prilike. Istražite kape, šalove, košulje i kaiševe, uz dostavu širom Srbije." : "TAMIR — men's clothing and accessories for everyday wear and special occasions. Explore hats, scarves, shirts and belts, with delivery across Serbia."
+  // Merchant-authored category copy wins over the template, so GSC stops seeing
+  // every collection landing with the same "Pogledajte modele, boje..." snippet.
+  const description = category ? categoryMetaDescription(category, fallback) : fallback
   const title = (category?.name || t("catalog.catalog")) + " | Tamir"
   const images = [{ url: siteUrl("/tamir-logo.png"), width: 2048, height: 1613, alt: "TAMIR — Collection for men" }]
   return { title, description,

@@ -5,7 +5,7 @@ import { medusaStoreLocale, type Locale } from "@/lib/i18n/config"
 import type { HttpTypes } from "@medusajs/types"
 
 const CATEGORY_FIELDS =
-  "id,name,handle,metadata,parent_category_id,rank,*category_children"
+  "id,name,handle,description,metadata,parent_category_id,rank,*category_children"
 
 /**
  * Локаль едет в URL (`?locale=`), а не в заголовке `x-medusa-locale`:
@@ -57,7 +57,7 @@ async function getStoreProductCategory(
       query: {
         ...selector,
         limit: 1,
-        fields: "id,name,handle,metadata",
+        fields: "id,name,handle,description,metadata",
         ...localeQuery(locale),
       },
       // Тот же selective revalidate, что и в списке категорий.

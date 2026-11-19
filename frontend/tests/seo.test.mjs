@@ -28,6 +28,7 @@ test("canonical URLs use the public storefront origin", () => {
 
 import { load, find } from '../test-support/component-harness.mjs'
 import { localizedPath } from '../src/lib/i18n/paths.ts'
+import * as catalogSeo from '../src/lib/seo/catalog.ts'
 function seoForHost(host) {
  return load('frontend/src/lib/seo.ts', {
   'next/headers': { headers: async () => new Headers({ host, 'x-forwarded-proto': 'https' }) },
@@ -178,7 +179,7 @@ function catalogPage({category={id:'pcat_hats',name:'Kape',handle:'hats'},count=
   '@/lib/store/category-url':{categoryHandle,categoryPath,categoryRedirectPath},
   '@/lib/store/products':{listProductsByCountry:async()=>({products:[],count})},
   '@/components/store/StoreShell':{StoreShell:'StoreShell'},'@/components/store/CatalogClient':{CatalogClient:'CatalogClient'},
-  '@/lib/i18n/server':{getTranslations:async()=>({locale,t:()=> 'Katalog'})},'@/lib/seo':seoForHost(host),
+  '@/lib/i18n/server':{getTranslations:async()=>({locale,t:()=> 'Katalog'})},'@/lib/seo':seoForHost(host),'@/lib/seo/catalog':catalogSeo,
  })
 }
 test('catalog metadata indexes populated categories and preserves the canonical without variant, sort and filter parameters',async()=>{
@@ -263,4 +264,36 @@ test('populated catalog metadata cannot override staging noindex',async()=>{
  const metadata=await catalogPage({host:'test.tamir.rs'}).generateMetadata({params:Promise.resolve({categoryHandle:'hats'}),searchParams:Promise.resolve({})})
  assert.equal(metadata.robots.index,false)
  assert.equal(metadata.alternates.canonical,'https://tamir.rs/rs/catalog/hats')
+})
+
+test('category pages publish merchant copy as visible text, meta description and collection structured data',async()=>{
+  const category={id:'pcat_poj',name:'Pojačanja',handle:'pojacanja',description:'Pojačanja za svaki dan: buff maramice i balaklave.\n\nBoje, veličine i dostava širom Srbije.'}
+  const initial={count:2,products:[{handle:'crna-kapa-buff-balaklava'},{handle:'muski-crni-buff-sa-flisom'}]}
+  const page=catalogPage({category,initial})
+  const tree=await page.default({params:Promise.resolve({countryCode:'rs',categoryHandle:'pojacanja'}),searchParams:Promise.resolve({})})
+  const intro=find(tree,n=>n.props?.className==='catalog-seo-intro')
+  assert.deepEqual(Array.from(intro.props.children,p=>p.props.children),['Pojačanja za svaki dan: buff maramice i balaklave.','Boje, veličine i dostava širom Srbije.'])
+  const script=find(tree,n=>n.type==='script'&&n.props?.type==='application/ld+json')
+  const data=JSON.parse(script.props.dangerouslySetInnerHTML.__html)
+  const collection=data.find(node=>node['@type']==='CollectionPage')
+  assert.equal(collection.name,'Pojačanja')
+  assert.equal(collection.url,siteUrl('/rs/catalog/pojacanja'))
+  assert.deepEqual(Array.from(collection.mainEntity.itemListElement,item=>item.url),[siteUrl('/rs/products/crna-kapa-buff-balaklava'),siteUrl('/rs/products/muski-crni-buff-sa-flisom')])
+  const breadcrumb=data.find(node=>node['@type']==='BreadcrumbList')
+  assert.equal(breadcrumb.itemListElement[breadcrumb.itemListElement.length-1].url,siteUrl('/rs/catalog/pojacanja'))
+  const metadata=await page.generateMetadata({params:Promise.resolve({countryCode:'rs',categoryHandle:'pojacanja'}),searchParams:Promise.resolve({})})
+  assert.equal(metadata.description,'Pojačanja za svaki dan: buff maramice i balaklave. Boje, veličine i dostava širom Srbije.')
+})
+test('category structured data and visible intro are skipped without a resolved category',async()=>{
+  const tree=await catalogPage({category:null,initial:{count:3,products:[]}}).default({params:Promise.resolve({countryCode:'rs'}),searchParams:Promise.resolve({})})
+  assert.equal(find(tree,n=>n.props?.className==='catalog-seo-intro'),null)
+  assert.equal(find(tree,n=>n.type==='script'),null)
+})
+test('template meta survives only when the category has no usable description',async()=>{
+  assert.equal(catalogSeo.categoryMetaDescription({description:'Kape'},'Kape — TAMIR kolekcija.'),'Kape — TAMIR kolekcija.')
+  assert.equal(catalogSeo.categoryMetaDescription({description:'   '},'fallback text'),'fallback text')
+  const long='reč '.repeat(200)
+  const trimmed=catalogSeo.categoryMetaDescription({description:long},'fallback text')
+  assert.ok(trimmed.length<=catalogSeo.META_DESCRIPTION_MAX&&trimmed.length>=160,trimmed.length)
+  assert.deepEqual(catalogSeo.categoryIntroParagraphs('prvi\n\n\n drugi\r\n treći'),['prvi','drugi\n treći'])
 })
