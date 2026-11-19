@@ -94,4 +94,22 @@ assert.match(
   /merge-base --is-ancestor "\$target" origin\/main/,
   'the pinned commit must still be contained in the current origin/main'
 )
+assert.match(
+  script,
+  /git checkout -q --force --detach "\$target"/,
+  'the source checkout must be synced to the pinned commit before any deploy step runs'
+)
+assert.match(
+  script,
+  /TAMIR_DEPLOY_RESYNC=1 exec bash "\$source_dir\/scripts\/deploy-vps\.sh" "\$target"/,
+  'the script must re-exec itself from the synced commit so new deploy steps actually run'
+)
+const resyncBlock = script.slice(
+  script.indexOf('clone_head="$(git rev-parse HEAD)"'),
+  script.indexOf('release_id=')
+)
+assert.ok(
+  resyncBlock.length > 20 && !/mkdir -p|git archive|pm2 jlist/.test(resyncBlock),
+  'the checkout sync must happen before any release or backup work'
+)
 console.log('Deploy pin verified: production releases an explicit verified SHA, manually only')

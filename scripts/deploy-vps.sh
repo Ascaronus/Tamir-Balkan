@@ -51,6 +51,27 @@ git merge-base --is-ancestor HEAD "$target" || {
   echo "Target does not include the source checkout's current commit." >&2
   exit 1
 }
+# The SSH wrapper runs whichever copy of this script is already on the machine, while the
+# release tree is built from "$target". If the checkout lags behind, the steps that get executed
+# are the old ones and a step added in "$target" never runs, so a green workflow would not prove
+# the new step happened. Sync the checkout to "$target" and re-exec this script from that commit,
+# the same way deploy-staging.sh does. Re-exec is safe this early: nothing has been created or
+# changed yet, and the lock survives it because flock stays held on descriptor 9 across exec.
+clone_head="$(git rev-parse HEAD)"
+if [[ "$clone_head" != "$target" ]]; then
+  if [[ "${TAMIR_DEPLOY_RESYNC:-0}" == "1" ]]; then
+    echo "Checkout HEAD ${clone_head:0:12} still does not equal $target after syncing." >&2
+    exit 1
+  fi
+  # Refuse to re-exec unless this process really holds the lock on descriptor 9.
+  flock -n 9 || { echo "Deployment lock on descriptor 9 is not held; refusing to re-exec." >&2; exit 1; }
+  git checkout -q --force --detach "$target" || {
+    echo "Could not move the source checkout $source_dir to $target." >&2
+    exit 1
+  }
+  echo "Checkout synced ${clone_head:0:12} -> ${target:0:12}; restarting this script from that commit."
+  TAMIR_DEPLOY_RESYNC=1 exec bash "$source_dir/scripts/deploy-vps.sh" "$target"
+fi
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-${target:0:12}"
 release_dir="/root/tamir-releases/$release_id"
 backup_dir="/root/tamir-backups/$release_id"
