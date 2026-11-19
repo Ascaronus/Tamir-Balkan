@@ -32,6 +32,7 @@ type CategorySeoEntry = {
   description?: string
   en_name?: string
   en_description?: string
+  force?: boolean
 }
 
 const LOCALES = { sr: "sr-RS", en: "en" } as const
@@ -100,6 +101,10 @@ export default async function setCategorySeo({ container }: ExecArgs) {
     const enDescription = text(entry.en_description)
     if (!name && !description && !enName && !enDescription) {
       logger.warn(`Nothing to apply for ${wanted.join(", ")}`)
+      continue
+    }
+    if (category.metadata?.seo_locked === true && !entry.force) {
+      logger.info(`Category copy already applied and locked: ${wanted.join(", ")}. Pass "force": true to re-apply.`)
       continue
     }
 

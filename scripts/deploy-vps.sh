@@ -211,6 +211,20 @@ const result = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/script
   cwd: app.cwd, env: { ...process.env, ...app.env, ROZETKA_NORMALIZE_APPLY: 'true' }, stdio: 'inherit'
 })
 if (result.status !== 0) process.exit(result.status || 1)
+// Hand-written Search Console copy (the "Crawled - currently not indexed" fix) goes in BEFORE
+// prepare-english-store.ts: it marks the rows seo_locked, and that is what stops the machine
+// translator from replacing them again. SEO_DATA_FILE is relative to the backend cwd, and both
+// scripts skip rows that are already locked, so a re-deploy costs nothing.
+const seoPasses = [
+  ['./src/scripts/set-category-seo.ts', 'src/scripts/data/seo-categories-2026-11.json'],
+  ['./src/scripts/set-product-seo.ts', 'src/scripts/data/seo-twins-2026-11.json'],
+]
+for (const [script, dataFile] of seoPasses) {
+  const seo = spawnSync('npx', ['--no-install', 'medusa', 'exec', script], {
+    cwd: app.cwd, env: { ...process.env, ...app.env, SEO_APPLY: 'true', SEO_DATA_FILE: dataFile }, stdio: 'inherit'
+  })
+  if (seo.status !== 0) process.exit(seo.status || 1)
+}
 const english = spawnSync('npx', ['--no-install', 'medusa', 'exec', './src/scripts/prepare-english-store.ts'], {
   cwd: app.cwd, env: { ...process.env, ...app.env }, stdio: 'inherit'
 })

@@ -39,4 +39,6 @@ Google вызывается не только кнопкой в Rozetka: отс�
 
 `prepare-english-store.ts` повторяемый: заполняет недостающий EN-контент, также пытается исправить EN-текст с кириллицей, синхронизирует адреса и опции. Не запускайте его как просмотр: он может писать переводы и обращаться к Google.
 
+Записи с `metadata.seo_locked = true` (`set-product-seo.ts` / `set-category-seo.ts`, ручной текст из `backend/src/scripts/data/seo-twins-2026-11.json` и `seo-categories-2026-11.json`) не переводятся машинно и не нормализуются `normalize-rozetka-products.ts`; повторное применение текста репозитория требует `"force": true` ([GOOGLE-SEARCH-CONSOLE.md](GOOGLE-SEARCH-CONSOLE.md)).
+
 [Окружение](ENVIRONMENT.md) · [Импорт](ROZETKA-ADMIN-IMPORT.md) · [SEO](PRODUCT-SEO.md).

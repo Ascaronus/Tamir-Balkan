@@ -19,6 +19,8 @@ import { syncProductUrl } from "../utils/product-urls"
  *   { "handle": "...", "title": "...", "description": "...", "en_title": "...", "en_description": "..." }
  * `title`/`description` are sr-Latin storefront text (default fields + sr-RS translation row),
  * `en_*` are the English storefront translations. All fields are optional; missing ones are left alone.
+ * Re-running the same file is free: a product that already carries seo_locked is skipped, so the
+ * deploy step is idempotent. Add "force": true to an entry to rewrite it on purpose.
  */
 type SeoEntry = {
   handle: string
@@ -26,6 +28,7 @@ type SeoEntry = {
   description?: string
   en_title?: string
   en_description?: string
+  force?: boolean
 }
 
 export default async function setProductSeo({ container }: ExecArgs) {
@@ -62,6 +65,10 @@ export default async function setProductSeo({ container }: ExecArgs) {
       continue
     }
 
+    if (product.metadata?.seo_locked === true && !entry.force) {
+      logger.info(`Copy already applied and locked: ${handle}. Pass "force": true to re-apply.`)
+      continue
+    }
     const metadata = { ...(product.metadata || {}), seo_locked: true }
     const pinnedEnHandle = typeof product.metadata?.en_handle === "string" && product.metadata.en_handle ? String(product.metadata.en_handle) : undefined
     logger.info(`${apply ? "Applying" : "Would apply"} SEO copy to ${handle}: sr=${defaultTitle ? "title " : ""}${defaultDescription ? "description " : ""}| en=${enTitle ? "title " : ""}${enDescription ? "description " : ""}| en_handle=${pinnedEnHandle || "(none)"}`)
