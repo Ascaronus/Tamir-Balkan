@@ -8,10 +8,18 @@
 #   * sitemap.xml: на закрытом хосте пустой <urlset>, на проде — непустой;
 #   * canonical www-дубля ссылается на apex — дубли хостов склеиваются без noindex.
 #
+# Второй блок (после деплоя текстов) держит то, из-за чего Search Console показывала
+# «Crawled – currently not indexed»: у категорий и страниц-близнецов должны быть
+# видимый серверный текст, description и CollectionPage/BreadcrumbList разметка.
+# Редирект www -> apex живёт в Cloudflare (Redirect Rule, исключение /api), и этот
+# скрипт проверяет, что правило на месте и чат-API на www не склеивается с apex.
+#
 # Запуск: bash scripts/seo-headers-check.sh   (с любой машины с доступом в интернет)
 # Секретов не нужно, только GET. Прод-sitemap строится через API, поэтому проверка
 # занимает несколько секунд. SEO_STRICT=1 превращает известные зазоры в провал —
 # так проверяют, что правило в Cloudflare уже поставили.
+# Блок «страницы, которые Search Console не индексировала» краснеет, пока тексты
+# категорий и товаров не применены (set-category-seo.ts / set-product-seo.ts).
 set -uo pipefail
 
 STAGING_SITE="${SEO_STAGING_SITE:-https://test.tamir.rs}"
@@ -105,6 +113,47 @@ canonicalcheck() {
   fi
 }
 
+# redirectcheck <url> <коды-через-|> <что должно быть в Location> — редирект обязан
+# отвечать сам по себе: Google снимает страницу с индекса по ответу на свой запрос.
+redirectcheck() {
+  local url="$1" codes="$2" want="$3" d code loc
+  d="$(headers_of "$url")"
+  code="$(printf '%s\n' "$d" | awk 'toupper($1) ~ /^HTTP/ {c=$2} END {print c}')"
+  loc="$(printf '%s\n' "$d" | grep -i '^location:' | head -1 | sed 's/^[^:]*: //')"
+  if printf '%s' "$code" | grep -qE "^($codes)$" && printf '%s' "$loc" | grep -qF -- "$want"; then
+    echo "PASS  $url  http=$code  -> $loc"; pass=$((pass + 1))
+  else
+    echo "FAIL  $url  http=$code  Location=${loc:-нет} (ожидались коды $codes и $want)"; fail=$((fail + 1))
+  fi
+}
+
+# apihostcheck <url> — POST /api/chat/config без cookies: ответ не должен быть редиректом,
+# иначе склейка www -> apex ломает Origin-белый список чата (scripts/check-chat-origin.mjs).
+apihostcheck() {
+  local url="$1" d code loc
+  d="$(curl -sS -o /dev/null -D - --max-time 60 --max-redirs 0 -X POST \
+        -H "Origin: $PROD_WWW" -H 'Content-Type: application/json' -d '{}' "$url" 2>/dev/null | tr -d '\r')"
+  code="$(printf '%s\n' "$d" | awk 'toupper($1) ~ /^HTTP/ {c=$2} END {print c}')"
+  loc="$(printf '%s\n' "$d" | grep -i '^location:' | head -1 | sed 's/^[^:]*: //')"
+  if [ -z "$loc" ] && ! printf '%s' "$code" | grep -qE '^30[1-8]$'; then
+    echo "PASS  $url  http=$code  без редиректа, Origin $PROD_WWW принимается"; pass=$((pass + 1))
+  else
+    echo "FAIL  $url  http=$code  Location=${loc:-нет} — chat-API на www нельзя склеивать с apex"; fail=$((fail + 1))
+  fi
+}
+
+# pagecheck <url> <строка> <что ждём> — текст должен быть в серверном HTML: поисковик
+# не дождётся клиентского рендера, а «Crawled – currently not indexed» лечится именно им.
+pagecheck() {
+  local url="$1" needle="$2" label="$3" body
+  body="$(curl -fsSL --max-time 90 -L "$url" 2>/dev/null)"
+  if printf '%s' "$body" | grep -qF -- "$needle"; then
+    echo "PASS  $url  $label"; pass=$((pass + 1))
+  else
+    echo "FAIL  $url  $label: нет строки $needle"; fail=$((fail + 1))
+  fi
+}
+
 echo "=== Стенд: X-Robots-Tag: noindex на каждом ответе ==="
 hdrcheck "$STAGING_SITE/rs" yes
 hdrcheck "$STAGING_SITE/" yes
@@ -130,6 +179,34 @@ hdrcheck "$PROD_API/app" no
 echo "=== Дубли хостов склеивает canonical, а не noindex ==="
 canonicalcheck "$PROD_WWW/rs" "https://tamir.rs"
 canonicalcheck "$PROD_WWW/rs/catalog" "https://tamir.rs"
+
+echo "=== Редиректы: www склеивается на edge, apex-домашняя ведёт в каталог ==="
+# Правило Redirect Rule в Cloudflare (http.host eq "www.tamir.rs"), кроме /api:
+# без него Search Console показывает www-адреса как «Redirect page»-дубли.
+redirectcheck "$PROD_WWW/rs" "301|308" "https://tamir.rs/rs"
+redirectcheck "$PROD_WWW/rs/catalog/pojacanja" "301|308" "https://tamir.rs/rs/catalog/pojacanja"
+redirectcheck "$PROD_WWW/en/catalog/buffs?utm_source=seo" "301|308" "https://tamir.rs/en/catalog/buffs?utm_source=seo"
+# Apex-домашняя и http-версия редиректят на каталог намеренно (см. frontend/src/proxy.ts):
+# записи «Redirect page» в Search Console для них — норма, а не ошибка индексации.
+redirectcheck "$PROD_SITE/" "301|308" "https://tamir.rs/rs"
+redirectcheck "http://tamir.rs/" "301|308" "https://tamir.rs"
+# Чат на www остаётся на своём хосте: Origin https://www.tamir.rs в белом списке backend.
+apihostcheck "$PROD_WWW/api/chat/config"
+
+echo "=== Страницы, которые Search Console не индексировала ==="
+# Видимый серверный текст + description + разметка: без этого страница тонкая, а
+# тексты задаются скриптами set-category-seo.ts / set-product-seo.ts.
+pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'catalog-seo-intro' "видимый текст категории"
+pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'BreadcrumbList' "хлебные крошки в разметке"
+pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'CollectionPage' "разметка коллекции"
+pagecheck "$PROD_SITE/en/catalog/buffs" 'catalog-seo-intro' "видимый текст категории"
+pagecheck "$PROD_SITE/en/catalog/buffs" 'Buffs and Neck Gaiters' "en-название категории"
+# Страницы-близнецы должны различаться текстом, а не только цветом в заголовке.
+pagecheck "$PROD_SITE/rs/products/crna-kapa-buff-balaklava" 'Crna kapa balaklava sa flis podstavom' "уникальное описание товара"
+pagecheck "$PROD_SITE/rs/products/siva-kapa-buff-balaklava" 'Siva kapa balaklava za hladne dane' "уникальное описание товара"
+pagecheck "$PROD_SITE/rs/products/muski-crni-buff-sa-flisom" 'Muški crni buff sa flisom: grejač' "уникальное описание товара"
+pagecheck "$PROD_SITE/rs/products/siva-prelazna-kapa" 'Siva prelazna kapa sa flisom' "уникальное описание товара"
+pagecheck "$PROD_SITE/en/products/men-s-gray-fleece-buff" 'buff with fleece lining for daily commutes' "en-описание товара"
 
 echo "=== robots.txt ==="
 robotscheck test.tamir.rs closed

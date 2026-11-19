@@ -13,9 +13,17 @@ export default async function normalizeRozetkaProducts({ container }: ExecArgs) 
     const products = await importedProducts(container)
     const translations = container.resolve(Modules.TRANSLATION)
     let changed = 0
+    let seoSkipCount = 0
     for (const product of products) {
       const metadata = product.metadata || {}
       if (!metadata.rozetka_admin_key || metadata.rozetka_admin_import?.state !== 'complete' || metadata.rozetka_text_version === 1) continue
+      // seo_locked marks manually written storefront copy (e.g. the color-twin pages fixed for
+      // Google "Crawled - currently not indexed"); the feed template must never overwrite it.
+      if (metadata.seo_locked === true) {
+        seoSkipCount++
+        logger.warn(`Rozetka text normalize skipped (seo_locked): ${product.id} ${product.handle}`)
+        continue
+      }
       const rows = await translations.listTranslations({ reference: 'product', reference_id: product.id, locale_code: 'sr-RS' }, { take: 1 })
       const fields = rows[0]?.translations as Record<string, unknown> | undefined
       const title = typeof fields?.title === 'string' && fields.title.trim() ? fields.title.trim() : product.title
@@ -38,6 +46,6 @@ export default async function normalizeRozetkaProducts({ container }: ExecArgs) 
       }
       logger.info(`English URLs: ${ready} translated products, ${missing} need EN content`)
     }
-    logger.info(`Rozetka text/URL repair: ${changed} products${apply ? '' : ' (dry run)'}`)
+    logger.info(`Rozetka text/URL repair: ${changed} products${apply ? '' : ' (dry run)'}${seoSkipCount ? `, ${seoSkipCount} protected by seo_locked` : ''}`)
   })
 }

@@ -89,6 +89,9 @@ body {
 .button-secondary { border: 1px solid var(--store-border); background: white; }
 .button-secondary:hover, .button-quiet:hover { background: var(--store-bg-muted); }
 .catalog-page { padding-block: 40px 64px; }
+.catalog-seo-intro { margin-block-start: 36px; max-width: 780px; color: var(--store-text-muted); font-size: 15px; line-height: 1.65; }
+.catalog-seo-intro p { margin-block: 0 12px; }
+.catalog-seo-intro p:last-child { margin-block-end: 0; }
 .collection-banner { position: relative; isolation: isolate; display: grid; grid-template-columns: 44% minmax(0, 1fr); min-height: 468px; background: #f4f3ef; margin-bottom: 40px; overflow: hidden; }
 .collection-copy { position: relative; z-index: 1; padding: clamp(24px, 2.5vw, 64px); align-self: center; }
 .collection-copy h2 { font-size: 48px; font-weight: 600; line-height: 1.17; letter-spacing: -.02em; }

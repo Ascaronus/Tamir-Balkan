@@ -14,22 +14,29 @@ export default async function prepareEnglishStore({ container }: ExecArgs) {
   let ready = 0, missing = 0, changed = 0
   for (const reference of ["product", "product_category"] as const) {
     for (let skip = 0; ; skip += 100) {
-      const { data } = await query.graph({ entity: reference, fields: reference === "product" ? ["id", "title", "description", "status"] : ["id", "name"], pagination: { skip, take: 100, order: { id: "ASC" } } })
+      const { data } = await query.graph({ entity: reference, fields: reference === "product" ? ["id", "title", "description", "status", "metadata"] : ["id", "name", "metadata"], pagination: { skip, take: 100, order: { id: "ASC" } } })
       for (const entity of data as unknown as Record<string, any>[]) {
         const rows = await service.listTranslations({ reference, reference_id: entity.id, locale_code: "en" }, { take: 1 })
         const fields = reference === "product" ? ["title", "description"] : ["name"]
+        // seo_locked products and categories (like the color-twin pages GSC flagged) carry manually
+        // written EN copy; machine translation must never overwrite it or Google sees the template twins again.
+        const seoLocked = entity?.metadata?.seo_locked === true
         const pending = fields.filter(field => String(entity[field] ?? "").trim() && (!String(rows[0]?.translations?.[field] ?? "").trim() || /[\u0400-\u04ff]/.test(String(rows[0]?.translations?.[field]))))
-        if (pending.length && translationConfigured()) {
-          try {
-            const translated = await googleTranslate(pending.map(field => String(entity[field])), "en")
-            // A user may have edited the translation during the provider request.
-            const current = (await service.listTranslations({ reference, reference_id: entity.id, locale_code: "en" }, { take: 1 }))[0]
-            const translations = { ...current?.translations }
-            pending.forEach((field, i) => { if (current?.translations?.[field] === rows[0]?.translations?.[field]) translations[field] = translated[i] })
-            if (current) await service.updateTranslations({ id: current.id, translations })
-            else await service.createTranslations({ reference, reference_id: entity.id, locale_code: "en", translations })
-            changed++
-          } catch { logger.warn(`EN translation pending: ${reference} ${entity.id}`) }
+        if (pending.length) {
+          if (seoLocked) {
+            logger.warn(`EN auto-translate skipped (seo_locked): ${reference} ${entity.id} [${pending.join(", ")}]`)
+          } else if (translationConfigured()) {
+            try {
+              const translated = await googleTranslate(pending.map(field => String(entity[field])), "en")
+              // A user may have edited the translation during the provider request.
+              const current = (await service.listTranslations({ reference, reference_id: entity.id, locale_code: "en" }, { take: 1 }))[0]
+              const translations = { ...current?.translations }
+              pending.forEach((field, i) => { if (current?.translations?.[field] === rows[0]?.translations?.[field]) translations[field] = translated[i] })
+              if (current) await service.updateTranslations({ id: current.id, translations })
+              else await service.createTranslations({ reference, reference_id: entity.id, locale_code: "en", translations })
+              changed++
+            } catch { logger.warn(`EN translation pending: ${reference} ${entity.id}`) }
+          }
         }
         if (reference === "product") {
           const result = await syncProductUrl(container, entity.id)

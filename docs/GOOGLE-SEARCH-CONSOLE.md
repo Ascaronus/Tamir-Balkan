@@ -1,6 +1,6 @@
 # Sitemap, Robots and Google Search Console
 
-Актуально на 10 ноября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts`, общий SEO-код витрины `frontend/src/lib/seo.ts` и `backend/src/api/middlewares.ts`.
+Актуально на 19 ноября 2026. Публичные файлы: [robots.txt](https://tamir.rs/robots.txt) и [sitemap.xml](https://tamir.rs/sitemap.xml). Источники реализации — `frontend/src/app/robots.ts`, `sitemap.ts`, общий SEO-код витрины `frontend/src/lib/seo.ts` и `backend/src/api/middlewares.ts`.
 
 ## Check via the API on November 10, 2026
 
@@ -192,7 +192,7 @@ query {
 
 ### Host Duplicates
 
-`www.tamir.rs` входит в `SEARCHABLE_HOSTS` намеренно: он закрыт не `noindex`, а canonical — витрина строит canonical из закреплённого `PUBLIC_SITE_ORIGIN` (`https://tamir.rs`) в `frontend/src/lib/seo.ts`, а не из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Это отдельное изменение прод-роутинга: перед ним сверяют, что правило не ломает переключение языка и уже работающий canonical.
+`www.tamir.rs` входит в `SEARCHABLE_HOSTS` намеренно: он закрыт не `noindex`, а canonical — витрина строит canonical из закреплённого `PUBLIC_SITE_ORIGIN` (`https://tamir.rs`) в `frontend/src/lib/seo.ts`, а не из `NEXT_PUBLIC_SITE_URL`, поэтому `https://www.tamir.rs/rs` отдаёт `<link rel="canonical" href="https://tamir.rs/rs"/>` и Google склеивает дубли без исключения страницы. В индексе сейчас один такой адрес: `https://www.tamir.rs/en/products/men-s-fine-knit-scarf-gray`. Измерено 9 ноября: и на главной, и на глубокой странице `www.tamir.rs` canonical уже ссылается на apex, поэтому принудительный `301 www → apex` — гигиена, а не условие закрытия. Применён 19 ноября 2026 правилом на границе Cloudflare — см. раздел «WWW to Apex Consolidation at the Cloudflare Edge (Applied on November 19, 2026)».
 
 `tamir.ua` и `www.tamir.ua` в allow-list были по ошибке: это внешний магазин — источник фида Rozetka, к нашим адресам отношения не имеет. Их убрали из `SEARCHABLE_HOSTS`, и ответ витрины, к которому обратились по чужому `Host`, получает `noindex` как любой не-прод-хост. На импорт это не влияет: разрешение `tamir.ua` живёт в отдельной проверке источника фида (`backend/src/utils/rozetka-preview.ts`) и в `images.remotePatterns` вместе с CSP — там эти домены остаются.
 
@@ -201,6 +201,36 @@ query {
 Что про пагинацию и canonical каталога известно по замеру 9 ноября 2026 (проверен весь прод-`sitemap.xml` — 42 `<loc>`, из них с `?` ни одного): `https://tamir.rs/rs/catalog` отвечает `200` с canonical `https://tamir.rs/rs`, карточка категории `https://tamir.rs/rs/catalog/kape` — `200` со своим canonical, а `https://tamir.rs/rs/catalog?page=2` и `https://tamir.rs/rs/catalog/kape?page=2` — `404` с `<meta name="robots" content="noindex">`. То есть карта сайта пагинацию не публикует, а адреса за пределом текущего числа товаров закрыты тегом, и canonical главной страницы каталога (`/rs`) корректен: страницы «все товары» как отдельного URL в карте нет и быть не должно. Обход прода по всем 42 адресам карты (`200`, self-canonical, `robots: index, follow`) дал `non-ok-urls=0`, так что закрытие стенда на индексность прода не повлияло.
 
 Ещё одна проверка, которая оказалась пустой: `https://www.test.tamir.rs` публично не резолвится — DNS-записи нет, `curl` отдаёт `000`. Стендовый поддомен-двойник закрыт самим отсутствием маршрута туннеля, а не заголовком. Если такая запись когда-нибудь появится, закрывать её отдельным правилом не придётся: `www.test.tamir.rs` не входит в `SEARCHABLE_HOSTS`, поэтому ответ сразу получит `noindex` — ровно так же, как `test.tamir.rs` и `test-api.tamir.rs` в тесте `only public production hosts may be indexed` (`frontend/tests/seo.test.mjs`).
+
+### WWW to Apex Consolidation at the Cloudflare Edge (Applied on November 19, 2026)
+
+`https://www.tamir.rs/...` отвечает `301` на тот же путь apex — это правило зоны Cloudflare, вне репозитория. Зона пересоздана 05.11.2026, поэтому её текущий id отличается от упоминавшихся в старых разделах этого файла.
+
+| | |
+| --- | --- |
+| Ruleset | `www-to-apex`, id `da84fe4a283949ad8c0202ce84baa816`, phase `http_request_dynamic_redirect` |
+| Правило | id `054eee3579604521b7998e7799ef537c`, ref `www-to-apex-1`, `301`, target `concat("https://tamir.rs", http.request.uri.path)`, `preserve_query_string: true` |
+| Условие | `http.host eq "www.tamir.rs" and not starts_with(http.request.uri.path, "/api")` |
+
+Исключение `/api` осознанное: `scripts/check-chat-origin.mjs` и активация прод-деплоя обращаются к `www.tamir.rs/api/chat/config`, а кросс-хостовый 301 сломал бы этот вызов. Проверено 19 ноября: `https://www.tamir.rs/rs/catalog` отвечает 301 на apex с сохранением query, `https://www.tamir.rs/api/health` не переадресуется. Для Search Console: единственный проиндексированный www-адрес со временем склеится с apex; `SEARCHABLE_HOSTS` сохраняет `www.tamir.rs` — это безвредно, canonical уже указывал на apex.
+
+### Root Redirects Are Expected in the Pages Report (November 19, 2026)
+
+Записи «Страница с переадресацией» для `https://tamir.rs/`, `http://tamir.rs/` и `https://www.tamir.rs/` ожидаемы и остаются: корень apex по дизайну отвечает `308` на `https://tamir.rs/rs` (`frontend/src/proxy.ts`), а `http://` добирает апгрейд на `https://` в Cloudflare. Эти три строки — не дефект, «чинить» их удалением языкового редиректа нельзя.
+
+### Crawled – Currently Not Indexed (Closed on November 19, 2026)
+
+Замер 19.11.2026: у `/en/catalog/buffs` и `/rs/catalog/pojacanja` не было вводного текста вообще (`H1 Buffovi` / `H1 Buffs`), цветовые двойники `crna-kapa-buff-balaklava`, `muski-crni-buff-sa-flisom`, `siva-kapa-buff-balaklava`, `siva-prelazna-kapa` имели почти одинаковые шаблонные спецификации, у `muski-crni-buff-sa-flisom` не было meta description. Исправление — в одном PR:
+
+- Ручной уникальный текст sr-latin и EN в JSON репозитория: `backend/src/scripts/data/seo-twins-2026-11.json` (7 товаров) и `seo-categories-2026-11.json` (1 категория).
+- Применяют `backend/src/scripts/set-product-seo.ts` и `set-category-seo.ts`: по умолчанию dry run, запись только с `SEO_APPLY=true`; `SEO_DATA_FILE` разрешается относительно cwd backend.
+- Оба ставят записи `metadata.seo_locked = true`: `normalize-rozetka-products.ts` пропускает такую сущность, `prepare-english-store.ts` не переводит её машинно — Google Translate и нормализатор Rozetka больше не перезапишут ручной текст. Запись с `"force": true` применяет текст репозитория даже к закреплённой строке; закреплённая строка без `force` пропускается.
+- `/rs/catalog/pojacanja` и `/en/catalog/buffs` — одна запись `product_category` с локализованными адресами (`category_handles`: sr `pojacanja`, en `buffs`, базовый handle `buffovi`), поэтому одна запись данных покрывает оба языка.
+- Витрина: `frontend/src/app/[countryCode]/catalog/page.tsx` выводит описание категории заметно (`.catalog-seo-intro`) и генерирует JSON-LD `CollectionPage` и `BreadcrumbList`; meta description строится из того же описания (`frontend/src/lib/seo/catalog.ts`, обрезка по границе слова, не более 320 символов). У товаров meta description и видимый текст уже брались из описания, изменений страница товара не потребовала.
+- Адреса заморожены: скрипты закрепляют `metadata.en_handle` перед `syncProductUrl` и `metadata.category_handles` перед `syncCategoryLocalization`, затем проверяют результат; при смещении возвращают значение и пишут ошибку — правка отображаемого имени не должна двигать проиндексированный URL.
+- `scripts/deploy-vps.sh` запускает оба скрипта с `SEO_APPLY=true` после активации и до `prepare-english-store.ts`, чтобы блокировка появилась раньше машинного переводчика; шаг идемпотентен. `scripts/seo-headers-check.sh` дополнительно проверяет на проде 301 www→apex, что `/api` не переадресуется, и новые маркеры страниц (`catalog-seo-intro`, `BreadcrumbList`, `CollectionPage`, маркеры текста двойников).
+
+Дальше — только ручные действия в интерфейсе Search Console: «Проверка URL» → «Запросить индексирование» для каждого отмеченного URL по одному, начиная с `siva-prelazna-kapa`, затем «Проверить исправление». Исправления в Search Console не мгновенны, а доступа к API Search Console в этом проекте нет.
 
 Обновление сервера: [DEPLOY.md](../DEPLOY.md). Структурированные данные и подтверждённые ограничения контента: [PRODUCT-SEO.md](PRODUCT-SEO.md).
 
