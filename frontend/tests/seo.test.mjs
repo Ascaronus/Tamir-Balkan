@@ -278,11 +278,30 @@ test('category pages publish merchant copy as visible text, meta description and
   const collection=data.find(node=>node['@type']==='CollectionPage')
   assert.equal(collection.name,'Pojačanja')
   assert.equal(collection.url,siteUrl('/rs/catalog/pojacanja'))
-  assert.deepEqual(Array.from(collection.mainEntity.itemListElement,item=>item.url),[siteUrl('/rs/products/crna-kapa-buff-balaklava'),siteUrl('/rs/products/muski-crni-buff-sa-flisom')])
+  assert.deepEqual(Array.from(collection.mainEntity.itemListElement,item=>item.item),[siteUrl('/rs/products/crna-kapa-buff-balaklava'),siteUrl('/rs/products/muski-crni-buff-sa-flisom')])
   const breadcrumb=data.find(node=>node['@type']==='BreadcrumbList')
-  assert.equal(breadcrumb.itemListElement[breadcrumb.itemListElement.length-1].url,siteUrl('/rs/catalog/pojacanja'))
+  assert.equal(breadcrumb.itemListElement[breadcrumb.itemListElement.length-1].item,siteUrl('/rs/catalog/pojacanja'))
   const metadata=await page.generateMetadata({params:Promise.resolve({countryCode:'rs',categoryHandle:'pojacanja'}),searchParams:Promise.resolve({})})
   assert.equal(metadata.description,'Pojačanja za svaki dan: buff maramice i balaklave. Boje, veličine i dostava širom Srbije.')
+})
+test('category structured data marks every ListItem with item and name, never url',()=>{
+  const [collection,breadcrumb]=catalogSeo.categoryJsonLd({
+    name:'Pojačanja',description:'Pojačanja za svaki dan.',url:siteUrl('/rs/catalog/pojacanja'),locale:'sr',
+    products:[{handle:'crna-kapa',title:'Crna kapa'},{handle:'muski-buff',title:"Men's buff",metadata:{i18n:{sr:{title:'Muški buff'}}}},{title:'bez handle'}],
+    breadcrumbNames:{home:'Početna',catalog:'Katalog'},
+  })
+  const listItems=[...collection.mainEntity.itemListElement,...breadcrumb.itemListElement]
+  assert.equal(listItems.length,5)
+  assert.deepEqual(Array.from(collection.mainEntity.itemListElement,item=>item.name),['Crna kapa','Muški buff'])
+  assert.deepEqual(Array.from(collection.mainEntity.itemListElement,item=>item.position),[1,2])
+  for(const item of listItems) {
+    assert.equal(item['@type'],'ListItem')
+    assert.ok(Number.isSafeInteger(item.position)&&item.position>0)
+    assert.ok(item.name.trim(),'Google reports a missing name when a ListItem has none')
+    assert.match(item.item,/^https:\/\/tamir\.rs\/\S+$/,'Google reports a missing item when ListItem has no item')
+    assert.equal(item.url,undefined,'a url key is ignored by Google and leaves the page invalid')
+  }
+  assert.deepEqual(Array.from(breadcrumb.itemListElement,item=>item.item),[siteUrl('/rs'),siteUrl('/rs/catalog'),siteUrl('/rs/catalog/pojacanja')])
 })
 test('category structured data and visible intro are skipped without a resolved category',async()=>{
   const tree=await catalogPage({category:null,initial:{count:3,products:[]}}).default({params:Promise.resolve({countryCode:'rs'}),searchParams:Promise.resolve({})})
