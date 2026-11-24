@@ -11,6 +11,8 @@
 # Второй блок (после деплоя текстов) держит то, из-за чего Search Console показывала
 # «Crawled – currently not indexed»: у категорий и страниц-близнецов должны быть
 # видимый серверный текст, description и CollectionPage/BreadcrumbList разметка.
+# Там же проверяется сама разметка: каждый ListItem публикует `item` и `name`, иначе
+# Search Console отвечает «Отсутствует поле "item" (в itemListElement)».
 # Редирект www -> apex живёт в Cloudflare (Redirect Rule, исключение /api), и этот
 # скрипт проверяет, что правило на месте и чат-API на www не склеивается с apex.
 #
@@ -154,6 +156,35 @@ pagecheck() {
   fi
 }
 
+# listitemcheck <url> — Google в ListItem (ItemList и BreadcrumbList) читает `item` и
+# требует `name`; ключ `url` вне схемы, поэтому разметка с `url` даёт в Search Console
+# ошибку «Отсутствует поле "item" (в itemListElement)» на всех адресах каталога.
+listitemcheck() {
+  local url="$1" body chunk total=0 bad=0
+  body="$(curl -fsSL --max-time 90 -L "$url" 2>/dev/null)"
+  while IFS= read -r chunk; do
+    total=$((total + 1))
+    case "$chunk" in
+      *'"item":"'*) ;;
+      *) echo "FAIL  $url  ListItem без item"; bad=$((bad + 1)); continue ;;
+    esac
+    case "$chunk" in
+      *'"name":"'*) ;;
+      *) echo "FAIL  $url  ListItem без name"; bad=$((bad + 1)); continue ;;
+    esac
+    case "$chunk" in
+      *'"url":"'*) echo "FAIL  $url  ListItem с ключом url — Google его не читает"; bad=$((bad + 1)) ;;
+    esac
+  done < <(printf '%s' "$body" | grep -oE '"@type":"ListItem"[^}]*')
+  if [ "$total" -eq 0 ]; then
+    echo "FAIL  $url  в разметке нет ни одного itemListElement"; fail=$((fail + 1))
+  elif [ "$bad" -gt 0 ]; then
+    fail=$((fail + bad))
+  else
+    echo "PASS  $url  item и name у всех $total ListItem"; pass=$((pass + 1))
+  fi
+}
+
 echo "=== Стенд: X-Robots-Tag: noindex на каждом ответе ==="
 hdrcheck "$STAGING_SITE/rs" yes
 hdrcheck "$STAGING_SITE/" yes
@@ -199,6 +230,8 @@ echo "=== Страницы, которые Search Console не индексир�
 pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'catalog-seo-intro' "видимый текст категории"
 pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'BreadcrumbList' "хлебные крошки в разметке"
 pagecheck "$PROD_SITE/rs/catalog/pojacanja" 'CollectionPage' "разметка коллекции"
+listitemcheck "$PROD_SITE/rs/catalog/pojacanja"
+listitemcheck "$PROD_SITE/en/catalog/buffs"
 pagecheck "$PROD_SITE/en/catalog/buffs" 'catalog-seo-intro' "видимый текст категории"
 pagecheck "$PROD_SITE/en/catalog/buffs" 'Buffs and Neck Gaiters' "en-название категории"
 # Страницы-близнецы должны различаться текстом, а не только цветом в заголовке.
