@@ -217,3 +217,140 @@ test('gate still stops a staging release with a broken Turnstile sitekey', () =>
     fs.rmSync(site, { recursive: true, force: true })
   }
 })
+
+// Секреты деплоя лежат в backend/.env, а Medusa v2 в рантайме читает
+// .medusa/server/.env.production — его кладёт postbuild в момент `medusa build`, и сборка
+// же пересоздаёт `.medusa/server`. Ключ, добавленный в секреты стенда после сборки релиза,
+// до процессов pm2 не доходил (на стенде: QA_CAPTCHA_BYPASS_* в backend/.env, но не в
+// .env.production -> CAPTCHA_REQUIRED). Хелпер staging_sync_runtime_env обязан добирать
+// недостающие ключи, не трогая уже записанные значения.
+const RUNTIME_ENV_HELPER = 'staging_sync_runtime_env'
+
+test(`deploy-staging calls ${RUNTIME_ENV_HELPER} after the backend build`, () => {
+  const lib = read('scripts/lib/staging-release.sh')
+  const helper = lib.match(/staging_sync_runtime_env\(\)\s*\{[\s\S]*?\n\}/)
+  assert.ok(helper, `scripts/lib/staging-release.sh должен определять ${RUNTIME_ENV_HELPER}`)
+
+  const deploy = read('scripts/deploy-staging.sh')
+  const buildAt = deploy.indexOf('npm run build')
+  const syncAt = deploy.indexOf(`${RUNTIME_ENV_HELPER} "$release_dir"`)
+  assert.ok(buildAt >= 0, 'деплой собирает backend через npm run build')
+  assert.ok(syncAt > buildAt, 'синхронизация runtime env обязана идти после medusa build')
+
+  // Значки секретов в вывод деплоя попадать не должны: хелпер печатает только имена ключей.
+  assert.doesNotMatch(helper[0], /echo [^\n]*\$(line|value)\b/, 'хелпер обязан молчать о значениях env')
+})
+
+// findBash даёт и сам интерпретатор, и признак WSL: из WSL пути Windows видны как /mnt/...,
+// а chmod на /mnt/... не работает, поэтому проверку режима там не делаем. Пути передаём через
+// файл-драйвер (WSL не наследует переменные, подставленные в env процесса), переводя их в
+// /mnt/<диск>/... и записывая строго с LF.
+function findBash() {
+  for (const command of ['bash', 'bash.exe']) {
+    const probe = spawnSync(command, ['--version'], { encoding: 'utf8' })
+    if (!probe.error && probe.status === 0) {
+      return { command, wsl: /linux-gnu/.test(probe.stdout ?? '') }
+    }
+  }
+  return null
+}
+
+function toBashPath(target, wsl) {
+  if (!wsl) return target
+  const match = /^([A-Za-z]):[\\/](.*)$/.exec(target)
+  return match ? `/mnt/${match[1].toLowerCase()}/${match[2].replace(/\\/g, '/')}` : target
+}
+
+function runRuntimeSync(bash, site) {
+  const lib = toBashPath(path.join(repoRoot, 'scripts/lib/staging-release.sh'), bash.wsl)
+  const releaseDir = toBashPath(site, bash.wsl)
+  const driver = path.join(site, 'runtime-env-sync.sh')
+  fs.writeFileSync(
+    driver,
+    ['set -Eeuo pipefail', `source '${lib}'`, `${RUNTIME_ENV_HELPER} '${releaseDir}'`, ''].join('\n')
+  )
+  return spawnSync(bash.command, [toBashPath(driver, bash.wsl)], { encoding: 'utf8' })
+}
+
+function writeReleaseEnv(site, relative, lines) {
+  fs.mkdirSync(path.dirname(path.join(site, relative)), { recursive: true })
+  fs.writeFileSync(path.join(site, relative), lines.join('\n') + '\n')
+}
+
+test('runtime env sync adds missing keys and keeps the values the build wrote', (t) => {
+  const bash = findBash()
+  if (!bash) {
+    t.skip('нет bash: хелпер проверен только статически')
+    return
+  }
+  const site = fs.mkdtempSync(path.join(os.tmpdir(), 'tamir-runtime-env-'))
+  const runtimeEnvFile = path.join(site, 'backend/.medusa/server/.env.production')
+  try {
+    writeReleaseEnv(site, 'backend/.env', [
+      'DATABASE_URL=postgres://tamir_staging:tamir_staging@127.0.0.1:5432/tamir_staging',
+      'TURNSTILE_SECRET_KEY=turnstile-value-from-secrets',
+      '# комментарий bootstrap-а, не переменная',
+      'QA_CAPTCHA_BYPASS_HOSTNAMES=test.tamir.rs',
+      'QA_CAPTCHA_BYPASS_TOKEN=qa-bypass-token-value',
+      'SMTP_PASSWORD=mailpit-password-value',
+      'EMPTY_SECRET_IN_SECRETS=',
+    ])
+    writeReleaseEnv(site, 'backend/.medusa/server/.env.production', [
+      'DATABASE_URL=postgres://tamir_staging:tamir_staging@127.0.0.1:5432/tamir_staging',
+      'TURNSTILE_SECRET_KEY=turnstile-value-from-build',
+      'SMTP_PASSWORD=',
+    ])
+
+    const run = runRuntimeSync(bash, site)
+    assert.equal(run.status, 0, `хелпер упал: ${run.stderr}`)
+    const runtime = readFileSync(runtimeEnvFile, 'utf8')
+
+    // 1) ключ, которого в runtime env не было, появился именно со значением из секретов.
+    assert.match(runtime, /^QA_CAPTCHA_BYPASS_TOKEN=qa-bypass-token-value$/m, 'токен обхода обязан дойти до runtime env')
+    assert.match(runtime, /^QA_CAPTCHA_BYPASS_HOSTNAMES=test\.tamir\.rs$/m, 'хост обхода обязан дойти до runtime env')
+    // 2) значение, записанное сборкой, не перезаписывается.
+    assert.match(runtime, /^TURNSTILE_SECRET_KEY=turnstile-value-from-build$/m, 'runtime env сохраняет своё значение')
+    assert.ok(!/turnstile-value-from-secrets/.test(runtime), 'хелпер не имеет права затирать непустые значения')
+    // 3) пустое значение в runtime env добирается из секретов (dotenv берёт последнее вхождение).
+    assert.ok(
+      runtime.slice(runtime.lastIndexOf('SMTP_PASSWORD=')).startsWith('SMTP_PASSWORD=mailpit-password-value'),
+      'пустое значение в runtime env обязано быть добрано из секретов'
+    )
+    // 4) пустой ключ из секретов в runtime env не копируется.
+    assert.doesNotMatch(runtime, /EMPTY_SECRET_IN_SECRETS/, 'пустые значения из секретов в runtime env не нужны')
+    // 5) вывод хелпера не раскрывает секретные значения.
+    const output = `${run.stdout}\n${run.stderr}`
+    assert.ok(!output.includes('qa-bypass-token-value') && !output.includes('mailpit-password-value'),
+      'лог деплоя не должен содержать значения env')
+    assert.match(output, /QA_CAPTCHA_BYPASS_TOKEN/, 'лог называет добавленные ключи')
+    // 6) режим секрета остаётся закрытым.
+    if (!bash.wsl) {
+      assert.equal(fs.statSync(runtimeEnvFile).mode & 0o077, 0, '.env.production не должен быть доступен группе/прочим')
+    }
+
+    // Повторный деплой того же релиза ничего не меняет: идемпотентность важнее скорости.
+    const second = runRuntimeSync(bash, site)
+    assert.equal(second.status, 0, `второй прогон хелпера упал: ${second.stderr}`)
+    assert.equal(readFileSync(runtimeEnvFile, 'utf8'), runtime, 'второй прогон не должен ничего добавлять')
+  } finally {
+    fs.rmSync(site, { recursive: true, force: true })
+  }
+})
+
+test('runtime env sync creates .env.production when the build left none', (t) => {
+  const bash = findBash()
+  if (!bash) {
+    t.skip('нет bash: хелпер проверен только статически')
+    return
+  }
+  const site = fs.mkdtempSync(path.join(os.tmpdir(), 'tamir-runtime-env-init-'))
+  try {
+    writeReleaseEnv(site, 'backend/.env', ['JWT_SECRET=jwt-value-from-secrets', 'QA_CAPTCHA_BYPASS_TOKEN=qa-bypass-token-value'])
+    const run = runRuntimeSync(bash, site)
+    assert.equal(run.status, 0, `хелпер упал: ${run.stderr}`)
+    const runtime = readFileSync(path.join(site, 'backend/.medusa/server/.env.production'), 'utf8')
+    assert.equal(runtime, readFileSync(path.join(site, 'backend/.env'), 'utf8'), 'без .env.production он создаётся копией backend/.env')
+  } finally {
+    fs.rmSync(site, { recursive: true, force: true })
+  }
+})

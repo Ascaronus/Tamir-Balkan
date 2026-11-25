@@ -436,6 +436,57 @@ for (const app of config.apps) {
 JS
 }
 
+# Medusa v2 в рантайме читает не backend/.env, а .medusa/server/.env.production: этот файл
+# кладёт туда postbuild (backend/scripts/postbuild-server.mjs) в момент `medusa build`, а сам
+# `medusa build` пересоздаёт `.medusa/server`. Значит ключ, которого в backend/.env не было
+# на момент сборки (или который дописали в секреты уже после релиза), до процессов pm2 не
+# доходит никогда: на стенде это дало CAPTCHA_REQUIRED — QA_CAPTCHA_BYPASS_* есть в
+# releases/<sha>/backend/.env, но нет в .env.production.
+# Доносим ровно недостающие ключи: непустые значения runtime env не перезаписываем, чтобы
+# зафиксированные в релизе значения (DATABASE_URL, publishable key) оставались своими.
+# В лог — только имена ключей и их количество, без значений.
+staging_sync_runtime_env() {
+  local release_dir="${1:?Release directory required}"
+  local src="$release_dir/backend/.env"
+  local runtime_dir="$release_dir/backend/.medusa/server"
+  local runtime_env="$runtime_dir/.env.production"
+  local line key
+  local added=()
+  test -f "$src" || staging_abort "Нет env-файла релиза: $src"
+  mkdir -p "$runtime_dir"
+  if [ ! -f "$runtime_env" ]; then
+    cp "$src" "$runtime_env"
+    chmod 600 "$runtime_env"
+    staging_note "Runtime env создан из backend/.env: $runtime_env"
+    return 0
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line#export }"
+    # пустые строки, комментарии и строки без '=' к env не относятся
+    if [ -z "$line" ] || [ "${line#\#}" != "$line" ] || [ "${line#*=}" = "$line" ]; then
+      continue
+    fi
+    key="${line%%=*}"
+    if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+    # пустое значение из секретов рантайму не помогает, а непустое значение runtime env не затираем
+    if [ -z "${line#*=}" ] || grep -Eq "^${key}=." "$runtime_env"; then
+      continue
+    fi
+    added+=("$key")
+    printf '%s\n' "$line" >> "$runtime_env"
+  done < "$src"
+  chmod 600 "$runtime_env"
+  if [ "${#added[@]}" -gt 0 ]; then
+    staging_note "Runtime env: добавлено ключей ${#added[@]} (${added[*]})"
+  else
+    staging_note "Runtime env актуален: новых ключей нет"
+  fi
+}
+
 # pm2 resume не подхватывает изменившиеся env-файлы, поэтому рестарт с --update-env.
 staging_restart_apps() {
   local release_dir="$1"

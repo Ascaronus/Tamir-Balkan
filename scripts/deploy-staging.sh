@@ -138,6 +138,11 @@ node "$release_dir/scripts/check-review-config.cjs"
 staging_note "Сборка backend"
 staging_run "$release_dir" "$STAGING_PM2_BACKEND" npm run build
 
+# `medusa build` пересоздаёт `.medusa/server`, а postbuild копирует в `.env.production`
+# только те секреты, что были в backend/.env в момент сборки. Доносим недостающие ключи
+# сюда, до миграций и pm2: иначе runtime (Medusa читает `.env.production`) их не увидит.
+staging_sync_runtime_env "$release_dir"
+
 # Migrations — обязательный шаг staging (прод их не запускает).
 staging_note "Миграции БД staging"
 staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa db:migrate
@@ -148,6 +153,15 @@ staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa exec .
 if [ "${TAMIR_ALLOW_SEED:-0}" = "1" ]; then
   staging_note "Сид по TAMIR_ALLOW_SEED=1"
   staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa exec ./src/scripts/seed.ts
+fi
+
+# Фикстура отзывов для тестов витрины: без опубликованных отзывов блок «Recenzi»
+# пустой, и QA не может проверить чтение отзывов (E2E-13) и голоса (E2E-16).
+# Скрипт идемпотентен и трогает только свои строки (тело начинается с QA-FIXTURE)
+# или удалённые — отзывы реальных покупателей остаются как есть.
+if [ "${TAMIR_QA_REVIEW_FIXTURE:-1}" = "1" ]; then
+  staging_note "QA-фикстура отзывов"
+  staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa exec ./src/scripts/seed-qa-reviews.ts
 fi
 
 # Почта до переключения процессов: STARTTLS + auth к локальному Mailpit.
@@ -174,6 +188,39 @@ password=$admin_password
 EOF
   chmod 600 "$admin_file"
   staging_note "Креды администратора: $admin_file (пароль в отчёты не выносить)"
+fi
+
+# Модератор отзывов. Продуктовый код разрешает менять статус отзыва только
+# пользователю с адресом admin@tamir.local (backend/src/utils/review-validation.ts,
+# isReviewModerator); тот же адрес — дефолт для BANNER_ADMIN_EMAILS и CHAT_ADMIN_EMAILS
+# (backend/src/utils/banner-http.ts, chat/http.ts). Без этого аккаунта на стенде
+# GET /admin/reviews отвечает 403 FORBIDDEN, а QA-проверка модерации (S1-7) не проходит.
+moderator_email="admin@tamir.local"
+# Считаем не строки в "user", а привязанный логин (provider_identity): после
+# анонимизации в "user" остаются записи без identity — входа у них нет, но
+# count(*) выглядит благополучно, и деплой не чинит то, что сломано (замерено 25.11).
+moderator_logins="$(staging_psql_value "SELECT count(*) FROM provider_identity pi JOIN \"user\" u ON u.id = pi.entity_id WHERE u.email = '$moderator_email';" 2>/dev/null || echo 0)"
+if [ "${moderator_logins:-0}" = "0" ]; then
+  staging_note "Создаю модератора отзывов ($moderator_email)"
+  # `medusa user` не идемпотентен (unique violation на email), поэтому сначала
+  # убираем осиротевшие строки этого адреса.
+  staging_psql_value "DELETE FROM provider_identity WHERE entity_id IN (SELECT id FROM \"user\" WHERE email = '$moderator_email'); DELETE FROM \"user\" WHERE email = '$moderator_email';" >/dev/null
+  # Пароль берём из секретов, если он уже был: пересоздание аккаунта не должно
+  # менять CI-секрет MEDUSA_ADMIN_PASSWORD. Иначе — новый.
+  moderator_password="$(sed -n 's/^moderator_password=//p' "$admin_file" 2>/dev/null | head -1 | tr -d '\r')"
+  if [ -z "$moderator_password" ]; then
+    moderator_password="$(openssl rand -base64 18)"
+  fi
+  staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa user -e "$moderator_email" -p "$moderator_password"
+  if ! grep -q '^moderator_email=' "$admin_file" 2>/dev/null; then
+    umask 077
+    cat >> "$admin_file" <<EOF
+# Модератор отзывов (isReviewModerator): отдельная пара логин/пароль в этом же файле.
+moderator_email=$moderator_email
+moderator_password=$moderator_password
+EOF
+    chmod 600 "$admin_file"
+  fi
 fi
 
 staging_note "Сборка витрины"
