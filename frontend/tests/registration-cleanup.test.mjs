@@ -27,10 +27,21 @@ for(const failure of [null,'captcha']) test(`code cannot be sent before CAPTCHA;
  const calls=[]
  const route=load('backend/src/api/store/registration/start/route.ts',{
   '../../../../utils/registration-code':{registrationEmail:()=> 'test@example.test',issueCode:async(_db,_email,send)=>{calls.push('issue');await send('123456');return {challenge_id:'opaque'}}},
-  '../../../../utils/captcha':{verifyCaptcha:async()=>{calls.push('captcha');if(failure)throw Error(failure)}},
+  '../../../../utils/captcha':{verifyCaptcha:async()=>{calls.push('captcha');if(failure)throw Error(failure)},captchaBypassAccepted:()=>false},
   '../../../../utils/review-http':{rateLimit:async()=>calls.push('rate'),reviewDb:()=>({}),reviewFailure:()=>calls.push('rejected')},
   '../../../../utils/registration-email':{sendRegistrationCode:async()=>calls.push('mail')},
  })
  await route.POST({body:{email:'test@example.test',captcha_token:'token'}},{setHeader(){},json:()=>calls.push('response')})
  assert.deepEqual(calls,failure?['rate','captcha','rejected']:['rate','captcha','rate','issue','mail','response'])
+})
+test('a request the QA CAPTCHA guard accepts sends the code without the provider check',async()=>{
+ const calls=[]
+ const route=load('backend/src/api/store/registration/start/route.ts',{
+  '../../../../utils/registration-code':{registrationEmail:()=> 'qa@example.test',issueCode:async(_db,_email,send)=>{calls.push('issue');await send('123456');return {challenge_id:'opaque'}}},
+  '../../../../utils/captcha':{verifyCaptcha:async()=>{calls.push('captcha')},captchaBypassAccepted:()=>true},
+  '../../../../utils/review-http':{rateLimit:async()=>calls.push('rate'),reviewDb:()=>({}),reviewFailure:()=>calls.push('rejected')},
+  '../../../../utils/registration-email':{sendRegistrationCode:async()=>calls.push('mail')},
+ })
+ await route.POST({body:{email:'qa@example.test',_qa_captcha_bypass:'qa-token'},headers:{host:'test.tamir.rs'}},{setHeader(){},json:()=>calls.push('response')})
+ assert.deepEqual(calls,['rate','rate','issue','mail','response'])
 })

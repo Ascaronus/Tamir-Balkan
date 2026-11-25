@@ -29,6 +29,7 @@ MEDUSA_PUBLIC_BACKEND_URL=http://localhost:9000
 | `GOOGLE_TRANSLATE_API_KEY` | Необязательный серверный ключ перевода товаров, опций и категорий |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Почта: код регистрации/сброса и welcome email; порты 587 или 465 |
 | `TURNSTILE_SECRET_KEY`, `TURNSTILE_HOSTNAMES` | Серверная проверка CAPTCHA; рабочие домены витрины |
+| `QA_CAPTCHA_BYPASS_TOKEN`, `QA_CAPTCHA_BYPASS_HOSTNAMES` | Только неком-продакшн стенды: сквозные автотесты (регистрация, сброс пароля, отзыв) проходят проверку CAPTCHA, передавая поле `_qa_captcha_bypass` с этим токеном. Обход включается только когда заданы обе переменные и хост запроса перечислен явно; для `tamir.rs` и `www.tamir.rs` он закрыт при любой конфигурации. По умолчанию не задано — механизм выключен |
 | `REVIEW_RATE_SECRET` | Необязательный отдельный секрет HMAC; иначе используется `JWT_SECRET` |
 | `CHAT_ENCRYPTION_KEY` | Ключ AES-256-GCM для секретов провайдеров чата, которые лежат в таблице `tamir_chat_secret`: ровно 64 hex-символа (32 случайных байта). Без корректного ключа запись секрета возвращает `503 CHAT_ENCRYPTION_KEY_REQUIRED`, открытый текст в базу не попадает. Резервная копия БД без этого ключа секреты чата не восстанавливает |
 | `CHAT_ADMIN_EMAILS` | Bootstrap-адреса менеджера чата через запятую (сверх Medusa-сессии и ролей viewer/operator/manager). Fallback: `BANNER_ADMIN_EMAILS`, затем `admin@tamir.local` |
