@@ -138,6 +138,11 @@ node "$release_dir/scripts/check-review-config.cjs"
 staging_note "Сборка backend"
 staging_run "$release_dir" "$STAGING_PM2_BACKEND" npm run build
 
+# `medusa build` пересоздаёт `.medusa/server`, а postbuild копирует в `.env.production`
+# только те секреты, что были в backend/.env в момент сборки. Доносим недостающие ключи
+# сюда, до миграций и pm2: иначе runtime (Medusa читает `.env.production`) их не увидит.
+staging_sync_runtime_env "$release_dir"
+
 # Migrations — обязательный шаг staging (прод их не запускает).
 staging_note "Миграции БД staging"
 staging_run "$release_dir" "$STAGING_PM2_BACKEND" npx --no-install medusa db:migrate
