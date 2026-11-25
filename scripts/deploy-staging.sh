@@ -199,12 +199,17 @@ moderator_email="admin@tamir.local"
 # Считаем не строки в "user", а привязанный логин (provider_identity): после
 # анонимизации в "user" остаются записи без identity — входа у них нет, но
 # count(*) выглядит благополучно, и деплой не чинит то, что сломано (замерено 25.11).
-moderator_logins="$(staging_psql_value "SELECT count(*) FROM provider_identity pi JOIN \"user\" u ON u.id = pi.entity_id WHERE u.email = '$moderator_email';" 2>/dev/null || echo 0)"
+# ВАЖНО: у провайдера emailpass (Medusa 2.13.6) в provider_identity.entity_id лежит
+# сам адрес входа, а не id пользователя (замерено на стенде SELECT'ом), поэтому
+# JOIN "user" ON u.id = pi.entity_id даёт ложный ноль и деплой лезет пересоздавать
+# существующий аккаунт — `medusa user` падает с "Identity with email already exists".
+moderator_logins="$(staging_psql_value "SELECT count(*) FROM provider_identity WHERE entity_id = '$moderator_email' AND deleted_at IS NULL;" 2>/dev/null || echo 0)"
 if [ "${moderator_logins:-0}" = "0" ]; then
   staging_note "Создаю модератора отзывов ($moderator_email)"
   # `medusa user` не идемпотентен (unique violation на email), поэтому сначала
-  # убираем осиротевшие строки этого адреса.
-  staging_psql_value "DELETE FROM provider_identity WHERE entity_id IN (SELECT id FROM \"user\" WHERE email = '$moderator_email'); DELETE FROM \"user\" WHERE email = '$moderator_email';" >/dev/null
+  # убираем осиротевшие строки этого адреса: identity хранит адрес либо в
+  # entity_id (emailpass), либо ссылается на id пользователя.
+  staging_psql_value "DELETE FROM provider_identity WHERE entity_id = '$moderator_email' OR entity_id IN (SELECT id FROM \"user\" WHERE email = '$moderator_email'); DELETE FROM \"user\" WHERE email = '$moderator_email';" >/dev/null
   # Пароль берём из секретов, если он уже был: пересоздание аккаунта не должно
   # менять CI-секрет MEDUSA_ADMIN_PASSWORD. Иначе — новый.
   moderator_password="$(sed -n 's/^moderator_password=//p' "$admin_file" 2>/dev/null | head -1 | tr -d '\r')"
