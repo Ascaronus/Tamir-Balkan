@@ -122,6 +122,15 @@ test('mailpit web UI opens to the LAN only behind HTTP Basic', () => {
   assert.match(check, /Basic \$\{Buffer\.from\(MAILPIT_AUTH\)\.toString\("base64"\)\}/, 'пароль передаётся заголовком Authorization, а не URL')
 })
 
+// CAPTCHA-обход для автотестов живёт только в стендовом env: bootstrap обязан
+// выпустить токен и привязать его к staging-домену, иначе сценарии регистрации,
+// сброса пароля и отзывов не покрываются на стенде вообще.
+test('bootstrap wires the QA CAPTCHA bypass to the staging hostname only', () => {
+  const bootstrap = read('scripts/staging-bootstrap.sh')
+  assert.match(bootstrap, /QA_CAPTCHA_BYPASS_TOKEN=\$\(secret\)/, 'bootstrap выпускает токен обхода')
+  assert.match(bootstrap, /QA_CAPTCHA_BYPASS_HOSTNAMES=test\.tamir\.rs/, 'обход разрешён только test.tamir.rs')
+})
+
 test('generated ecosystem keeps pm2 names and loopback binding', () => {
   const lib = read('scripts/lib/staging-release.sh')
   const template = lib.match(/<<'ECOSYSTEM'\n([\s\S]*?)\nECOSYSTEM/)
@@ -161,6 +170,8 @@ function stagingFixtureSite(overrides = {}) {
     'REVIEW_RATE_SECRET=' + secret('rate'),
     'TURNSTILE_SECRET_KEY=' + (overrides.turnstileSecret ?? secret('turnstile')),
     'TURNSTILE_HOSTNAMES=test.tamir.rs',
+    'QA_CAPTCHA_BYPASS_TOKEN=' + (overrides.qaToken ?? secret('qa-captcha')),
+    'QA_CAPTCHA_BYPASS_HOSTNAMES=test.tamir.rs',
     'SMTP_HOST=127.0.0.1',
     'SMTP_PORT=587',
     'SMTP_USER=staging@tamir.local',

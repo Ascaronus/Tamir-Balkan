@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto"
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { reviewDb, customerId, publishedProduct, rateLimit, reviewFailure } from "../../../utils/review-http"
 import { reviewInput, publicReview, ReviewError } from "../../../utils/review-validation"
-import { verifyCaptcha } from "../../../utils/captcha"
+import { captchaBypassAccepted, verifyCaptcha } from "../../../utils/captcha"
 
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   res.setHeader("Cache-Control", "no-store")
@@ -36,7 +36,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     const data = reviewInput({ ...input, name: profile.first_name })
     const productId = await publishedProduct(req, input.product_id)
     await rateLimit(req, "review", 10, customer)
-    await verifyCaptcha(input.captcha_token, "review")
+    if (!captchaBypassAccepted(req)) await verifyCaptcha(input.captcha_token, "review")
     const [review] = await reviewDb(req)("tamir_review").insert({ id: "rev_" + randomUUID(), product_id: productId, customer_id: customer, ...data }).returning("*")
     res.status(201).json({ review: publicReview(review) })
   } catch (error) { reviewFailure(error, res) }
