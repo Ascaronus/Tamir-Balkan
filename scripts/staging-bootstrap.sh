@@ -124,7 +124,9 @@ TURNSTILE_HOSTNAMES=test.tamir.rs
 # стенде, где он включён намеренно. Обход действует только при обоих значениях и
 # только для перечисленного хоста; для tamir.rs/www.tamir.rs он закрыт полностью.
 QA_CAPTCHA_BYPASS_TOKEN=$(secret)
-QA_CAPTCHA_BYPASS_HOSTNAMES=test.tamir.rs
+# Host-список обязан включать и API-хост: сценарные тесты шлют запросы напрямую на
+# test-api.tamir.rs, а обход капчи сверяется с заголовком Host.
+QA_CAPTCHA_BYPASS_HOSTNAMES=test.tamir.rs,test-api.tamir.rs
 EOF
   chmod 600 "$STAGING_ENV_FILE"
   staging_note "Сгенерирован $STAGING_ENV_FILE"
